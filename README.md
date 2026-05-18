@@ -2,6 +2,20 @@
 
 Weave-It is a TypeScript CLI package. The npm package is `weave-it` and the CLI binary is `weave`.
 
+## What Is Weave?
+
+Weave is an SDLC tool for AI-assisted software teams. It is designed to work with agents and coding tools like Claude, Codex, OpenCode, and similar systems.
+
+The goal is to give AI tools durable project context across the full software lifecycle:
+
+- Product discovery and requirements
+- Engineering planning and implementation
+- Cross-repo code exploration
+- QA notes, validation, and handoff
+- Long-lived product and technical knowledge
+
+Each repo can contain a `weave/` folder that acts like an LLM-friendly wiki for that repo. Weave also maintains a temporary local session so agents can understand which folders/repos should be considered together for the current task.
+
 ## Requirements
 
 - Node.js `>=22.12`
