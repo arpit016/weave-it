@@ -1,0 +1,6 @@
+version: 1
+documents:
+  knowledge.index:
+    path: weave/knowledge/index.md
+    hash: sha256:52c1ef2b2ebf773902f1b8e607f20bd7384462a6c6ede73056dc5129ea59460b
+    status: synced
