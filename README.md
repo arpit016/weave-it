@@ -205,6 +205,137 @@ npm run dev -- workspace
 npm run dev -- workspace --json
 ```
 
+## `weave agent`
+
+Installs and manages Weave Agent Skills for supported coding agents.
+
+```bash
+weave agent <install|update|diff|reset> <agent> [skill]
+```
+
+Agents:
+
+```text
+codex      install Agent Skills to .agents/skills
+cursor     install Agent Skills to .agents/skills
+claude     install Agent Skills to .claude/skills
+opencode   install Agent Skills to .agents/skills and slash commands to .opencode/commands
+all        install every supported integration
+```
+
+Examples:
+
+```bash
+weave agent install opencode
+weave agent update opencode
+weave agent diff opencode weave-prd
+weave agent reset opencode weave-prd
+```
+
+`install` and `update` protect user edits. They update files only when the current file still matches the last Weave-installed hash in `weave/agents.yml`. If a user edits an installed skill or command wrapper, Weave skips it. `reset` is the explicit overwrite path.
+
+## Using `weave-prd`
+
+Weave ships the `weave-prd` Agent Skill for product discovery and PRD refinement. The workflow starts by running `weave workspace --json`, reading relevant `weave/knowledge/**` and `weave/features/**` context, then guiding the agent through product questions before creating or updating a PRD.
+
+Install it for one agent:
+
+```bash
+weave agent install claude
+weave agent install cursor
+weave agent install codex
+weave agent install opencode
+```
+
+Or install every supported integration:
+
+```bash
+weave agent install all
+```
+
+Install targets:
+
+```text
+claude     .claude/skills/weave-prd/SKILL.md
+cursor     .agents/skills/weave-prd/SKILL.md
+codex      .agents/skills/weave-prd/SKILL.md
+opencode   .agents/skills/weave-prd/SKILL.md
+opencode   .opencode/commands/weave-prd.md
+```
+
+### Claude Code
+
+Install:
+
+```bash
+weave agent install claude
+```
+
+Then start Claude Code in the repo and ask:
+
+```text
+/weave-prd "Analytics of reviews"
+```
+
+### Cursor
+
+Install:
+
+```bash
+weave agent install cursor
+```
+
+Then ask Cursor Agent from the repo:
+
+```text
+/weave-prd "Analytics of reviews"
+```
+
+### Codex
+
+Install:
+
+```bash
+weave agent install codex
+```
+
+Then ask Codex from the repo:
+
+```text
+$weave-prd "Analytics of reviews"
+```
+
+### opencode
+
+Install:
+
+```bash
+weave agent install opencode
+```
+
+Then invoke the slash command in opencode:
+
+```text
+/weave-prd "Analytics of reviews"
+```
+
+Or invoke the skill naturally:
+
+```text
+Use the weave-prd skill for Analytics of reviews.
+```
+
+Claude Code and Cursor can invoke the installed skill directly with `/weave-prd`. opencode gets a small `/weave-prd` command wrapper that delegates to the portable skill in `.agents/skills`. Codex uses `$weave-prd` to explicitly invoke the skill. Weave does not install `.opencode/skills` by default.
+
+## `weave skills` and `weave skill`
+
+Lists and prints bundled Weave skills.
+
+```bash
+weave skills list
+weave skill show weave-prd
+```
+
 ## Project Structure
 
 ```text
@@ -212,10 +343,13 @@ src/
   cli.ts
   commands/
     add.ts
+    agent.ts
     init.ts
+    skills.ts
     workspace.ts
   lib/
     add-folder.ts
+    agent-skills.ts
     files.ts
     folders.ts
     git.ts
@@ -225,10 +359,18 @@ src/
     show-workspace.ts
     sync.ts
     weave-scaffold.ts
+templates/
+  opencode/
+    commands/
+  skills/
 tests/
+  agent-skills.test.ts
+  cli-skills.test.ts
   init.test.ts
 weave-it/
   implementation-plan.md
+  opencode-skills-implementation-plan.md
+  skills-implementation-plan.md
   weave-init-v1.md
 ```
 
