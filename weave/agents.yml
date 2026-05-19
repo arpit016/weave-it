@@ -1,8 +1,8 @@
 version: 1
 installed:
   codex:
-    explore-product:
-      path: .agents/skills/explore-product/SKILL.md
-      source_hash: sha256:660ebb235381329ad3808f6fca69135f9d36fbca232451868dc0220f443a4ccd
-      installed_hash: sha256:660ebb235381329ad3808f6fca69135f9d36fbca232451868dc0220f443a4ccd
-      installed_at: 2026-05-19T15:07:47.524Z
+    weave-prd:
+      path: .agents/skills/weave-prd/SKILL.md
+      source_hash: sha256:487f86785bc9f91310a8560ecb082a3fa62b6516f8213b958a6e734685d0d18e
+      installed_hash: sha256:487f86785bc9f91310a8560ecb082a3fa62b6516f8213b958a6e734685d0d18e
+      installed_at: 2026-05-19T15:33:11.495Z
