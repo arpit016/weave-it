@@ -17,7 +17,7 @@ export function agentCommand(): Command {
   command
     .command("install")
     .description("Install Weave skills for an agent.")
-    .argument("<agent>", "codex, cursor, claude, or all", parseAgentSelection)
+    .argument("<agent>", "codex, cursor, claude, opencode, or all", parseAgentSelection)
     .option("--json", "print machine-readable JSON")
     .action(async (agent: AgentSelection, options: JsonOption) => {
       await runAction(async () => {
@@ -29,7 +29,7 @@ export function agentCommand(): Command {
   command
     .command("update")
     .description("Update installed Weave skills when they have not been modified.")
-    .argument("<agent>", "codex, cursor, claude, or all", parseAgentSelection)
+    .argument("<agent>", "codex, cursor, claude, opencode, or all", parseAgentSelection)
     .option("--json", "print machine-readable JSON")
     .action(async (agent: AgentSelection, options: JsonOption) => {
       await runAction(async () => {
@@ -41,7 +41,7 @@ export function agentCommand(): Command {
   command
     .command("diff")
     .description("Show differences between installed skills and current Weave defaults.")
-    .argument("<agent>", "codex, cursor, claude, or all", parseAgentSelection)
+    .argument("<agent>", "codex, cursor, claude, opencode, or all", parseAgentSelection)
     .argument("[skill]", "skill name")
     .action(async (agent: AgentSelection, skill?: string) => {
       await runAction(async () => {
@@ -53,7 +53,7 @@ export function agentCommand(): Command {
   command
     .command("reset")
     .description("Overwrite installed skills with current Weave defaults.")
-    .argument("<agent>", "codex, cursor, claude, or all", parseAgentSelection)
+    .argument("<agent>", "codex, cursor, claude, opencode, or all", parseAgentSelection)
     .argument("[skill]", "skill name")
     .option("--json", "print machine-readable JSON")
     .action(async (agent: AgentSelection, skill: string | undefined, options: JsonOption) => {
@@ -67,7 +67,7 @@ export function agentCommand(): Command {
 }
 
 function parseAgentSelection(value: string): AgentSelection {
-  if (value === "codex" || value === "cursor" || value === "claude" || value === "all") {
+  if (value === "codex" || value === "cursor" || value === "claude" || value === "opencode" || value === "all") {
     return value;
   }
 

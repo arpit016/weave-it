@@ -1,13 +1,14 @@
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { ensureDir, pathExists, writeFileAtomic } from "./files.js";
 
-export type AgentName = "codex" | "cursor" | "claude";
+export type AgentName = "codex" | "cursor" | "claude" | "opencode";
 export type AgentSelection = AgentName | "all";
+export type ManagedArtifactKind = "skill" | "command";
 export type SkillOperationStatus = "installed" | "unchanged" | "modified" | "updated" | "reset" | "missing";
 
 export interface DefaultSkill {
@@ -18,8 +19,16 @@ export interface DefaultSkill {
   hash: string;
 }
 
+interface DefaultCommand {
+  name: string;
+  sourcePath: string;
+  content: string;
+  hash: string;
+}
+
 export interface SkillOperationResult {
   agent: AgentName;
+  kind: ManagedArtifactKind;
   skill: string;
   path: string;
   status: SkillOperationStatus;
@@ -36,6 +45,7 @@ interface AgentSkillOptions {
   cwd: string;
   agent: AgentSelection;
   templatesDir?: string;
+  commandTemplatesDir?: string;
   now?: Date;
 }
 
@@ -54,20 +64,34 @@ interface ManifestEntry {
   installed_at: string;
 }
 
+interface AgentManifestEntries {
+  skills?: Record<string, ManifestEntry>;
+  commands?: Record<string, ManifestEntry>;
+}
+
 interface AgentsManifest {
   version: 1;
-  installed: Partial<Record<AgentName, Record<string, ManifestEntry>>>;
+  installed: Partial<Record<AgentName, AgentManifestEntries>>;
 }
 
 interface ConcreteTarget {
   agent: AgentName;
   skillsDir: string;
+  commandsDir?: string;
+}
+
+interface ManagedArtifact {
+  kind: ManagedArtifactKind;
+  name: string;
+  content: string;
+  hash: string;
+  destination: string;
 }
 
 const manifestRelativePath = join("weave", "agents.yml");
 
 export async function listDefaultSkills(options: { templatesDir?: string } = {}): Promise<DefaultSkill[]> {
-  const templatesDir = options.templatesDir ?? (await findDefaultTemplatesDir());
+  const templatesDir = options.templatesDir ?? (await findDefaultSkillsDir());
   const entries = await readdir(templatesDir, { withFileTypes: true });
   const skills = await Promise.all(
     entries
@@ -84,7 +108,7 @@ export async function readDefaultSkill(
 ): Promise<DefaultSkill> {
   validateSkillName(name);
 
-  const templatesDir = options.templatesDir ?? (await findDefaultTemplatesDir());
+  const templatesDir = options.templatesDir ?? (await findDefaultSkillsDir());
   const sourcePath = join(templatesDir, name, "SKILL.md");
   const content = await readFile(sourcePath, "utf8").catch((error: unknown) => {
     if (isNodeError(error) && error.code === "ENOENT") {
@@ -110,12 +134,12 @@ export async function readDefaultSkill(
 
 export async function installAgentSkills(options: AgentSkillOptions): Promise<SkillOperationSummary> {
   const manifest = await loadAgentsManifest(options.cwd);
-  const skills = await listDefaultSkills({ templatesDir: options.templatesDir });
   const results: SkillOperationResult[] = [];
 
   for (const target of resolveAgentTargets(options.cwd, options.agent)) {
-    for (const skill of skills) {
-      results.push(await installSkill(options.cwd, target, skill, manifest, options.now ?? new Date()));
+    const artifacts = await defaultArtifactsForTarget(target, options);
+    for (const artifact of artifacts) {
+      results.push(await installArtifact(options.cwd, target.agent, artifact, manifest, options.now ?? new Date()));
     }
   }
 
@@ -126,12 +150,12 @@ export async function installAgentSkills(options: AgentSkillOptions): Promise<Sk
 
 export async function updateAgentSkills(options: AgentSkillOptions): Promise<SkillOperationSummary> {
   const manifest = await loadAgentsManifest(options.cwd);
-  const skills = await listDefaultSkills({ templatesDir: options.templatesDir });
   const results: SkillOperationResult[] = [];
 
   for (const target of resolveAgentTargets(options.cwd, options.agent)) {
-    for (const skill of skills) {
-      results.push(await updateSkill(options.cwd, target, skill, manifest, options.now ?? new Date()));
+    const artifacts = await defaultArtifactsForTarget(target, options);
+    for (const artifact of artifacts) {
+      results.push(await updateArtifact(options.cwd, target.agent, artifact, manifest, options.now ?? new Date()));
     }
   }
 
@@ -142,14 +166,12 @@ export async function updateAgentSkills(options: AgentSkillOptions): Promise<Ski
 
 export async function resetAgentSkills(options: ResetAgentSkillOptions): Promise<SkillOperationSummary> {
   const manifest = await loadAgentsManifest(options.cwd);
-  const skills = options.skill
-    ? [await readDefaultSkill(options.skill, { templatesDir: options.templatesDir })]
-    : await listDefaultSkills({ templatesDir: options.templatesDir });
   const results: SkillOperationResult[] = [];
 
   for (const target of resolveAgentTargets(options.cwd, options.agent)) {
-    for (const skill of skills) {
-      results.push(await resetSkill(options.cwd, target, skill, manifest, options.now ?? new Date()));
+    const artifacts = await defaultArtifactsForTarget(target, options, options.skill);
+    for (const artifact of artifacts) {
+      results.push(await resetArtifact(options.cwd, target.agent, artifact, manifest, options.now ?? new Date()));
     }
   }
 
@@ -159,21 +181,25 @@ export async function resetAgentSkills(options: ResetAgentSkillOptions): Promise
 }
 
 export async function diffAgentSkills(options: DiffAgentSkillOptions): Promise<{ status: "ok"; message: string }> {
-  const skills = options.skill
-    ? [await readDefaultSkill(options.skill, { templatesDir: options.templatesDir })]
-    : await listDefaultSkills({ templatesDir: options.templatesDir });
   const chunks: string[] = [];
 
   for (const target of resolveAgentTargets(options.cwd, options.agent)) {
-    for (const skill of skills) {
-      const installedPath = installedSkillPath(target.skillsDir, skill.name);
-      if (!(await pathExists(installedPath))) {
-        chunks.push(`Missing ${target.agent}/${skill.name} at ${relative(options.cwd, installedPath)}`);
+    const artifacts = await defaultArtifactsForTarget(target, options, options.skill);
+    for (const artifact of artifacts) {
+      if (!(await pathExists(artifact.destination))) {
+        chunks.push(`Missing ${target.agent}/${artifact.kind}/${artifact.name} at ${relative(options.cwd, artifact.destination)}`);
         continue;
       }
 
-      const installed = await readFile(installedPath, "utf8");
-      chunks.push(formatFullFileDiff(relative(options.cwd, installedPath), skill.name, installed, skill.content));
+      const installed = await readFile(artifact.destination, "utf8");
+      chunks.push(
+        formatFullFileDiff(
+          relative(options.cwd, artifact.destination),
+          `${artifact.kind}:${artifact.name}`,
+          installed,
+          artifact.content,
+        ),
+      );
     }
   }
 
@@ -183,104 +209,204 @@ export async function diffAgentSkills(options: DiffAgentSkillOptions): Promise<{
   };
 }
 
-async function installSkill(
-  cwd: string,
+async function defaultArtifactsForTarget(
   target: ConcreteTarget,
-  skill: DefaultSkill,
+  options: Pick<AgentSkillOptions, "templatesDir" | "commandTemplatesDir">,
+  onlyName?: string,
+): Promise<ManagedArtifact[]> {
+  const skills = onlyName
+    ? [await readDefaultSkill(onlyName, { templatesDir: options.templatesDir })]
+    : await listDefaultSkills({ templatesDir: options.templatesDir });
+  const artifacts: ManagedArtifact[] = skills.map((skill) => ({
+    kind: "skill",
+    name: skill.name,
+    content: skill.content,
+    hash: skill.hash,
+    destination: installedSkillPath(target.skillsDir, skill.name),
+  }));
+
+  if (target.agent === "opencode" && target.commandsDir) {
+    const commands = onlyName
+      ? await maybeReadDefaultOpencodeCommand(onlyName, { commandTemplatesDir: options.commandTemplatesDir })
+      : await listDefaultOpencodeCommands({ commandTemplatesDir: options.commandTemplatesDir });
+
+    for (const command of Array.isArray(commands) ? commands : commands ? [commands] : []) {
+      artifacts.push({
+        kind: "command",
+        name: command.name,
+        content: command.content,
+        hash: command.hash,
+        destination: installedOpencodeCommandPath(target.commandsDir, command.name),
+      });
+    }
+  }
+
+  return artifacts;
+}
+
+async function listDefaultOpencodeCommands(
+  options: { commandTemplatesDir?: string } = {},
+): Promise<DefaultCommand[]> {
+  const commandTemplatesDir = options.commandTemplatesDir ?? (await findDefaultOpencodeCommandsDir());
+  const entries = await readdir(commandTemplatesDir, { withFileTypes: true }).catch((error: unknown) => {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  });
+  const commands = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && extname(entry.name) === ".md")
+      .map((entry) => readDefaultOpencodeCommand(basename(entry.name, ".md"), { commandTemplatesDir })),
+  );
+
+  return commands.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+async function readDefaultOpencodeCommand(
+  name: string,
+  options: { commandTemplatesDir?: string } = {},
+): Promise<DefaultCommand> {
+  validateSkillName(name);
+
+  const commandTemplatesDir = options.commandTemplatesDir ?? (await findDefaultOpencodeCommandsDir());
+  const sourcePath = join(commandTemplatesDir, `${name}.md`);
+  const content = await readFile(sourcePath, "utf8");
+
+  return {
+    name,
+    sourcePath,
+    content,
+    hash: hashContent(content),
+  };
+}
+
+async function maybeReadDefaultOpencodeCommand(
+  name: string,
+  options: { commandTemplatesDir?: string } = {},
+): Promise<DefaultCommand | undefined> {
+  return readDefaultOpencodeCommand(name, options).catch((error: unknown) => {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return undefined;
+    }
+
+    throw error;
+  });
+}
+
+async function installArtifact(
+  cwd: string,
+  agent: AgentName,
+  artifact: ManagedArtifact,
   manifest: AgentsManifest,
   now: Date,
 ): Promise<SkillOperationResult> {
-  const destination = installedSkillPath(target.skillsDir, skill.name);
-  const relativePath = relative(cwd, destination);
-  await ensureDir(dirname(destination));
+  const relativePath = relative(cwd, artifact.destination);
+  await ensureDir(dirname(artifact.destination));
 
-  if (!(await pathExists(destination))) {
-    await writeFile(destination, skill.content);
-    setManifestEntry(manifest, target.agent, skill, relativePath, now);
-    return result(target.agent, skill.name, relativePath, "installed", `Installed ${skill.name} for ${target.agent}`);
+  if (!(await pathExists(artifact.destination))) {
+    await writeFile(artifact.destination, artifact.content);
+    setManifestEntry(manifest, agent, artifact, relativePath, now);
+    return result(agent, artifact, relativePath, "installed", `Installed ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  const currentHash = hashContent(await readFile(destination, "utf8"));
-  const entry = manifest.installed[target.agent]?.[skill.name];
+  const currentHash = hashContent(await readFile(artifact.destination, "utf8"));
+  const entry = getManifestEntry(manifest, agent, artifact.kind, artifact.name);
   if (entry && currentHash !== entry.installed_hash) {
-    return result(target.agent, skill.name, relativePath, "modified", `Skipped modified ${skill.name} for ${target.agent}`);
+    return result(agent, artifact, relativePath, "modified", `Skipped modified ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  if (!entry && currentHash !== skill.hash) {
-    return result(target.agent, skill.name, relativePath, "modified", `Skipped existing ${skill.name} for ${target.agent}`);
+  if (!entry && currentHash !== artifact.hash) {
+    return result(agent, artifact, relativePath, "modified", `Skipped existing ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  if (entry && currentHash === entry.installed_hash && currentHash !== skill.hash) {
-    await writeFile(destination, skill.content);
-    setManifestEntry(manifest, target.agent, skill, relativePath, now);
-    return result(target.agent, skill.name, relativePath, "updated", `Updated ${skill.name} for ${target.agent}`);
+  if (entry && currentHash === entry.installed_hash && currentHash !== artifact.hash) {
+    await writeFile(artifact.destination, artifact.content);
+    setManifestEntry(manifest, agent, artifact, relativePath, now);
+    return result(agent, artifact, relativePath, "updated", `Updated ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  setManifestEntry(manifest, target.agent, skill, relativePath, now);
-  return result(target.agent, skill.name, relativePath, "unchanged", `${skill.name} already installed for ${target.agent}`);
+  setManifestEntry(manifest, agent, artifact, relativePath, now);
+  return result(agent, artifact, relativePath, "unchanged", `${artifact.name} ${artifact.kind} already installed for ${agent}`);
 }
 
-async function updateSkill(
+async function updateArtifact(
   cwd: string,
-  target: ConcreteTarget,
-  skill: DefaultSkill,
+  agent: AgentName,
+  artifact: ManagedArtifact,
   manifest: AgentsManifest,
   now: Date,
 ): Promise<SkillOperationResult> {
-  const destination = installedSkillPath(target.skillsDir, skill.name);
-  const relativePath = relative(cwd, destination);
+  const relativePath = relative(cwd, artifact.destination);
 
-  if (!(await pathExists(destination))) {
-    return result(target.agent, skill.name, relativePath, "missing", `Missing ${skill.name} for ${target.agent}`);
+  if (!(await pathExists(artifact.destination))) {
+    return result(agent, artifact, relativePath, "missing", `Missing ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  const currentHash = hashContent(await readFile(destination, "utf8"));
-  const entry = manifest.installed[target.agent]?.[skill.name];
+  const currentHash = hashContent(await readFile(artifact.destination, "utf8"));
+  const entry = getManifestEntry(manifest, agent, artifact.kind, artifact.name);
   if (!entry || currentHash !== entry.installed_hash) {
-    return result(target.agent, skill.name, relativePath, "modified", `Skipped modified ${skill.name} for ${target.agent}`);
+    return result(agent, artifact, relativePath, "modified", `Skipped modified ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  if (currentHash === skill.hash) {
-    setManifestEntry(manifest, target.agent, skill, relativePath, now);
-    return result(target.agent, skill.name, relativePath, "unchanged", `${skill.name} already up to date for ${target.agent}`);
+  if (currentHash === artifact.hash) {
+    setManifestEntry(manifest, agent, artifact, relativePath, now);
+    return result(agent, artifact, relativePath, "unchanged", `${artifact.name} ${artifact.kind} already up to date for ${agent}`);
   }
 
-  await writeFile(destination, skill.content);
-  setManifestEntry(manifest, target.agent, skill, relativePath, now);
-  return result(target.agent, skill.name, relativePath, "updated", `Updated ${skill.name} for ${target.agent}`);
+  await writeFile(artifact.destination, artifact.content);
+  setManifestEntry(manifest, agent, artifact, relativePath, now);
+  return result(agent, artifact, relativePath, "updated", `Updated ${artifact.name} ${artifact.kind} for ${agent}`);
 }
 
-async function resetSkill(
+async function resetArtifact(
   cwd: string,
-  target: ConcreteTarget,
-  skill: DefaultSkill,
+  agent: AgentName,
+  artifact: ManagedArtifact,
   manifest: AgentsManifest,
   now: Date,
 ): Promise<SkillOperationResult> {
-  const destination = installedSkillPath(target.skillsDir, skill.name);
-  const relativePath = relative(cwd, destination);
+  const relativePath = relative(cwd, artifact.destination);
 
-  await ensureDir(dirname(destination));
-  await writeFile(destination, skill.content);
-  setManifestEntry(manifest, target.agent, skill, relativePath, now);
+  await ensureDir(dirname(artifact.destination));
+  await writeFile(artifact.destination, artifact.content);
+  setManifestEntry(manifest, agent, artifact, relativePath, now);
 
-  return result(target.agent, skill.name, relativePath, "reset", `Reset ${skill.name} for ${target.agent}`);
+  return result(agent, artifact, relativePath, "reset", `Reset ${artifact.name} ${artifact.kind} for ${agent}`);
 }
 
 function setManifestEntry(
   manifest: AgentsManifest,
   agent: AgentName,
-  skill: DefaultSkill,
+  artifact: ManagedArtifact,
   relativePath: string,
   now: Date,
 ): void {
   manifest.installed[agent] ??= {};
-  manifest.installed[agent][skill.name] = {
+  const entries = manifest.installed[agent];
+  if (!entries) {
+    return;
+  }
+
+  const bucket = artifact.kind === "skill" ? "skills" : "commands";
+  entries[bucket] ??= {};
+  entries[bucket][artifact.name] = {
     path: relativePath,
-    source_hash: skill.hash,
-    installed_hash: skill.hash,
+    source_hash: artifact.hash,
+    installed_hash: artifact.hash,
     installed_at: now.toISOString(),
   };
+}
+
+function getManifestEntry(
+  manifest: AgentsManifest,
+  agent: AgentName,
+  kind: ManagedArtifactKind,
+  name: string,
+): ManifestEntry | undefined {
+  const entries = manifest.installed[agent];
+  return kind === "skill" ? entries?.skills?.[name] : entries?.commands?.[name];
 }
 
 function resolveAgentTargets(cwd: string, agent: AgentSelection): ConcreteTarget[] {
@@ -291,10 +417,14 @@ function resolveAgentTargets(cwd: string, agent: AgentSelection): ConcreteTarget
       return [{ agent, skillsDir: join(cwd, ".agents", "skills") }];
     case "claude":
       return [{ agent, skillsDir: join(cwd, ".claude", "skills") }];
+    case "opencode":
+      return [{ agent, skillsDir: join(cwd, ".agents", "skills"), commandsDir: join(cwd, ".opencode", "commands") }];
     case "all":
       return [
         { agent: "codex", skillsDir: join(cwd, ".agents", "skills") },
+        { agent: "cursor", skillsDir: join(cwd, ".agents", "skills") },
         { agent: "claude", skillsDir: join(cwd, ".claude", "skills") },
+        { agent: "opencode", skillsDir: join(cwd, ".agents", "skills"), commandsDir: join(cwd, ".opencode", "commands") },
       ];
     default:
       throw new Error(`Unsupported agent: ${agent satisfies never}`);
@@ -303,6 +433,10 @@ function resolveAgentTargets(cwd: string, agent: AgentSelection): ConcreteTarget
 
 function installedSkillPath(skillsDir: string, skillName: string): string {
   return join(skillsDir, skillName, "SKILL.md");
+}
+
+function installedOpencodeCommandPath(commandsDir: string, commandName: string): string {
+  return join(commandsDir, `${commandName}.md`);
 }
 
 async function loadAgentsManifest(cwd: string): Promise<AgentsManifest> {
@@ -343,7 +477,7 @@ function parseSkillFrontmatter(content: string, sourcePath: string): { name: str
   };
 }
 
-function formatFullFileDiff(installedPath: string, skillName: string, installed: string, currentDefault: string): string {
+function formatFullFileDiff(installedPath: string, defaultName: string, installed: string, currentDefault: string): string {
   if (installed === currentDefault) {
     return `No differences for ${installedPath}`;
   }
@@ -353,7 +487,7 @@ function formatFullFileDiff(installedPath: string, skillName: string, installed:
 
   return [
     `--- installed:${installedPath}`,
-    `+++ default:${skillName}`,
+    `+++ default:${defaultName}`,
     ...installedLines.map((line) => `-${line}`),
     ...defaultLines.map((line) => `+${line}`),
   ].join("\n");
@@ -365,12 +499,12 @@ function splitLines(value: string): string[] {
 
 function result(
   agent: AgentName,
-  skill: string,
+  artifact: ManagedArtifact,
   path: string,
   status: SkillOperationStatus,
   message: string,
 ): SkillOperationResult {
-  return { agent, skill, path, status, message };
+  return { agent, kind: artifact.kind, skill: artifact.name, path, status, message };
 }
 
 function summarize(results: SkillOperationResult[]): SkillOperationSummary {
@@ -385,18 +519,26 @@ function hashContent(content: string): string {
   return `sha256:${createHash("sha256").update(content).digest("hex")}`;
 }
 
-async function findDefaultTemplatesDir(): Promise<string> {
+async function findDefaultSkillsDir(): Promise<string> {
+  return join(await findTemplatesRoot(), "skills");
+}
+
+async function findDefaultOpencodeCommandsDir(): Promise<string> {
+  return join(await findTemplatesRoot(), "opencode", "commands");
+}
+
+async function findTemplatesRoot(): Promise<string> {
   let current = dirname(fileURLToPath(import.meta.url));
 
   while (true) {
-    const candidate = join(current, "templates", "skills");
+    const candidate = join(current, "templates");
     try {
       await access(candidate, constants.R_OK);
       return candidate;
     } catch {
       const parent = dirname(current);
       if (parent === current) {
-        throw new Error("Could not locate templates/skills");
+        throw new Error("Could not locate templates");
       }
 
       current = parent;
@@ -405,7 +547,7 @@ async function findDefaultTemplatesDir(): Promise<string> {
 }
 
 function validateSkillName(name: string): void {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) {
     throw new Error(`Invalid skill name: ${name}`);
   }
 }
