@@ -1,17 +1,29 @@
 import { Command } from "commander";
 import { addCommand } from "./commands/add.js";
+import { agentCommand } from "./commands/agent.js";
 import { initCommand } from "./commands/init.js";
+import { skillCommand, skillsCommand } from "./commands/skills.js";
 import { workspaceCommand } from "./commands/workspace.js";
+import { pathToFileURL } from "node:url";
 
-const program = new Command();
+export function createProgram(): Command {
+  const program = new Command();
 
-program
-  .name("weave")
-  .description("Repo-local LLM wiki and temporary multi-folder AI session tooling.")
-  .version("0.1.0");
+  program
+    .name("weave")
+    .description("Repo-local LLM wiki and temporary multi-folder AI session tooling.")
+    .version("0.1.0");
 
-program.addCommand(initCommand());
-program.addCommand(addCommand());
-program.addCommand(workspaceCommand());
+  program.addCommand(initCommand());
+  program.addCommand(addCommand());
+  program.addCommand(workspaceCommand());
+  program.addCommand(agentCommand());
+  program.addCommand(skillsCommand());
+  program.addCommand(skillCommand());
 
-await program.parseAsync(process.argv);
+  return program;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await createProgram().parseAsync(process.argv);
+}

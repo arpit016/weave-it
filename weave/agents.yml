@@ -1,0 +1,8 @@
+version: 1
+installed:
+  codex:
+    explore-product:
+      path: .agents/skills/explore-product/SKILL.md
+      source_hash: sha256:660ebb235381329ad3808f6fca69135f9d36fbca232451868dc0220f443a4ccd
+      installed_hash: sha256:660ebb235381329ad3808f6fca69135f9d36fbca232451868dc0220f443a4ccd
+      installed_at: 2026-05-19T15:07:47.524Z
