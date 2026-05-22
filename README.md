@@ -205,6 +205,53 @@ npm run dev -- workspace
 npm run dev -- workspace --json
 ```
 
+## `weave feature`
+
+Creates and propagates durable feature exploration folders under `wiki/features/`.
+
+```bash
+weave feature new "<title>" [options]
+weave feature propagate <feature-id> --to <target...> [options]
+```
+
+`weave feature new` creates a feature id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, and creates or checks out the matching git branch:
+
+```text
+feature/{feature-id}
+```
+
+Options for `new`:
+
+```text
+--slug <slug>          feature slug override
+--target <target...>   target folder path or current session folder id
+--json                 print machine-readable JSON
+```
+
+Options for `propagate`:
+
+```text
+--from <target>        source folder path or current session folder id
+--to <target...>       target folder path or current session folder id
+--json                 print machine-readable JSON
+```
+
+Examples:
+
+```bash
+weave feature new "Analytics of reviews"
+weave feature new "Analytics of reviews" --slug review-analytics --target app api
+weave feature propagate 260522-f3q9-review-analytics --from app --to api
+```
+
+From source:
+
+```bash
+npm run dev -- feature new "Analytics of reviews"
+```
+
+If a target is not a git repo, Weave still writes the feature artifacts and reports branch creation as skipped.
+
 ## `weave agent`
 
 Installs and manages Weave Agent Skills for supported coding agents.
@@ -234,11 +281,20 @@ weave agent reset opencode weave-prd
 
 `install` and `update` protect user edits. They update files only when the current file still matches the last Weave-installed hash in `.weave/agents.yml`. If a user edits an installed skill or command wrapper, Weave skips it. `reset` is the explicit overwrite path.
 
-## Using `weave-prd`
+## Using Weave Skills
 
-Weave ships the `weave-prd` Agent Skill for product discovery and PRD refinement. The workflow starts by running `weave workspace --json`, reading relevant `wiki/knowledge/**` and `wiki/features/**` context, then guiding the agent through product questions before creating or updating a PRD.
+Weave ships Agent Skills for feature discovery and feature workflow scaffolding. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/features/**` as durable context.
 
-Install it for one agent:
+Skills:
+
+```text
+weave-new          start a new feature exploration from a title or topic
+weave-capture      capture the current discussion as a feature exploration
+weave-prd          stress-test product requirements and PRD readiness
+weave-propagate    copy an existing feature exploration to another repo
+```
+
+Install them for one agent:
 
 ```bash
 weave agent install claude
@@ -256,11 +312,11 @@ weave agent install all
 Install targets:
 
 ```text
-claude     .claude/skills/weave-prd/SKILL.md
-cursor     .agents/skills/weave-prd/SKILL.md
-codex      .agents/skills/weave-prd/SKILL.md
-opencode   .agents/skills/weave-prd/SKILL.md
-opencode   .opencode/commands/weave-prd.md
+claude     .claude/skills/<skill>/SKILL.md
+cursor     .agents/skills/<skill>/SKILL.md
+codex      .agents/skills/<skill>/SKILL.md
+opencode   .agents/skills/<skill>/SKILL.md
+opencode   .opencode/commands/<skill>.md
 ```
 
 ### Claude Code
@@ -274,7 +330,10 @@ weave agent install claude
 Then start Claude Code in the repo and ask:
 
 ```text
+/weave-new "Analytics of reviews"
+/weave-capture
 /weave-prd "Analytics of reviews"
+/weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 ### Cursor
@@ -288,7 +347,10 @@ weave agent install cursor
 Then ask Cursor Agent from the repo:
 
 ```text
+/weave-new "Analytics of reviews"
+/weave-capture
 /weave-prd "Analytics of reviews"
+/weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 ### Codex
@@ -302,7 +364,10 @@ weave agent install codex
 Then ask Codex from the repo:
 
 ```text
+$weave-new "Analytics of reviews"
+$weave-capture
 $weave-prd "Analytics of reviews"
+$weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 ### opencode
@@ -316,7 +381,10 @@ weave agent install opencode
 Then invoke the slash command in opencode:
 
 ```text
+/weave-new "Analytics of reviews"
+/weave-capture
 /weave-prd "Analytics of reviews"
+/weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 Or invoke the skill naturally:
@@ -325,7 +393,7 @@ Or invoke the skill naturally:
 Use the weave-prd skill for Analytics of reviews.
 ```
 
-Claude Code and Cursor can invoke the installed skill directly with `/weave-prd`. opencode gets a small `/weave-prd` command wrapper that delegates to the portable skill in `.agents/skills`. Codex uses `$weave-prd` to explicitly invoke the skill. Weave does not install `.opencode/skills` by default.
+Claude Code, Cursor, and opencode use slash commands such as `/weave-prd`. Codex uses `$weave-prd` to explicitly invoke the installed skill. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
 
 ## `weave skills` and `weave skill`
 
@@ -333,6 +401,7 @@ Lists and prints bundled Weave skills.
 
 ```bash
 weave skills list
+weave skill show weave-new
 weave skill show weave-prd
 ```
 
@@ -344,12 +413,14 @@ src/
   commands/
     add.ts
     agent.ts
+    feature.ts
     init.ts
     skills.ts
     workspace.ts
   lib/
     add-folder.ts
     agent-skills.ts
+    features.ts
     files.ts
     folders.ts
     git.ts
@@ -366,6 +437,7 @@ templates/
 tests/
   agent-skills.test.ts
   cli-skills.test.ts
+  features.test.ts
   init.test.ts
 .weave/
   agents.yml

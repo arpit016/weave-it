@@ -21,7 +21,7 @@ describe("skills CLI", () => {
     const program = createProgram();
 
     expect(program.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["agent", "skills", "skill"]),
+      expect.arrayContaining(["agent", "feature", "skills", "skill"]),
     );
   });
 
@@ -55,13 +55,15 @@ describe("skills CLI", () => {
     await createProgram().parseAsync(["agent", "install", "claude", "--json"], { from: "user" });
 
     const output = write.mock.calls.map((call) => String(call[0])).join("");
-    expect(JSON.parse(output)).toEqual([
-      expect.objectContaining({
-        agent: "claude",
-        skill: "weave-prd",
-        status: "installed",
-      }),
-    ]);
+    expect(JSON.parse(output)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          agent: "claude",
+          skill: "weave-prd",
+          status: "installed",
+        }),
+      ]),
+    );
   });
 
   it("writes manifest through the CLI install path", async () => {
@@ -74,7 +76,6 @@ describe("skills CLI", () => {
     const manifest = await readFile(path.join(cwd, ".weave", "agents.yml"), "utf8");
     expect(manifest).toContain("claude:");
     expect(manifest).toContain("weave-prd:");
-
   });
 
   it("installs opencode skill and slash command through weave agent install", async () => {
@@ -87,6 +88,21 @@ describe("skills CLI", () => {
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-prd.md"))).resolves.toMatchObject({});
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd command for opencode"));
+  });
+
+  it("creates feature explorations through weave feature new", async () => {
+    const cwd = await tempDir();
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    process.chdir(cwd);
+
+    await createProgram().parseAsync(["feature", "new", "Analytics of reviews", "--slug", "review-analytics"], { from: "user" });
+
+    const output = write.mock.calls.map((call) => String(call[0])).join("");
+    const match = /Created feature: \d{6}-[a-z0-9]{4}-review-analytics/.exec(output);
+    expect(match).not.toBeNull();
+    const featureId = output.match(/Created feature: ([^\n]+)/)?.[1];
+    expect(featureId).toBeDefined();
+    await expect(stat(path.join(cwd, "wiki", "features", featureId ?? "", "exploration.md"))).resolves.toMatchObject({});
   });
 
   it("reports unknown skills without throwing", async () => {

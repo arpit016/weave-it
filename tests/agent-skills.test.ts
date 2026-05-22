@@ -37,8 +37,23 @@ describe("agent skills", () => {
     expect(skills).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          name: "weave-capture",
+          description: expect.stringContaining("Capture the current product discussion"),
+          hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        }),
+        expect.objectContaining({
+          name: "weave-new",
+          description: expect.stringContaining("Start a new Weave feature exploration"),
+          hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        }),
+        expect.objectContaining({
           name: "weave-prd",
           description: expect.stringContaining("Stress-test product requirements"),
+          hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        }),
+        expect.objectContaining({
+          name: "weave-propagate",
+          description: expect.stringContaining("Propagate an existing Weave feature exploration"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
       ]),
@@ -170,19 +185,25 @@ describe("agent skills", () => {
     const cwd = await tempDir();
 
     const install = await installAgentSkills({ cwd, agent: "opencode", now: new Date("2026-05-19T00:00:00.000Z") });
-    const skill = await readFile(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"), "utf8");
-    const command = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
+    const prdSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"), "utf8");
+    const newSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-new", "SKILL.md"), "utf8");
+    const prdCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
+    const newCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-new.md"), "utf8");
     const manifest = await readManifest(cwd);
 
     expect(install.results).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-prd", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-prd", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-new", status: "installed" }),
       ]),
     );
-    expect(skill).toContain("name: weave-prd");
-    expect(command).toContain("Load and follow the `weave-prd` skill.");
-    expect(command).toContain("Topic: $ARGUMENTS");
+    expect(prdSkill).toContain("name: weave-prd");
+    expect(newSkill).toContain("name: weave-new");
+    expect(prdCommand).toContain("Load and follow the `weave-prd` skill.");
+    expect(prdCommand).toContain("Topic: $ARGUMENTS");
+    expect(newCommand).toContain("Load and follow the `weave-new` skill.");
     expect(manifest).toMatchObject({
       installed: {
         opencode: {
@@ -190,10 +211,16 @@ describe("agent skills", () => {
             "weave-prd": {
               path: ".agents/skills/weave-prd/SKILL.md",
             },
+            "weave-new": {
+              path: ".agents/skills/weave-new/SKILL.md",
+            },
           },
           commands: {
             "weave-prd": {
               path: ".opencode/commands/weave-prd.md",
+            },
+            "weave-new": {
+              path: ".opencode/commands/weave-new.md",
             },
           },
         },
