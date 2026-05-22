@@ -88,7 +88,7 @@ interface ManagedArtifact {
   destination: string;
 }
 
-const manifestRelativePath = join("weave", "agents.yml");
+const manifestRelativePath = join(".weave", "agents.yml");
 
 export async function listDefaultSkills(options: { templatesDir?: string } = {}): Promise<DefaultSkill[]> {
   const templatesDir = options.templatesDir ?? (await findDefaultSkillsDir());

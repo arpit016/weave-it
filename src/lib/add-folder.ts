@@ -37,7 +37,7 @@ export async function addFolder(options: AddFolderOptions): Promise<AddFolderCom
     id: options.folderId,
     kind: options.folderKind,
   });
-  await ensureWeaveScaffold({ folder, now });
+  await ensureWeaveScaffold({ folder });
 
   const result = addFolderToSession(session, folder, now);
   await saveCurrentSession(result.session, sessionPath);

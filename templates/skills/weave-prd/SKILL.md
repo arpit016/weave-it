@@ -18,16 +18,16 @@ Use the returned folders as the exploration boundary.
 For each folder, inspect Weave knowledge first when present:
 
 ```text
-weave/knowledge/index.md
-weave/knowledge/context.md
-weave/knowledge/*/index.md
-weave/knowledge/*/context.md
-weave/features/
+wiki/knowledge/index.md
+wiki/knowledge/context.md
+wiki/knowledge/*/index.md
+wiki/knowledge/*/context.md
+wiki/features/
 ```
 
-Use `weave/knowledge/` as current product/domain context.
+Use `wiki/knowledge/` as current product/domain context.
 
-Use `weave/features/` as historical or in-progress feature context.
+Use `wiki/features/` as historical or in-progress feature context.
 
 If a relevant feature folder exists, read the applicable feature artifacts:
 

@@ -19,7 +19,8 @@ export type InitWorkspaceResult = {
   status: InitStatus;
   message: string;
   folderPath: string;
-  weaveDir: string;
+  wikiDir: string;
+  metadataDir: string;
   sessionPath: string;
 };
 
@@ -34,7 +35,8 @@ export async function initWorkspace(options: InitWorkspaceOptions = {}): Promise
       status: "cancelled",
       message: "Cancelled. Existing Weave session was not replaced.",
       folderPath: cwd,
-      weaveDir: "",
+      wikiDir: "",
+      metadataDir: "",
       sessionPath,
     };
   }
@@ -44,7 +46,7 @@ export async function initWorkspace(options: InitWorkspaceOptions = {}): Promise
     id: options.folderId,
     kind: options.folderKind,
   });
-  const scaffold = await ensureWeaveScaffold({ folder, now });
+  const scaffold = await ensureWeaveScaffold({ folder });
   const session = createCurrentSession(folder, now);
   await saveCurrentSession(session, sessionPath);
 
@@ -52,7 +54,8 @@ export async function initWorkspace(options: InitWorkspaceOptions = {}): Promise
     status: "initialized",
     message: initializedMessage(folder.id, folder.path, scaffold.created, sessionPath),
     folderPath: folder.path,
-    weaveDir: scaffold.weaveDir,
+    wikiDir: scaffold.wikiDir,
+    metadataDir: scaffold.metadataDir,
     sessionPath,
   };
 }

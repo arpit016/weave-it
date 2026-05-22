@@ -17,7 +17,7 @@ async function tempDir(): Promise<string> {
 }
 
 async function readManifest(cwd: string): Promise<unknown> {
-  return YAML.parse(await readFile(path.join(cwd, "weave", "agents.yml"), "utf8"));
+  return YAML.parse(await readFile(path.join(cwd, ".weave", "agents.yml"), "utf8"));
 }
 
 describe("agent skills", () => {

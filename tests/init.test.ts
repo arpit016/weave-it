@@ -13,7 +13,7 @@ async function tempDir(): Promise<string> {
 }
 
 describe("current session workflow", () => {
-  it("initializes repo weave scaffold and starts a current session", async () => {
+  it("initializes repo wiki scaffold and starts a current session", async () => {
     const cwd = await tempDir();
     const resolvedCwd = await realpath(cwd);
     const sessionPath = path.join(cwd, ".cache", "current-session.yml");
@@ -29,24 +29,18 @@ describe("current session workflow", () => {
     });
 
     expect(result.status).toBe("initialized");
-    await expect(stat(path.join(cwd, "weave", "features"))).resolves.toMatchObject({});
-    await expect(stat(path.join(cwd, "weave", "workspace.yaml"))).rejects.toThrow();
+    expect(result.wikiDir).toBe(path.join(resolvedCwd, "wiki"));
+    expect(result.metadataDir).toBe(path.join(resolvedCwd, ".weave"));
+    await expect(stat(path.join(cwd, "wiki", "features"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".weave", "sync.yml"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, "weave"))).rejects.toThrow();
+    await expect(stat(path.join(cwd, ".weave", "local.yml"))).rejects.toThrow();
 
-    const local = YAML.parse(await readFile(path.join(cwd, "weave", "local.yml"), "utf8"));
-    const sync = YAML.parse(await readFile(path.join(cwd, "weave", "sync.yml"), "utf8"));
-    const knowledge = await readFile(path.join(cwd, "weave", "knowledge", "index.md"), "utf8");
+    const sync = YAML.parse(await readFile(path.join(cwd, ".weave", "sync.yml"), "utf8"));
+    const knowledge = await readFile(path.join(cwd, "wiki", "knowledge", "index.md"), "utf8");
     const session = await loadCurrentSession(sessionPath);
 
-    expect(local).toMatchObject({
-      version: 1,
-      folder: {
-        id: "frontend",
-        name: "Frontend",
-        kind: "app",
-      },
-      created_at: "2026-05-17T10:00:00.000Z",
-    });
-    expect(sync.documents["knowledge.index"].path).toBe("weave/knowledge/index.md");
+    expect(sync.documents["knowledge.index"].path).toBe("wiki/knowledge/index.md");
     expect(sync.documents["knowledge.index"].status).toBe("synced");
     expect(knowledge).toContain("# Product Knowledge");
     expect(session?.folders.frontend).toMatchObject({
@@ -56,18 +50,23 @@ describe("current session workflow", () => {
     });
   });
 
-  it("does not overwrite existing weave files when init runs again", async () => {
+  it("does not overwrite existing wiki and metadata files when init runs again", async () => {
     const cwd = await tempDir();
     const sessionPath = path.join(cwd, ".cache", "current-session.yml");
-    const weaveDir = path.join(cwd, "weave");
-    const localFile = path.join(weaveDir, "local.yml");
-    await mkdir(weaveDir, { recursive: true });
-    await writeFile(localFile, "existing: true\n");
+    const wikiDir = path.join(cwd, "wiki", "knowledge");
+    const metadataDir = path.join(cwd, ".weave");
+    const knowledgeFile = path.join(wikiDir, "index.md");
+    const syncFile = path.join(metadataDir, "sync.yml");
+    await mkdir(wikiDir, { recursive: true });
+    await mkdir(metadataDir, { recursive: true });
+    await writeFile(knowledgeFile, "existing wiki\n");
+    await writeFile(syncFile, "existing: true\n");
 
     const result = await initWorkspace({ cwd, interactive: false, yes: true, sessionPath });
 
     expect(result.status).toBe("initialized");
-    await expect(readFile(localFile, "utf8")).resolves.toBe("existing: true\n");
+    await expect(readFile(knowledgeFile, "utf8")).resolves.toBe("existing wiki\n");
+    await expect(readFile(syncFile, "utf8")).resolves.toBe("existing: true\n");
   });
 
   it("requires init before adding folders", async () => {
@@ -123,7 +122,8 @@ describe("current session workflow", () => {
       path: resolvedBackend,
       kind: "api",
     });
-    await expect(stat(path.join(backend, "weave", "knowledge", "index.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(backend, "wiki", "knowledge", "index.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(backend, ".weave", "sync.yml"))).resolves.toMatchObject({});
   });
 
   it("prints current session as JSON for agents", async () => {
@@ -142,7 +142,8 @@ describe("current session workflow", () => {
         id: "frontend",
         path: resolvedCwd,
         kind: "app",
-        weave: path.join(resolvedCwd, "weave"),
+        wiki: path.join(resolvedCwd, "wiki"),
+        metadata: path.join(resolvedCwd, ".weave"),
       },
     ]);
   });

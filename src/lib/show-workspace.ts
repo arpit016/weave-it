@@ -39,7 +39,8 @@ function jsonOutput(session: CurrentSession) {
       id,
       path: folder.path,
       kind: folder.kind,
-      weave: path.join(folder.path, "weave"),
+      wiki: path.join(folder.path, "wiki"),
+      metadata: path.join(folder.path, ".weave"),
     })),
   };
 }

@@ -71,7 +71,7 @@ describe("skills CLI", () => {
 
     await createProgram().parseAsync(["agent", "install", "claude"], { from: "user" });
 
-    const manifest = await readFile(path.join(cwd, "weave", "agents.yml"), "utf8");
+    const manifest = await readFile(path.join(cwd, ".weave", "agents.yml"), "utf8");
     expect(manifest).toContain("claude:");
     expect(manifest).toContain("weave-prd:");
 

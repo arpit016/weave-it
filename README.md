@@ -14,7 +14,7 @@ The goal is to give AI tools durable project context across the full software li
 - QA notes, validation, and handoff
 - Long-lived product and technical knowledge
 
-Each repo can contain a `weave/` folder that acts like an LLM-friendly wiki for that repo. Weave also maintains a temporary local session so agents can understand which folders/repos should be considered together for the current task.
+Each repo can contain a committed `wiki/` folder that acts like an LLM-friendly wiki for that repo. Weave also maintains committed metadata in `.weave/` and a temporary local session so agents can understand which folders/repos should be considered together for the current task.
 
 ## Requirements
 
@@ -232,11 +232,11 @@ weave agent diff opencode weave-prd
 weave agent reset opencode weave-prd
 ```
 
-`install` and `update` protect user edits. They update files only when the current file still matches the last Weave-installed hash in `weave/agents.yml`. If a user edits an installed skill or command wrapper, Weave skips it. `reset` is the explicit overwrite path.
+`install` and `update` protect user edits. They update files only when the current file still matches the last Weave-installed hash in `.weave/agents.yml`. If a user edits an installed skill or command wrapper, Weave skips it. `reset` is the explicit overwrite path.
 
 ## Using `weave-prd`
 
-Weave ships the `weave-prd` Agent Skill for product discovery and PRD refinement. The workflow starts by running `weave workspace --json`, reading relevant `weave/knowledge/**` and `weave/features/**` context, then guiding the agent through product questions before creating or updating a PRD.
+Weave ships the `weave-prd` Agent Skill for product discovery and PRD refinement. The workflow starts by running `weave workspace --json`, reading relevant `wiki/knowledge/**` and `wiki/features/**` context, then guiding the agent through product questions before creating or updating a PRD.
 
 Install it for one agent:
 
@@ -367,6 +367,12 @@ tests/
   agent-skills.test.ts
   cli-skills.test.ts
   init.test.ts
+.weave/
+  agents.yml
+  sync.yml
+wiki/
+  knowledge/
+  features/
 weave-it/
   implementation-plan.md
   opencode-skills-implementation-plan.md

@@ -136,12 +136,12 @@ weave-prd
 
 - Start by running `weave workspace --json`.
 - Treat returned folders as the current session boundary.
-- Read relevant `weave/knowledge/**` files before drafting requirements.
-- Read relevant `weave/features/**` files when refining or continuing an existing feature.
+- Read relevant `wiki/knowledge/**` files before drafting requirements.
+- Read relevant `wiki/features/**` files when refining or continuing an existing feature.
 - Ask clarifying product questions when requirements are ambiguous.
 - Avoid implementation details unless the user asks for them.
 - Use code inspection only to verify current behavior and translate it into product language.
-- Create or update a feature PRD under `weave/features/<feature-id>/prd.md` once there is enough clarity.
+- Create or update a feature PRD under `wiki/features/<feature-id>/prd.md` once there is enough clarity.
 
 ## Opencode Command Wrapper
 
@@ -190,7 +190,7 @@ Default policy:
 Track installed files and hashes in:
 
 ```text
-weave/agents.yml
+.weave/agents.yml
 ```
 
 Example:
@@ -238,7 +238,7 @@ Behavior:
 - Copy default skill from `templates/skills/weave-prd/SKILL.md`.
 - Generate command wrapper from a command template.
 - Do not overwrite modified files.
-- Update `weave/agents.yml`.
+- Update `.weave/agents.yml`.
 - Print concise installed/skipped output.
 
 ### `weave agent update opencode`
@@ -250,7 +250,7 @@ Behavior:
 - Recompute current file hashes.
 - Skip files modified by the user.
 - Update files that still match the last installed hash.
-- Refresh `weave/agents.yml`.
+- Refresh `.weave/agents.yml`.
 
 ### `weave agent diff opencode [name]`
 

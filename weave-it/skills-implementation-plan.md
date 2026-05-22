@@ -86,7 +86,7 @@ Prints the default skill content.
 Tracking Managed State
 Use a lightweight manifest to detect whether a skill has been modified.
 Recommended location:
-weave/agents.yml
+.weave/agents.yml
 Example:
 version: 1
 installed:
@@ -123,8 +123,8 @@ Every Weave skill should instruct agents to start with:
 weave workspace --json
 Skills should use returned folders as the current session boundary.
 Skills should prefer:
-weave/knowledge/**
-weave/features/**
+wiki/knowledge/**
+wiki/features/**
 Skills should not assume unrelated folders are in scope.
 Phase 1: Move To Canonical Skill Template
 Tasks:
