@@ -284,7 +284,7 @@ weave agent reset opencode weave-prd
 
 ## Using Weave Skills
 
-Weave ships Agent Skills for change discovery and change workflow scaffolding. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/changes/**` as durable context.
+Weave ships Agent Skills for change discovery, requirements, implementation planning, and change workflow scaffolding. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/changes/**` as durable context.
 
 Skills:
 
@@ -292,6 +292,7 @@ Skills:
 weave-new          start a new change exploration from a title or topic
 weave-capture      capture the current discussion as a change exploration
 weave-prd          stress-test product requirements and PRD readiness
+weave-issues       break a PRD or implementation plan into tracer-bullet issues
 weave-propagate    copy an existing change exploration to another repo
 ```
 
@@ -334,6 +335,7 @@ Then start Claude Code in the repo and ask:
 /weave-new "Analytics of reviews"
 /weave-capture
 /weave-prd "Analytics of reviews"
+/weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -351,6 +353,7 @@ Then ask Cursor Agent from the repo:
 /weave-new "Analytics of reviews"
 /weave-capture
 /weave-prd "Analytics of reviews"
+/weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -368,6 +371,7 @@ Then ask Codex from the repo:
 $weave-new "Analytics of reviews"
 $weave-capture
 $weave-prd "Analytics of reviews"
+$weave-issues "Break the active PRD into implementation issues"
 $weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -385,6 +389,7 @@ Then invoke the slash command in opencode:
 /weave-new "Analytics of reviews"
 /weave-capture
 /weave-prd "Analytics of reviews"
+/weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -404,6 +409,7 @@ Lists and prints bundled Weave skills.
 weave skills list
 weave skill show weave-new
 weave skill show weave-prd
+weave skill show weave-issues
 ```
 
 ## Project Structure
