@@ -15,6 +15,7 @@ Use this when the user has already discussed a change and wants to preserve the 
 
 ```bash
 weave workspace --json
+weave change current
 ```
 
 2. Infer a concise title from the discussion unless the user provided `--title`.
@@ -43,6 +44,8 @@ Scenarios
 Existing Behavior
 PRD Readiness
 ```
+
+The newly created change becomes the current change for every target.
 
 # Behavior Rules
 

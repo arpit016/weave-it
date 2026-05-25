@@ -15,6 +15,7 @@ Use this when the user is starting from a title or topic, not when they are alre
 
 ```bash
 weave workspace --json
+weave change current
 ```
 
 2. Identify the current repo and any additional session repos. Explain that additional repos should participate only if the change will likely require implementation or tasks there.
@@ -31,7 +32,7 @@ Use `--type <type>` when the work is not a new capability. Supported values are 
 
 Use `--slug <slug>` only when the user requested a specific folder or branch slug.
 
-5. Report the change id, target repos, and branch status.
+5. Report the change id, target repos, branch status, and that the new change is now current.
 
 # Behavior Rules
 

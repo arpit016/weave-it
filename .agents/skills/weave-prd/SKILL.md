@@ -38,6 +38,8 @@ decisions.md
 contracts.md
 status.yml
 handoff.md
+implementation.md
+tasks.md
 ```
 
 Do not assume every folder in the session is equally relevant. Identify which folders appear relevant and why.

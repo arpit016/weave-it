@@ -207,18 +207,24 @@ npm run dev -- workspace --json
 
 ## `weave change`
 
-Creates and propagates durable change exploration folders under `wiki/changes/`.
+Creates, inspects, switches, and propagates durable change exploration folders under `wiki/changes/`.
 
 ```bash
 weave change new "<title>" [options]
+weave change list [target|all] [options]
+weave change current [target|all] [options]
+weave change status [change] [options]
+weave change switch <change> [options]
 weave change propagate <change-id> --to <target...> [options]
 ```
 
-`weave change new` creates a change id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, and creates or checks out the matching git branch:
+`weave change new` creates a change id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, creates or checks out the matching git branch, and records the new change as current in the local Weave session:
 
 ```text
 change/{change-id}
 ```
+
+Active change state is local workspace/session state. It is stored outside the repo so it does not appear in commits or pull requests.
 
 Options for `new`:
 
@@ -237,11 +243,25 @@ Options for `propagate`:
 --json                 print machine-readable JSON
 ```
 
+Options for `list`, `current`, `status`, and `switch`:
+
+```text
+target                 folder path, current session folder id, or all
+--target <target>      target for status; accepts folder path, session folder id, or all
+--json                 print machine-readable JSON
+```
+
 Examples:
 
 ```bash
 weave change new "Analytics of reviews"
 weave change new "Fix review import" --type fix --slug review-import --target app api
+weave change list
+weave change list all
+weave change current
+weave change status
+weave change status 260522-f3q9-review-analytics --target app
+weave change switch f3q9
 weave change propagate 260522-f3q9-review-analytics --from app --to api
 ```
 
@@ -251,7 +271,9 @@ From source:
 npm run dev -- change new "Analytics of reviews"
 ```
 
-If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped.
+`weave change list` is a clean index and marks the active change with `*`. `weave change current` shows the active change and can recover missing session state from a matching `change/{id}` branch. `weave change status` reports metadata and branch alignment. `weave change switch` is the explicit way to move to another existing change.
+
+If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` and `propagate` block when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
 
 ## `weave agent`
 

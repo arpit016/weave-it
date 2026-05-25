@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../src/cli.js";
+import { createChange } from "../src/lib/changes.js";
 
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "weave-it-cli-skills-"));
@@ -10,9 +11,15 @@ async function tempDir(): Promise<string> {
 
 describe("skills CLI", () => {
   const originalCwd = process.cwd();
+  const originalSessionPath = process.env.WEAVE_SESSION_PATH;
 
   afterEach(() => {
     process.chdir(originalCwd);
+    if (originalSessionPath === undefined) {
+      delete process.env.WEAVE_SESSION_PATH;
+    } else {
+      process.env.WEAVE_SESSION_PATH = originalSessionPath;
+    }
     process.exitCode = undefined;
     vi.restoreAllMocks();
   });
@@ -101,6 +108,7 @@ describe("skills CLI", () => {
     const cwd = await tempDir();
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     process.chdir(cwd);
+    process.env.WEAVE_SESSION_PATH = path.join(cwd, ".session.yml");
 
     await createProgram().parseAsync(["change", "new", "Analytics of reviews", "--type", "fix", "--slug", "review-analytics"], { from: "user" });
 
@@ -111,6 +119,31 @@ describe("skills CLI", () => {
     const changeId = output.match(/Created change: ([^\n]+)/)?.[1];
     expect(changeId).toBeDefined();
     await expect(stat(path.join(cwd, "wiki", "changes", changeId ?? "", "exploration.md"))).resolves.toMatchObject({});
+  });
+
+  it("prints JSON errors for change command failures", async () => {
+    const cwd = await tempDir();
+    const sessionPath = path.join(cwd, ".session.yml");
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    process.chdir(cwd);
+    process.env.WEAVE_SESSION_PATH = sessionPath;
+    await createChange({ cwd, title: "Review import", slug: "review-import", randomId: () => "a111", sessionPath });
+    await createChange({ cwd, title: "Review export", slug: "review-export", randomId: () => "b222", sessionPath });
+
+    await createProgram().parseAsync(["change", "switch", "review", "--json"], { from: "user" });
+
+    const output = write.mock.calls.map((call) => String(call[0])).join("");
+    expect(JSON.parse(output)).toMatchObject({
+      status: "error",
+      code: "ambiguous_change",
+      details: {
+        candidates: expect.arrayContaining([
+          expect.objectContaining({ id: expect.stringContaining("review-import") }),
+          expect.objectContaining({ id: expect.stringContaining("review-export") }),
+        ]),
+      },
+    });
+    expect(process.exitCode).toBe(1);
   });
 
   it("reports unknown skills without throwing", async () => {

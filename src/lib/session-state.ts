@@ -4,12 +4,21 @@ import { readFile } from "node:fs/promises";
 import YAML from "yaml";
 import { ensureDir, pathExists, writeFileAtomic } from "./files.js";
 import type { ResolvedFolder } from "./folders.js";
+import { slugify, titleFromSlug } from "./ids.js";
+
+export type SessionCurrentChange = {
+  id: string;
+  path: string;
+  branch: string;
+  updated_at: string;
+};
 
 export type SessionFolder = {
   path: string;
   name: string;
   kind: string;
   git_remote?: string;
+  current_change?: SessionCurrentChange;
 };
 
 export type CurrentSession = {
@@ -25,6 +34,10 @@ export type AddFolderResult = {
 };
 
 export function defaultSessionPath(): string {
+  if (process.env.WEAVE_SESSION_PATH) {
+    return path.resolve(process.env.WEAVE_SESSION_PATH);
+  }
+
   return path.join(os.homedir(), ".cache", "weave", "current-session.yml");
 }
 
@@ -80,8 +93,41 @@ export function addFolderToSession(session: CurrentSession, folder: ResolvedFold
   return { added: true, id, session };
 }
 
-function findFolderByPath(session: CurrentSession, folderPath: string): string | undefined {
+export function findFolderByPath(session: CurrentSession, folderPath: string): string | undefined {
   return Object.entries(session.folders).find(([, folder]) => folder.path === folderPath)?.[0];
+}
+
+export function ensureFolderInSession(session: CurrentSession, folderPath: string, now: Date): string {
+  const existingId = findFolderByPath(session, folderPath);
+  if (existingId) {
+    session.updated_at = now.toISOString();
+    return existingId;
+  }
+
+  const basename = path.basename(folderPath);
+  const id = uniqueFolderId(session, slugify(basename, "folder"));
+  session.folders[id] = {
+    path: folderPath,
+    name: titleFromSlug(id) || basename,
+    kind: "app",
+  };
+  session.updated_at = now.toISOString();
+  return id;
+}
+
+export function setCurrentChangeForPath(
+  session: CurrentSession,
+  folderPath: string,
+  change: Omit<SessionCurrentChange, "updated_at">,
+  now: Date,
+): string {
+  const id = ensureFolderInSession(session, folderPath, now);
+  session.folders[id].current_change = {
+    ...change,
+    updated_at: now.toISOString(),
+  };
+  session.updated_at = now.toISOString();
+  return id;
 }
 
 function uniqueFolderId(session: CurrentSession, id: string): string {
