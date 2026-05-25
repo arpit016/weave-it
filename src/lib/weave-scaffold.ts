@@ -14,11 +14,11 @@ export async function ensureWeaveScaffold(input: { folder: { path: string } }): 
   const metadataDir = path.join(input.folder.path, ".weave");
   const created: string[] = [];
   const knowledgeIndex = knowledgeIndexTemplate();
-  const featuresDir = path.join(wikiDir, "features");
-  const featuresExisted = await pathExists(featuresDir);
+  const changesDir = path.join(wikiDir, "changes");
+  const changesExisted = await pathExists(changesDir);
 
   await ensureDir(path.join(wikiDir, "knowledge"));
-  await ensureDir(featuresDir);
+  await ensureDir(changesDir);
   await ensureDir(metadataDir);
 
   if (await writeFileIfMissing(path.join(metadataDir, "sync.yml"), syncTemplate(knowledgeIndex))) {
@@ -29,8 +29,8 @@ export async function ensureWeaveScaffold(input: { folder: { path: string } }): 
     created.push("wiki/knowledge/index.md");
   }
 
-  if (!featuresExisted) {
-    created.push("wiki/features/");
+  if (!changesExisted) {
+    created.push("wiki/changes/");
   }
 
   return { wikiDir, metadataDir, created };

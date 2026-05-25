@@ -205,25 +205,26 @@ npm run dev -- workspace
 npm run dev -- workspace --json
 ```
 
-## `weave feature`
+## `weave change`
 
-Creates and propagates durable feature exploration folders under `wiki/features/`.
+Creates and propagates durable change exploration folders under `wiki/changes/`.
 
 ```bash
-weave feature new "<title>" [options]
-weave feature propagate <feature-id> --to <target...> [options]
+weave change new "<title>" [options]
+weave change propagate <change-id> --to <target...> [options]
 ```
 
-`weave feature new` creates a feature id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, and creates or checks out the matching git branch:
+`weave change new` creates a change id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, and creates or checks out the matching git branch:
 
 ```text
-feature/{feature-id}
+change/{change-id}
 ```
 
 Options for `new`:
 
 ```text
---slug <slug>          feature slug override
+--type <type>          change type: feat, fix, refactor, docs, test, ci, or chore; defaults to feat
+--slug <slug>          change slug override
 --target <target...>   target folder path or current session folder id
 --json                 print machine-readable JSON
 ```
@@ -239,18 +240,18 @@ Options for `propagate`:
 Examples:
 
 ```bash
-weave feature new "Analytics of reviews"
-weave feature new "Analytics of reviews" --slug review-analytics --target app api
-weave feature propagate 260522-f3q9-review-analytics --from app --to api
+weave change new "Analytics of reviews"
+weave change new "Fix review import" --type fix --slug review-import --target app api
+weave change propagate 260522-f3q9-review-analytics --from app --to api
 ```
 
 From source:
 
 ```bash
-npm run dev -- feature new "Analytics of reviews"
+npm run dev -- change new "Analytics of reviews"
 ```
 
-If a target is not a git repo, Weave still writes the feature artifacts and reports branch creation as skipped.
+If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped.
 
 ## `weave agent`
 
@@ -283,15 +284,15 @@ weave agent reset opencode weave-prd
 
 ## Using Weave Skills
 
-Weave ships Agent Skills for feature discovery and feature workflow scaffolding. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/features/**` as durable context.
+Weave ships Agent Skills for change discovery and change workflow scaffolding. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/changes/**` as durable context.
 
 Skills:
 
 ```text
-weave-new          start a new feature exploration from a title or topic
-weave-capture      capture the current discussion as a feature exploration
+weave-new          start a new change exploration from a title or topic
+weave-capture      capture the current discussion as a change exploration
 weave-prd          stress-test product requirements and PRD readiness
-weave-propagate    copy an existing feature exploration to another repo
+weave-propagate    copy an existing change exploration to another repo
 ```
 
 Install them for one agent:
@@ -413,14 +414,14 @@ src/
   commands/
     add.ts
     agent.ts
-    feature.ts
+    change.ts
     init.ts
     skills.ts
     workspace.ts
   lib/
     add-folder.ts
     agent-skills.ts
-    features.ts
+    changes.ts
     files.ts
     folders.ts
     git.ts
@@ -437,14 +438,14 @@ templates/
 tests/
   agent-skills.test.ts
   cli-skills.test.ts
-  features.test.ts
+  changes.test.ts
   init.test.ts
 .weave/
   agents.yml
   sync.yml
 wiki/
   knowledge/
-  features/
+  changes/
 weave-it/
   implementation-plan.md
   opencode-skills-implementation-plan.md

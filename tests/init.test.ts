@@ -31,7 +31,7 @@ describe("current session workflow", () => {
     expect(result.status).toBe("initialized");
     expect(result.wikiDir).toBe(path.join(resolvedCwd, "wiki"));
     expect(result.metadataDir).toBe(path.join(resolvedCwd, ".weave"));
-    await expect(stat(path.join(cwd, "wiki", "features"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, "wiki", "changes"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".weave", "sync.yml"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, "weave"))).rejects.toThrow();
     await expect(stat(path.join(cwd, ".weave", "local.yml"))).rejects.toThrow();

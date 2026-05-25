@@ -1,11 +1,11 @@
 ---
 name: weave-new
-description: Start a new Weave feature exploration from a title or topic. Use when the user wants to begin capturing a feature under wiki/features and create the matching feature branch.
+description: Start a new Weave change exploration from a title or topic. Use when the user wants to begin capturing a change under wiki/changes and create the matching change branch.
 ---
 
 # Purpose
 
-Start a new Weave feature exploration.
+Start a new Weave change exploration.
 
 Use this when the user is starting from a title or topic, not when they are already deep in a discussion. For an existing discussion, prefer `weave-capture`.
 
@@ -17,24 +17,26 @@ Use this when the user is starting from a title or topic, not when they are alre
 weave workspace --json
 ```
 
-2. Identify the current repo and any additional session repos. Explain that additional repos should participate only if the feature will likely require implementation or tasks there.
+2. Identify the current repo and any additional session repos. Explain that additional repos should participate only if the change will likely require implementation or tasks there.
 
 3. Ask the user which additional repos should participate when more than one repo is in the session.
 
 4. Run:
 
 ```bash
-weave feature new "<title>" --target <target>...
+weave change new "<title>" --target <target>...
 ```
+
+Use `--type <type>` when the work is not a new capability. Supported values are `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, and `chore`.
 
 Use `--slug <slug>` only when the user requested a specific folder or branch slug.
 
-5. Report the feature id, target repos, and branch status.
+5. Report the change id, target repos, and branch status.
 
 # Behavior Rules
 
-- The CLI owns feature id generation, folder creation, status metadata, and git branch creation.
-- The created branch is `feature/{feature-id}`.
+- The CLI owns change id generation, folder creation, status metadata, and git branch creation.
+- The created branch is `change/{change-id}`.
 - Do not create `prd.md`.
 - Treat `exploration.md` as the first artifact.
 - After creation, continue product discovery in `exploration.md` until PRD readiness is clear.

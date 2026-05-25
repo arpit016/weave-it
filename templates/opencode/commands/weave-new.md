@@ -1,5 +1,5 @@
 ---
-description: Start a new Weave feature exploration
+description: Start a new Weave change exploration
 ---
 
 Load and follow the `weave-new` skill.

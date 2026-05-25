@@ -19,9 +19,10 @@ describe("skills CLI", () => {
 
   it("registers agent and skill commands", () => {
     const program = createProgram();
+    const commandNames = program.commands.map((command) => command.name());
 
-    expect(program.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["agent", "feature", "skills", "skill"]),
+    expect(commandNames).toEqual(
+      expect.arrayContaining(["agent", "change", "skills", "skill"]),
     );
   });
 
@@ -90,19 +91,20 @@ describe("skills CLI", () => {
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd command for opencode"));
   });
 
-  it("creates feature explorations through weave feature new", async () => {
+  it("creates change explorations through weave change new", async () => {
     const cwd = await tempDir();
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     process.chdir(cwd);
 
-    await createProgram().parseAsync(["feature", "new", "Analytics of reviews", "--slug", "review-analytics"], { from: "user" });
+    await createProgram().parseAsync(["change", "new", "Analytics of reviews", "--type", "fix", "--slug", "review-analytics"], { from: "user" });
 
     const output = write.mock.calls.map((call) => String(call[0])).join("");
-    const match = /Created feature: \d{6}-[a-z0-9]{4}-review-analytics/.exec(output);
+    const match = /Created change: \d{6}-[a-z0-9]{4}-review-analytics/.exec(output);
     expect(match).not.toBeNull();
-    const featureId = output.match(/Created feature: ([^\n]+)/)?.[1];
-    expect(featureId).toBeDefined();
-    await expect(stat(path.join(cwd, "wiki", "features", featureId ?? "", "exploration.md"))).resolves.toMatchObject({});
+    expect(output).toContain("Type: fix");
+    const changeId = output.match(/Created change: ([^\n]+)/)?.[1];
+    expect(changeId).toBeDefined();
+    await expect(stat(path.join(cwd, "wiki", "changes", changeId ?? "", "exploration.md"))).resolves.toMatchObject({});
   });
 
   it("reports unknown skills without throwing", async () => {

@@ -43,7 +43,7 @@ describe("agent skills", () => {
         }),
         expect.objectContaining({
           name: "weave-new",
-          description: expect.stringContaining("Start a new Weave feature exploration"),
+          description: expect.stringContaining("Start a new Weave change exploration"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
         expect.objectContaining({
@@ -53,7 +53,7 @@ describe("agent skills", () => {
         }),
         expect.objectContaining({
           name: "weave-propagate",
-          description: expect.stringContaining("Propagate an existing Weave feature exploration"),
+          description: expect.stringContaining("Propagate an existing Weave change exploration"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
       ]),

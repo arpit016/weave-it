@@ -114,17 +114,17 @@ Each skill should be a full Agent Skills-compatible SKILL.md.
 Minimum frontmatter:
 ---
 name: hammer-product
-description: Stress-test product requirements against the current system, workflows, and domain language. Use when refining PRDs, validating workflows, uncovering edge cases, clarifying ownership, or aligning new features with existing product behavior.
+description: Stress-test product requirements against the current system, workflows, and domain language. Use when refining PRDs, validating workflows, uncovering edge cases, clarifying ownership, or aligning new changes with existing product behavior.
 ---
 Avoid agent-specific frontmatter in V1.
-Do not rely on Claude-only features, Cursor-only features, or Codex-only metadata for core behavior.
+Do not rely on Claude-only changes, Cursor-only changes, or Codex-only metadata for core behavior.
 Common Weave Skill Contract
 Every Weave skill should instruct agents to start with:
 weave workspace --json
 Skills should use returned folders as the current session boundary.
 Skills should prefer:
 wiki/knowledge/**
-wiki/features/**
+wiki/changes/**
 Skills should not assume unrelated folders are in scope.
 Phase 1: Move To Canonical Skill Template
 Tasks:

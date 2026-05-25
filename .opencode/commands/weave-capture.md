@@ -1,5 +1,5 @@
 ---
-description: Capture the current discussion as a Weave feature exploration
+description: Capture the current discussion as a Weave change exploration
 ---
 
 Load and follow the `weave-capture` skill.

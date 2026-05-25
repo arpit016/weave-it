@@ -1,7 +1,7 @@
 ---
-description: Propagate a Weave feature exploration to another repo
+description: Propagate a Weave change exploration to another repo
 ---
 
 Load and follow the `weave-propagate` skill.
 
-Feature: $ARGUMENTS
+Change: $ARGUMENTS

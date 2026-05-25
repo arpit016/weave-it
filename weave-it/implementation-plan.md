@@ -4,7 +4,7 @@
 
 Weave separates three kinds of state:
 
-- `wiki/`: committed, human-readable repo knowledge and feature context.
+- `wiki/`: committed, human-readable repo knowledge and change context.
 - `.weave/`: committed Weave metadata for the repo.
 - `~/.cache/weave/current-session.yml`: uncommitted machine-local current session state.
 
@@ -18,7 +18,7 @@ New scaffolds create:
 wiki/
   knowledge/
     index.md
-  features/
+  changes/
 
 .weave/
   sync.yml
@@ -74,7 +74,7 @@ JSON output includes explicit content and metadata paths:
 }
 ```
 
-Agents should use `wiki/knowledge/**` for durable product context and `wiki/features/**` for feature artifacts.
+Agents should use `wiki/knowledge/**` for durable product context and `wiki/changes/**` for change artifacts.
 
 ## Agent Integration Metadata
 

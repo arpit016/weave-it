@@ -1,0 +1,9 @@
+version: 1
+id: 260522-f3q9-change-workflow-scaffold
+slug: change-workflow-scaffold
+title: Change Workflow Scaffold
+type: feat
+stage: exploration
+branch: change/260522-f3q9-change-workflow-scaffold
+created_at: "2026-05-22"
+updated_at: "2026-05-22"

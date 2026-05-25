@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { addCommand } from "./commands/add.js";
 import { agentCommand } from "./commands/agent.js";
-import { featureCommand } from "./commands/feature.js";
+import { changeCommand } from "./commands/change.js";
 import { initCommand } from "./commands/init.js";
 import { skillCommand, skillsCommand } from "./commands/skills.js";
 import { workspaceCommand } from "./commands/workspace.js";
@@ -18,7 +18,7 @@ export function createProgram(): Command {
   program.addCommand(initCommand());
   program.addCommand(addCommand());
   program.addCommand(workspaceCommand());
-  program.addCommand(featureCommand());
+  program.addCommand(changeCommand());
   program.addCommand(agentCommand());
   program.addCommand(skillsCommand());
   program.addCommand(skillCommand());

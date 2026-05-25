@@ -1,33 +1,33 @@
-# Feature Workflow Scaffold
+# Change Workflow Scaffold
 
 ## Topic
 
-Create a Weave workflow for starting a feature folder with a stable feature id, generated slug, status metadata, and an initial exploration artifact.
+Create a Weave workflow for starting a change folder with a stable change id, generated slug, status metadata, and an initial exploration artifact.
 
 ## Current Understanding
 
-Weave should provide a deterministic command surface for creating feature planning work under `wiki/features/`. The agent-facing `weave-prd` skill should handle product discovery, but the CLI should own folder naming, uniqueness, and scaffold creation.
+Weave should provide a deterministic command surface for creating change planning work under `wiki/changes/`. The agent-facing `weave-prd` skill should handle product discovery, but the CLI should own folder naming, uniqueness, and scaffold creation.
 
-For Weave, the equivalent durable unit should be a feature folder:
+For Weave, the equivalent durable unit should be a change folder:
 
 ```text
-wiki/features/{YYMMDD}-{XXXX}-{slug}/
+wiki/changes/{YYMMDD}-{XXXX}-{slug}/
 ```
 
-The full folder name is the feature id. The human-readable suffix is the slug.
+The full folder name is the change id. The human-readable suffix is the slug.
 
 ## Recommended Product Behavior
 
 Add a CLI command:
 
 ```bash
-weave feature new "Analytics of reviews"
+weave change new "Analytics of reviews"
 ```
 
 The command should create:
 
 ```text
-wiki/features/260522-f3q9-analytics-of-reviews/
+wiki/changes/260522-f3q9-analytics-of-reviews/
   status.yml
   exploration.md
 ```
@@ -46,7 +46,7 @@ The first artifact represents product discovery, not final requirements. It shou
 - existing behavior discovered from the codebase
 - readiness to draft a PRD
 
-Creating `prd.md` immediately would imply the requirements are ready. Creating nothing would make the discussion easy to lose and would not provide a stable feature id.
+Creating `prd.md` immediately would imply the requirements are ready. Creating nothing would make the discussion easy to lose and would not provide a stable change id.
 
 ## Proposed Status Metadata
 
@@ -55,6 +55,7 @@ version: 1
 id: 260522-f3q9-analytics-of-reviews
 slug: analytics-of-reviews
 title: Analytics of reviews
+type: feat
 stage: exploration
 created_at: "2026-05-22"
 updated_at: "2026-05-22"
@@ -88,13 +89,14 @@ Not ready
 
 | Decision | Status | Rationale |
 |---|---|---|
-| Use `wiki/features/` for feature artifacts | Decided | `wiki/` is the committed, user-facing knowledge surface. |
+| Use `wiki/changes/` for change artifacts | Decided | `wiki/` is the committed, user-facing knowledge surface. |
 | Use `.weave/` for Weave metadata | Decided | Keeps tool metadata out of the human wiki. |
 | Drop `local.yml` for V1 | Decided | No current workflow needs persistent repo identity outside session state. |
-| Use `{YYMMDD}-{XXXX}-{slug}` feature ids | Decided |
+| Use `{YYMMDD}-{XXXX}-{slug}` change ids | Decided |
+| Store change type in `status.yml` | Decided | Changes can represent bugs, refactors, docs, CI, chores, and new capabilities. |
 | Start with `exploration.md` | Decided | Discovery should not masquerade as a final PRD. |
 | Defer `prd.md` creation | Decided | Create it only when requirements are clear enough. |
-| Create `feature/{feature-id}` branches | Decided | Keeps git work aligned with the durable feature folder identity. |
+| Create `change/{change-id}` branches | Decided | Keeps git work aligned with the durable change folder identity. |
 | Support multi-repo targets explicitly | Decided | Agents should ask which session repos participate instead of assuming every repo is involved. |
 
 ## Open Questions
@@ -103,14 +105,15 @@ None for V1.
 
 ## Recommendation
 
-`weave feature new` should be the explicit commit point. `/weave-prd` should discuss first and call the command only after the user agrees to capture the feature.
+`weave change new` should be the explicit commit point. `/weave-prd` should discuss first and call the command only after the user agrees to capture the change.
 
 The V1 command should:
 
 - generate a 2-6 word kebab-case slug from the title
 - generate a 4-character lowercase alphanumeric id
-- create `wiki/features/{YYMMDD}-{XXXX}-{slug}/`
-- create or check out `feature/{feature-id}`
+- accept explicit change type: `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, or `chore`
+- create `wiki/changes/{YYMMDD}-{XXXX}-{slug}/`
+- create or check out `change/{change-id}`
 - write `status.yml`
 - write `exploration.md`
 - skip `prd.md`
@@ -120,8 +123,8 @@ The V1 command should:
 ## Implemented Surface
 
 ```bash
-weave feature new "<title>" --target <target>...
-weave feature propagate <feature-id> --from <target> --to <target>...
+weave change new "<title>" --target <target>...
+weave change propagate <change-id> --from <target> --to <target>...
 ```
 
 Agent-facing skills:
@@ -134,4 +137,4 @@ weave-propagate
 
 ## PRD Readiness
 
-Ready for V1 implementation. `prd.md` generation and current-feature activation remain intentionally out of scope.
+Ready for V1 implementation. `prd.md` generation and current-change activation remain intentionally out of scope.

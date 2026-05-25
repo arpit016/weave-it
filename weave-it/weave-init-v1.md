@@ -28,7 +28,7 @@ Machine-local current session state stays outside the repo:
 wiki/
   knowledge/
     index.md
-  features/
+  changes/
 
 .weave/
   sync.yml

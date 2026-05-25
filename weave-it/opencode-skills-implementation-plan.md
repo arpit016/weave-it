@@ -137,11 +137,11 @@ weave-prd
 - Start by running `weave workspace --json`.
 - Treat returned folders as the current session boundary.
 - Read relevant `wiki/knowledge/**` files before drafting requirements.
-- Read relevant `wiki/features/**` files when refining or continuing an existing feature.
+- Read relevant `wiki/changes/**` files when refining or continuing an existing change.
 - Ask clarifying product questions when requirements are ambiguous.
 - Avoid implementation details unless the user asks for them.
 - Use code inspection only to verify current behavior and translate it into product language.
-- Create or update a feature PRD under `wiki/features/<feature-id>/prd.md` once there is enough clarity.
+- Create or update a change PRD under `wiki/changes/<change-id>/prd.md` once there is enough clarity.
 
 ## Opencode Command Wrapper
 

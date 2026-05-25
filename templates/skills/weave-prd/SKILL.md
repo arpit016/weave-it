@@ -1,6 +1,6 @@
 ---
 name: weave-prd
-description: Stress-test product requirements against the current system, workflows, and domain language. Use when refining PRDs, validating workflows, uncovering edge cases, clarifying ownership, or aligning new features with existing product behavior.
+description: Stress-test product requirements against the current system, workflows, and domain language. Use when refining PRDs, validating workflows, uncovering edge cases, clarifying ownership, or aligning new changes with existing product behavior.
 ---
 
 # Weave Awareness
@@ -22,14 +22,14 @@ wiki/knowledge/index.md
 wiki/knowledge/context.md
 wiki/knowledge/*/index.md
 wiki/knowledge/*/context.md
-wiki/features/
+wiki/changes/
 ```
 
 Use `wiki/knowledge/` as current product/domain context.
 
-Use `wiki/features/` as historical or in-progress feature context.
+Use `wiki/changes/` as historical or in-progress change context.
 
-If a relevant feature folder exists, read the applicable feature artifacts:
+If a relevant change folder exists, read the applicable change artifacts:
 
 ```text
 exploration.md
@@ -103,7 +103,7 @@ Resolve questions in this order:
 6. Failure cases and edge cases
 7. Notifications and visibility
 8. Operational expectations
-9. Rollout(Feature flag, configuration, roll out to everyone) and migration concerns
+9. Rollout flags, configuration, rollout scope, and migration concerns
 10. Technical implications (only if required)
 
 Do not jump into technical implementation prematurely.
