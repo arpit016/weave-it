@@ -40,4 +40,4 @@ Use `--slug <slug>` only when the user requested a specific folder or branch slu
 - The created branch is `change/{change-id}`.
 - Do not create `prd.md`.
 - Treat `exploration.md` as the first artifact.
-- After creation, continue product discovery in `exploration.md` until PRD readiness is clear.
+- After creation, suggest user to go in plan mode and use the skill weave-explore to explore the discussion, do not do ny product discovery yourself using this skill.
