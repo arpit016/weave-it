@@ -4,14 +4,17 @@ import { cp, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promi
 import path from "node:path";
 import { promisify } from "node:util";
 import YAML from "yaml";
+import { artifactFileName, artifactFrontmatter, type ArtifactName } from "./artifact-metadata.js";
 import { pathExists } from "./files.js";
 import { findGitRoot } from "./git.js";
 import { slugify, titleFromSlug } from "./ids.js";
 import {
+  clearCurrentArtifactForPath,
   defaultSessionPath,
   findFolderByPath,
   loadCurrentSession,
   saveCurrentSession,
+  setCurrentArtifactForPath,
   setCurrentChangeForPath,
   type CurrentSession,
   type SessionCurrentChange,
@@ -227,8 +230,9 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
     await ensureWeaveScaffold({ folder: { path: target.path } });
     const changePath = changeDir(target.path, id);
     await mkdir(changePath, { recursive: false });
+    await mkdir(path.join(changePath, "sessions"));
     await writeFile(path.join(changePath, "status.yml"), statusTemplate({ id, slug, title, type, branch, now }));
-    await writeFile(path.join(changePath, "exploration.md"), explorationTemplate(title, title));
+    await writeFile(path.join(changePath, "exploration.md"), explorationTemplate(title, title, now));
     results.push({ path: target.path, changePath, branch, branchStatus, current: true });
   }
 
@@ -404,6 +408,10 @@ export async function switchChange(options: SwitchChangeOptions): Promise<Switch
     { id: change.id, path: change.path, branch: change.branch },
     now,
   );
+  const activeArtifact = activeArtifactForTarget(session, target);
+  if (activeArtifact && activeArtifact.change_id !== change.id) {
+    clearCurrentArtifactForPath(session, target.path, now);
+  }
   await saveCurrentSession(session, sessionPath);
 
   return {
@@ -672,6 +680,11 @@ function activeChangeForTarget(session: CurrentSession | undefined, target: Chan
   return id ? session?.folders[id]?.current_change : undefined;
 }
 
+function activeArtifactForTarget(session: CurrentSession | undefined, target: ChangeTarget) {
+  const id = target.id ?? (session ? findFolderByPath(session, target.path) : undefined);
+  return id ? session?.folders[id]?.current_artifact : undefined;
+}
+
 function inferChangeFromBranch(changes: ChangeSummary[], branch: string): ChangeSummary | undefined {
   if (!branch.startsWith("change/")) {
     return undefined;
@@ -689,18 +702,33 @@ async function saveCurrentForTargets(
   const pathToSession = sessionPath ?? defaultSessionPath();
   const session = await loadOrCreateSession(pathToSession, now);
   for (const update of updates) {
+    const changeRelativePath = path.relative(update.root, update.changePath);
     setCurrentChangeForPath(
       session,
       update.root,
       {
         id: update.changeId,
-        path: path.relative(update.root, update.changePath),
+        path: changeRelativePath,
         branch: update.branch,
+      },
+      now,
+    );
+    setCurrentArtifactForPath(
+      session,
+      update.root,
+      {
+        artifact: "exploration",
+        change_id: update.changeId,
+        path: artifactPath(changeRelativePath, "exploration"),
       },
       now,
     );
   }
   await saveCurrentSession(session, pathToSession);
+}
+
+function artifactPath(changePath: string, artifact: ArtifactName): string {
+  return path.join(changePath, artifactFileName(artifact));
 }
 
 async function loadOrCreateSession(sessionPath: string, now: Date): Promise<CurrentSession> {
@@ -727,8 +755,8 @@ function statusTemplate(input: { id: string; slug: string; title: string; type: 
   });
 }
 
-function explorationTemplate(title: string, topic: string): string {
-  return `# ${titleFromSlug(slugify(title, "change")) || title}
+function explorationTemplate(title: string, topic: string, now: Date): string {
+  return `${artifactFrontmatter({ artifact: "exploration", now })}# ${titleFromSlug(slugify(title, "change")) || title}
 
 ## Topic
 

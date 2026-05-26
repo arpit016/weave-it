@@ -31,9 +31,13 @@ Start by discovering the current Weave session:
 
 ```bash
 weave workspace --json
+weave change current --json
+weave artifact current set exploration --json
 ```
 
-Use the returned folders as the exploration boundary.
+Use the returned folders as the exploration boundary. If there is no active Weave change, stop and ask the user to run `weave change new` or `weave change switch` before continuing.
+
+Setting artifact context writes local Weave session state only. It does not write repo-tracked artifacts and is allowed before discussion begins.
 
 For each folder, inspect Weave knowledge first when present:
 

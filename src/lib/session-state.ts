@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import YAML from "yaml";
+import type { ArtifactName } from "./artifact-metadata.js";
 import { ensureDir, pathExists, writeFileAtomic } from "./files.js";
 import type { ResolvedFolder } from "./folders.js";
 import { slugify, titleFromSlug } from "./ids.js";
@@ -13,12 +14,20 @@ export type SessionCurrentChange = {
   updated_at: string;
 };
 
+export type SessionCurrentArtifact = {
+  artifact: ArtifactName;
+  change_id: string;
+  path: string;
+  updated_at: string;
+};
+
 export type SessionFolder = {
   path: string;
   name: string;
   kind: string;
   git_remote?: string;
   current_change?: SessionCurrentChange;
+  current_artifact?: SessionCurrentArtifact;
 };
 
 export type CurrentSession = {
@@ -128,6 +137,40 @@ export function setCurrentChangeForPath(
   };
   session.updated_at = now.toISOString();
   return id;
+}
+
+export function setCurrentArtifactForPath(
+  session: CurrentSession,
+  folderPath: string,
+  artifact: Omit<SessionCurrentArtifact, "updated_at">,
+  now: Date,
+): string {
+  const id = ensureFolderInSession(session, folderPath, now);
+  session.folders[id].current_artifact = {
+    ...artifact,
+    updated_at: now.toISOString(),
+  };
+  session.updated_at = now.toISOString();
+  return id;
+}
+
+export function clearCurrentArtifactForPath(
+  session: CurrentSession,
+  folderPath: string,
+  now: Date,
+): string {
+  const id = ensureFolderInSession(session, folderPath, now);
+  delete session.folders[id].current_artifact;
+  session.updated_at = now.toISOString();
+  return id;
+}
+
+export function currentArtifactForPath(
+  session: CurrentSession | undefined,
+  folderPath: string,
+): SessionCurrentArtifact | undefined {
+  const id = session ? findFolderByPath(session, folderPath) : undefined;
+  return id ? session?.folders[id]?.current_artifact : undefined;
 }
 
 function uniqueFolderId(session: CurrentSession, id: string): string {

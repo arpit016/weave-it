@@ -59,6 +59,14 @@ If no active or hinted change can be resolved, stop and say:
 No active Weave change found. Run `weave change new` or `weave change switch`, then run `weave-prd` again.
 ```
 
+After resolving the active change, set local artifact context:
+
+```bash
+weave artifact current set prd --json
+```
+
+This writes local Weave session state only. It does not write repo-tracked artifacts.
+
 Identify the relevant change folder for each relevant workspace folder:
 
 ```text
@@ -157,6 +165,22 @@ Use repo documentation only to clarify domain behavior and terminology.
 
 Create a complete PRD from the exploration and supporting context.
 
+Start the file with artifact frontmatter:
+
+```yaml
+---
+artifact: prd
+status: draft
+owner: product
+created_at: <YYYY-MM-DD>
+updated_at: <YYYY-MM-DD>
+reviewed_at: null
+approved_at: null
+approved_by: null
+source: exploration.md
+---
+```
+
 Add `Revision History` with an initial entry:
 
 ```md
@@ -172,6 +196,8 @@ Revise the existing PRD in place.
 Follow these rules:
 
 - Preserve still-valid existing content.
+- Preserve existing artifact lifecycle frontmatter unless the user explicitly asks to change review or approval metadata.
+- If the existing PRD has no frontmatter, add compatible `artifact: prd` frontmatter without removing existing content.
 - Add new workflows, requirements, edge cases, acceptance criteria, and rollout notes from newer exploration context.
 - If scope expanded, update Goals, Proposed Product Behavior, User Workflows, User Stories, Functional Requirements, Edge Cases, Acceptance Criteria, Rollout Considerations, and Open Questions as needed.
 - If scope narrowed, move removed behavior to `Non-Goals` or `Out of Scope` instead of silently deleting it.
@@ -221,6 +247,7 @@ wiki/changes/<change-id>/prd.md
 Use Markdown.
 
 Do not write any other files.
+Setting local artifact context with `weave artifact current set prd --json` is allowed because it updates local session state, not repo-tracked change artifacts.
 
 ---
 

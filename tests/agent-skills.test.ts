@@ -31,6 +31,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
     expect(skill.content).toContain("In Plan Mode, do not write repo-tracked artifacts directly");
     expect(skill.content).toContain("weave workspace --json");
+    expect(skill.content).toContain("weave artifact current set exploration --json");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-explore", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -47,6 +48,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("explicitly marked `PRD Readiness` as `Not ready`");
     expect(skill.content).toContain("Do not simulate `weave-explore`");
     expect(skill.content).toContain("weave change status");
+    expect(skill.content).toContain("weave artifact current set prd --json");
+    expect(skill.content).toContain("artifact: prd");
+    expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-prd", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -66,8 +70,35 @@ describe("agent skills", () => {
     expect(skill.content).toContain('explicitly offer: "Explain with an example before deciding"');
     expect(skill.content).toContain("restate the original decision question");
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture.md");
+    expect(skill.content).toContain("weave artifact current set architecture --json");
+    expect(skill.content).toContain("artifact: architecture");
+    expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-architect", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+
+  it("ships weave-capture as a structured artifact capture skill", async () => {
+    const skill = await readDefaultSkill("weave-capture");
+
+    expect(skill.name).toBe("weave-capture");
+    expect(skill.description).toContain("structured session note");
+    expect(skill.content).toContain("weave artifact current --json");
+    expect(skill.content).toContain("Which artifact should I capture this into: exploration, prd, or architecture?");
+    expect(skill.content).toContain("yyyy-mm-dd-<4-char-id>-<artifact>.md");
+    expect(skill.content).toContain("Do not copy or store the raw transcript");
+    expect(skill.content).toContain("Preserve the artifact's template structure and lifecycle frontmatter");
+    expect(skill.content).toContain("Captured session: wiki/changes/<change-id>/sessions/<filename>.md");
+    expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-capture", "SKILL.md"));
+    expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+
+  it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
+    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture"]) {
+      const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
+
+      await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
+      await expect(readFile(path.join(process.cwd(), ".claude", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
+    }
   });
 
   it("ships weave-clarify as a canonical clarification skill", async () => {
@@ -90,7 +121,7 @@ describe("agent skills", () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: "weave-capture",
-          description: expect.stringContaining("Capture the current product discussion"),
+          description: expect.stringContaining("structured session note"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
         expect.objectContaining({

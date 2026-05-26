@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
+import { clearCurrentArtifact, currentArtifact, setCurrentArtifact } from "../src/lib/artifact-context.js";
 import { createChange, currentChange, listChanges, propagateChange, statusChange, switchChange } from "../src/lib/changes.js";
 
 const execFileAsync = promisify(execFile);
@@ -53,6 +54,7 @@ describe("changes", () => {
     const changePath = path.join(cwd, "wiki", "changes", "260522-f3q9-analytics-of-reviews");
     const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
     const exploration = await readFile(path.join(changePath, "exploration.md"), "utf8");
+    const explorationFrontmatter = YAML.parse(exploration.split("---")[1]);
 
     expect(result.id).toBe("260522-f3q9-analytics-of-reviews");
     expect(result.type).toBe("fix");
@@ -69,6 +71,18 @@ describe("changes", () => {
     });
     expect(exploration).toContain("# Analytics Of Reviews");
     expect(exploration).toContain("## PRD Readiness");
+    expect(explorationFrontmatter).toMatchObject({
+      artifact: "exploration",
+      status: "draft",
+      owner: "product",
+      created_at: "2026-05-22",
+      updated_at: "2026-05-22",
+      reviewed_at: null,
+      approved_at: null,
+      approved_by: null,
+      source: "discussion",
+    });
+    await expect(stat(path.join(changePath, "sessions"))).resolves.toMatchObject({});
   });
 
   it("defaults change type to feat", async () => {
@@ -122,6 +136,21 @@ describe("changes", () => {
     expect(result.targets).toHaveLength(2);
     await expect(stat(path.join(app, "wiki", "changes", result.id, "exploration.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(api, "wiki", "changes", result.id, "exploration.md"))).resolves.toMatchObject({});
+    const appPath = await realpath(app);
+    const apiPath = await realpath(api);
+    const parsed = YAML.parse(await readFile(sessionPath(root), "utf8"));
+    expect(Object.values(parsed.folders)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: appPath,
+          current_artifact: expect.objectContaining({ artifact: "exploration", change_id: result.id }),
+        }),
+        expect.objectContaining({
+          path: apiPath,
+          current_artifact: expect.objectContaining({ artifact: "exploration", change_id: result.id }),
+        }),
+      ]),
+    );
   });
 
   it("retries generated ids instead of overwriting an existing change folder", async () => {
@@ -194,12 +223,113 @@ describe("changes", () => {
 
     expect(Object.values(parsed.folders)[0]).toMatchObject({
       current_change: {
-      id: result.id,
-      path: path.join("wiki", "changes", result.id),
-      branch: result.branch,
+        id: result.id,
+        path: path.join("wiki", "changes", result.id),
+        branch: result.branch,
+      },
+      current_artifact: {
+        artifact: "exploration",
+        change_id: result.id,
+        path: path.join("wiki", "changes", result.id, "exploration.md"),
       },
     });
     expect(result.message).toContain("current");
+  });
+
+  it("sets, reads, and clears current artifact context", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Artifact context commands",
+      now: testNow,
+      randomId: () => "c7tt",
+      sessionPath: session,
+    });
+
+    const set = await setCurrentArtifact({ cwd, artifact: "prd", sessionPath: session, now: testNow });
+    const current = await currentArtifact({ cwd, sessionPath: session, now: testNow });
+    const cleared = await clearCurrentArtifact({ cwd, sessionPath: session, now: testNow });
+
+    expect(set.targets[0]).toMatchObject({
+      source: "session",
+      current: true,
+      artifact: {
+        artifact: "prd",
+        change_id: created.id,
+        path: path.join("wiki", "changes", created.id, "prd.md"),
+      },
+    });
+    expect(current.targets[0]).toMatchObject({
+      source: "session",
+      current: true,
+      artifact: expect.objectContaining({ artifact: "prd" }),
+    });
+    expect(cleared.targets[0]).toMatchObject({
+      source: "none",
+      current: false,
+      current_change: expect.objectContaining({ id: created.id }),
+    });
+  });
+
+  it("rejects invalid artifact context names", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    await createChange({
+      cwd,
+      title: "Artifact context validation",
+      now: testNow,
+      randomId: () => "v8ld",
+      sessionPath: session,
+    });
+
+    await expect(setCurrentArtifact({ cwd, artifact: "decision-log", sessionPath: session })).rejects.toThrow("Unsupported artifact");
+  });
+
+  it("reports no current artifact for older session files without artifact context", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Backward compatible session",
+      now: testNow,
+      randomId: () => "d8yy",
+      sessionPath: session,
+    });
+    const existing = YAML.parse(await readFile(session, "utf8"));
+    const [folderId, folder] = Object.entries(existing.folders)[0] as [
+      string,
+      { path: string; name: string; kind: string },
+    ];
+
+    await writeFile(
+      session,
+      YAML.stringify({
+        version: 1,
+        updated_at: testNow.toISOString(),
+        folders: {
+          [folderId]: {
+            path: folder.path,
+            name: folder.name,
+            kind: folder.kind,
+            current_change: {
+              id: created.id,
+              path: path.join("wiki", "changes", created.id),
+              branch: created.branch,
+              updated_at: testNow.toISOString(),
+            },
+          },
+        },
+      }),
+    );
+
+    const result = await currentArtifact({ cwd, sessionPath: session, now: testNow });
+
+    expect(result.targets[0]).toMatchObject({
+      source: "none",
+      current: false,
+      current_change: expect.objectContaining({ id: created.id }),
+    });
   });
 
   it("lists changes with the active marker", async () => {
@@ -291,6 +421,61 @@ describe("changes", () => {
     await expect(switchChange({ cwd, change: second.id, sessionPath: session })).rejects.toThrow("Uncommitted changes");
     expect(switched.change.id).toBe(first.id);
     await expect(git(cwd, ["branch", "--show-current"])).resolves.toBe(first.branch);
+  });
+
+  it("clears stale artifact context when switching to another change", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    await initGit(cwd);
+    const first = await createChange({
+      cwd,
+      title: "First change",
+      now: testNow,
+      randomId: () => "a111",
+      sessionPath: session,
+    });
+    await commitAll(cwd, "first change");
+    const second = await createChange({
+      cwd,
+      title: "Second change",
+      now: testNow,
+      randomId: () => "b222",
+      sessionPath: session,
+    });
+    await setCurrentArtifact({ cwd, artifact: "architecture", sessionPath: session, now: testNow });
+    await commitAll(cwd, "second change");
+
+    await switchChange({ cwd, change: first.id, sessionPath: session, now: testNow });
+    const parsed = YAML.parse(await readFile(session, "utf8"));
+    const folder = Object.values(parsed.folders)[0] as { current_artifact?: unknown };
+
+    expect(second.id).toBe("260522-b222-second-change");
+    expect(folder.current_artifact).toBeUndefined();
+  });
+
+  it("preserves valid artifact context when switching to the same change", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    await initGit(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Preserve artifact context",
+      now: testNow,
+      randomId: () => "p111",
+      sessionPath: session,
+    });
+    await setCurrentArtifact({ cwd, artifact: "prd", sessionPath: session, now: testNow });
+    await commitAll(cwd, "preserve artifact context");
+
+    await switchChange({ cwd, change: created.id, sessionPath: session, now: testNow });
+    const parsed = YAML.parse(await readFile(session, "utf8"));
+    const folder = Object.values(parsed.folders)[0] as { current_artifact?: unknown };
+
+    expect(folder.current_artifact).toMatchObject({
+      artifact: "prd",
+      change_id: created.id,
+      path: path.join("wiki", "changes", created.id, "prd.md"),
+    });
   });
 
   it("reports status for explicit changes without activating them", async () => {

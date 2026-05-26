@@ -96,6 +96,14 @@ If no active or hinted change can be resolved, stop and say:
 No active Weave change found. Run `weave change new` or `weave change switch`, then run `weave-architect` again.
 ```
 
+After resolving the active change, set local artifact context:
+
+```bash
+weave artifact current set architecture --json
+```
+
+This writes local Weave session state only. It does not write repo-tracked artifacts and is allowed before technical discussion begins.
+
 Identify the relevant change folder for each relevant workspace folder:
 
 ```text
@@ -236,6 +244,22 @@ If a question blocks responsible design, ask it before writing or revising `arch
 
 Create a complete engineering design from the PRD and technical context.
 
+Start the file with artifact frontmatter:
+
+```yaml
+---
+artifact: architecture
+status: draft
+owner: engineering
+created_at: <YYYY-MM-DD>
+updated_at: <YYYY-MM-DD>
+reviewed_at: null
+approved_at: null
+approved_by: null
+source: prd.md
+---
+```
+
 Add `Revision History` with an initial entry:
 
 ```md
@@ -251,6 +275,8 @@ Revise the existing architecture in place.
 Follow these rules:
 
 - Preserve still-valid existing content.
+- Preserve existing artifact lifecycle frontmatter unless the user explicitly asks to change review or approval metadata.
+- If the existing architecture has no frontmatter, add compatible `artifact: architecture` frontmatter without removing existing content.
 - Update decisions, technical approach, tradeoffs, risk areas, rollout notes, observability, and testing strategy as needed.
 - If a technical decision changed, keep the current decision in the relevant section and summarize the superseded decision in `Revision History` or `Rejected Alternatives`.
 - If the PRD changed in ways that invalidate the design, update the design and call out affected systems and risks.
@@ -298,6 +324,7 @@ wiki/changes/<change-id>/architecture.md
 Use Markdown.
 
 Do not write any other files.
+Setting local artifact context with `weave artifact current set architecture --json` is allowed because it updates local session state, not repo-tracked change artifacts.
 
 ---
 
