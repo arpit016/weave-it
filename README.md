@@ -298,8 +298,8 @@ Examples:
 ```bash
 weave agent install opencode
 weave agent update opencode
-weave agent diff opencode weave-prd
-weave agent reset opencode weave-prd
+weave agent diff opencode weave-explore
+weave agent reset opencode weave-explore
 ```
 
 `install` and `update` protect user edits. They update files only when the current file still matches the last Weave-installed hash in `.weave/agents.yml`. If a user edits an installed skill or command wrapper, Weave skips it. `reset` is the explicit overwrite path.
@@ -311,11 +311,11 @@ Weave ships Agent Skills for change discovery, requirements, implementation plan
 Skills:
 
 ```text
-weave-new          start a new change exploration from a title or topic
-weave-capture      capture the current discussion as a change exploration
-weave-prd          stress-test product requirements and PRD readiness
-weave-issues       break a PRD or implementation plan into tracer-bullet issues
-weave-propagate    copy an existing change exploration to another repo
+weave-new        start a new change exploration from a title or topic
+weave-capture    capture the current discussion as a change exploration
+weave-explore    stress-test product requirements and PRD readiness
+weave-issues     break a PRD or implementation plan into tracer-bullet issues
+weave-propagate  copy an existing change exploration to another repo
 ```
 
 Install them for one agent:
@@ -356,7 +356,7 @@ Then start Claude Code in the repo and ask:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
-/weave-prd "Analytics of reviews"
+/weave-explore "Analytics of reviews"
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
@@ -374,7 +374,7 @@ Then ask Cursor Agent from the repo:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
-/weave-prd "Analytics of reviews"
+/weave-explore "Analytics of reviews"
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
@@ -392,7 +392,7 @@ Then ask Codex from the repo:
 ```text
 $weave-new "Analytics of reviews"
 $weave-capture
-$weave-prd "Analytics of reviews"
+$weave-explore "Analytics of reviews"
 $weave-issues "Break the active PRD into implementation issues"
 $weave-propagate 260522-f3q9-review-analytics to api
 ```
@@ -410,7 +410,7 @@ Then invoke the slash command in opencode:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
-/weave-prd "Analytics of reviews"
+/weave-explore "Analytics of reviews"
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
@@ -418,10 +418,10 @@ Then invoke the slash command in opencode:
 Or invoke the skill naturally:
 
 ```text
-Use the weave-prd skill for Analytics of reviews.
+Use the weave-explore skill for Analytics of reviews.
 ```
 
-Claude Code, Cursor, and opencode use slash commands such as `/weave-prd`. Codex uses `$weave-prd` to explicitly invoke the installed skill. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
+Claude Code, Cursor, and opencode use slash commands such as `/weave-explore`. Codex uses `$weave-explore` to explicitly invoke the installed skill. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
 
 ## `weave skills` and `weave skill`
 
@@ -430,7 +430,7 @@ Lists and prints bundled Weave skills.
 ```bash
 weave skills list
 weave skill show weave-new
-weave skill show weave-prd
+weave skill show weave-explore
 weave skill show weave-issues
 ```
 

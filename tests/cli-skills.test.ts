@@ -40,19 +40,19 @@ describe("skills CLI", () => {
 
     await createProgram().parseAsync(["agent", "install", "codex"], { from: "user" });
 
-    await expect(stat(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
-    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd skill for codex"));
+    await expect(stat(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-explore skill for codex"));
   });
 
   it("lists and shows bundled skills", async () => {
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     await createProgram().parseAsync(["skills", "list"], { from: "user" });
-    await createProgram().parseAsync(["skill", "show", "weave-prd"], { from: "user" });
+    await createProgram().parseAsync(["skill", "show", "weave-explore"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-issues"], { from: "user" });
 
     const output = write.mock.calls.map((call) => String(call[0])).join("");
-    expect(output).toContain("weave-prd");
+    expect(output).toContain("weave-explore");
     expect(output).toContain("weave-issues");
     expect(output).toContain("weave workspace --json");
     expect(output).toContain("tracer-bullet");
@@ -70,7 +70,7 @@ describe("skills CLI", () => {
       expect.arrayContaining([
         expect.objectContaining({
           agent: "claude",
-          skill: "weave-prd",
+          skill: "weave-explore",
           status: "installed",
         }),
       ]),
@@ -86,7 +86,7 @@ describe("skills CLI", () => {
 
     const manifest = await readFile(path.join(cwd, ".weave", "agents.yml"), "utf8");
     expect(manifest).toContain("claude:");
-    expect(manifest).toContain("weave-prd:");
+    expect(manifest).toContain("weave-explore:");
   });
 
   it("installs opencode skill and slash command through weave agent install", async () => {
@@ -96,11 +96,11 @@ describe("skills CLI", () => {
 
     await createProgram().parseAsync(["agent", "install", "opencode"], { from: "user" });
 
-    await expect(stat(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(cwd, ".opencode", "commands", "weave-prd.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".opencode", "commands", "weave-explore.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-issues.md"))).resolves.toMatchObject({});
-    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd command for opencode"));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-explore command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-issues command for opencode"));
   });
 

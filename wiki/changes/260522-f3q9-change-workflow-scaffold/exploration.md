@@ -6,7 +6,7 @@ Create a Weave workflow for starting a change folder with a stable change id, ge
 
 ## Current Understanding
 
-Weave should provide a deterministic command surface for creating change planning work under `wiki/changes/`. The agent-facing `weave-prd` skill should handle product discovery, but the CLI should own folder naming, uniqueness, and scaffold creation.
+Weave should provide a deterministic command surface for creating change planning work under `wiki/changes/`. The agent-facing `weave-explore` skill should handle product discovery, but the CLI should own folder naming, uniqueness, and scaffold creation.
 
 For Weave, the equivalent durable unit should be a change folder:
 
@@ -105,7 +105,7 @@ None for V1.
 
 ## Recommendation
 
-`weave change new` should be the explicit commit point. `/weave-prd` should discuss first and call the command only after the user agrees to capture the change.
+`weave change new` should be the explicit commit point. `/weave-explore` should discuss first and call the command only after the user agrees to capture the change.
 
 The V1 command should:
 

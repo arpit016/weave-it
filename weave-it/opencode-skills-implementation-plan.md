@@ -7,7 +7,7 @@ Support command-driven Weave workflows inside opencode while keeping Weave's can
 The target user experience is:
 
 ```text
-/weave-prd "Analytics of reviews"
+/weave-explore "Analytics of reviews"
 ```
 
 Inside opencode this should load the Weave PRD workflow, discover the current Weave workspace, and guide the agent through product exploration and PRD creation or refinement.
@@ -19,8 +19,8 @@ Use three separate layers:
 | Layer | Purpose | Example |
 |---|---|---|
 | Weave CLI | Deterministic implementation surface | `weave workspace --json` |
-| Agent Skill | Canonical reusable workflow | `.agents/skills/weave-prd/SKILL.md` |
-| Opencode Command | Slash-command shortcut | `.opencode/commands/weave-prd.md` |
+| Agent Skill | Canonical reusable workflow | `.agents/skills/weave-explore/SKILL.md` |
+| Opencode Command | Slash-command shortcut | `.opencode/commands/weave-explore.md` |
 
 The opencode command is only a thin wrapper. The skill remains the source of truth.
 
@@ -45,13 +45,13 @@ Slash commands are discovered from:
 Therefore this works with only a skill:
 
 ```text
-Use the weave-prd skill for Analytics of reviews.
+Use the weave-explore skill for Analytics of reviews.
 ```
 
 But this requires a command wrapper:
 
 ```text
-/weave-prd Analytics of reviews
+/weave-explore Analytics of reviews
 ```
 
 ## Install Target
@@ -61,12 +61,12 @@ But this requires a command wrapper:
 ```text
 .agents/
   skills/
-    weave-prd/
+    weave-explore/
       SKILL.md
 
 .opencode/
   commands/
-    weave-prd.md
+    weave-explore.md
 ```
 
 Do not install to `.opencode/skills` by default. `.agents/skills` is the portable Agent Skills location and also works for Codex and Cursor.
@@ -76,13 +76,13 @@ Do not install to `.opencode/skills` by default. `.agents/skills` is the portabl
 After install, opencode users can invoke Weave PRD workflow with:
 
 ```text
-/weave-prd Analytics of reviews
+/weave-explore Analytics of reviews
 ```
 
 They can also invoke the skill naturally:
 
 ```text
-Use weave-prd for Analytics of reviews.
+Use weave-explore for Analytics of reviews.
 ```
 
 The slash command path is the preferred documented UX for opencode because it gives users a direct workflow entrypoint.
@@ -94,14 +94,14 @@ Package-owned default skills should live in:
 ```text
 templates/
   skills/
-    weave-prd/
+    weave-explore/
       SKILL.md
 ```
 
 The installed opencode skill should be copied to:
 
 ```text
-.agents/skills/weave-prd/SKILL.md
+.agents/skills/weave-explore/SKILL.md
 ```
 
 The current draft skill should be migrated from:
@@ -113,7 +113,7 @@ skills/explore-product.md
 to:
 
 ```text
-templates/skills/weave-prd/SKILL.md
+templates/skills/weave-explore/SKILL.md
 ```
 
 ## Canonical Skill Name
@@ -121,18 +121,18 @@ templates/skills/weave-prd/SKILL.md
 Use:
 
 ```text
-weave-prd
+weave-explore
 ```
 
-`weave-prd` is outcome-oriented and maps cleanly to the desired invocation:
+`weave-explore` is outcome-oriented and maps cleanly to the desired invocation:
 
 ```text
-/weave-prd "Analytics of reviews"
+/weave-explore "Analytics of reviews"
 ```
 
 ## Skill Behavior Contract
 
-`templates/skills/weave-prd/SKILL.md` should instruct the agent to:
+`templates/skills/weave-explore/SKILL.md` should instruct the agent to:
 
 - Start by running `weave workspace --json`.
 - Treat returned folders as the current session boundary.
@@ -148,7 +148,7 @@ weave-prd
 The generated command should live at:
 
 ```text
-.opencode/commands/weave-prd.md
+.opencode/commands/weave-explore.md
 ```
 
 Recommended content:
@@ -158,7 +158,7 @@ Recommended content:
 description: Explore and draft a PRD using Weave context
 ---
 
-Load and follow the `weave-prd` skill.
+Load and follow the `weave-explore` skill.
 
 Topic: $ARGUMENTS
 ```
@@ -172,8 +172,8 @@ Installed skills and command wrappers are normal repo files and may be edited by
 Users may customize:
 
 ```text
-.agents/skills/weave-prd/SKILL.md
-.opencode/commands/weave-prd.md
+.agents/skills/weave-explore/SKILL.md
+.opencode/commands/weave-explore.md
 ```
 
 Weave must not overwrite user-modified files unless explicitly requested.
@@ -200,14 +200,14 @@ version: 1
 installed:
   opencode:
     skills:
-      weave-prd:
-        path: .agents/skills/weave-prd/SKILL.md
+      weave-explore:
+        path: .agents/skills/weave-explore/SKILL.md
         source_hash: sha256:abc123
         installed_hash: sha256:def456
         installed_at: "2026-05-19T00:00:00.000Z"
     commands:
-      weave-prd:
-        path: .opencode/commands/weave-prd.md
+      weave-explore:
+        path: .opencode/commands/weave-explore.md
         source_hash: sha256:abc123
         installed_hash: sha256:def456
         installed_at: "2026-05-19T00:00:00.000Z"
@@ -228,14 +228,14 @@ Installs missing opencode integration files.
 Writes:
 
 ```text
-.agents/skills/weave-prd/SKILL.md
-.opencode/commands/weave-prd.md
+.agents/skills/weave-explore/SKILL.md
+.opencode/commands/weave-explore.md
 ```
 
 Behavior:
 
 - Create directories as needed.
-- Copy default skill from `templates/skills/weave-prd/SKILL.md`.
+- Copy default skill from `templates/skills/weave-explore/SKILL.md`.
 - Generate command wrapper from a command template.
 - Do not overwrite modified files.
 - Update `.weave/agents.yml`.
@@ -256,11 +256,11 @@ Behavior:
 
 Shows local changes compared with current Weave defaults.
 
-For `weave-prd`, include both:
+For `weave-explore`, include both:
 
 ```text
-.agents/skills/weave-prd/SKILL.md
-.opencode/commands/weave-prd.md
+.agents/skills/weave-explore/SKILL.md
+.opencode/commands/weave-explore.md
 ```
 
 ### `weave agent reset opencode [name]`
@@ -273,14 +273,14 @@ This is the only operation allowed to overwrite user modifications.
 
 Tasks:
 
-- Create `templates/skills/weave-prd/SKILL.md`.
+- Create `templates/skills/weave-explore/SKILL.md`.
 - Migrate useful content from `skills/explore-product.md`.
-- Create `templates/opencode/commands/weave-prd.md`.
+- Create `templates/opencode/commands/weave-explore.md`.
 - Keep command wrapper minimal and delegate to the skill.
 
 Exit criteria:
 
-- `weave-prd` has a complete Agent Skills-compatible `SKILL.md`.
+- `weave-explore` has a complete Agent Skills-compatible `SKILL.md`.
 - Opencode command template invokes the skill and passes `$ARGUMENTS`.
 
 ## Phase 2: Add Opencode Target Resolver
@@ -324,8 +324,8 @@ Tasks:
 Exit criteria:
 
 - `weave agent update opencode` updates untouched files only.
-- `weave agent diff opencode weave-prd` shows skill and command differences.
-- `weave agent reset opencode weave-prd` overwrites both files and updates hashes.
+- `weave agent diff opencode weave-explore` shows skill and command differences.
+- `weave agent reset opencode weave-explore` overwrites both files and updates hashes.
 
 ## Phase 5: Documentation
 
@@ -334,21 +334,21 @@ Tasks:
 - Document opencode invocation in README.
 - Show slash-command usage:
   ```text
-  /weave-prd "Analytics of reviews"
+  /weave-explore "Analytics of reviews"
   ```
 - Explain that opencode also supports natural-language skill invocation.
 - Explain that installed files are user-editable and protected from accidental overwrite.
 
 Exit criteria:
 
-- A new user can install opencode support and invoke `/weave-prd` without knowing the internal skill system.
+- A new user can install opencode support and invoke `/weave-explore` without knowing the internal skill system.
 
 ## Phase 6: Tests
 
 Add tests for:
 
-- Installing opencode creates `.agents/skills/weave-prd/SKILL.md`.
-- Installing opencode creates `.opencode/commands/weave-prd.md`.
+- Installing opencode creates `.agents/skills/weave-explore/SKILL.md`.
+- Installing opencode creates `.opencode/commands/weave-explore.md`.
 - Re-running install is idempotent.
 - Modified skill file is skipped.
 - Modified command wrapper is skipped.
@@ -360,8 +360,8 @@ Add tests for:
 
 - Do not install to `.opencode/skills` by default.
 - Do not create opencode-specific skill variants.
-- Do not make `weave-prd` a terminal command.
-- Do not duplicate skill instructions inside `.opencode/commands/weave-prd.md`.
+- Do not make `weave-explore` a terminal command.
+- Do not duplicate skill instructions inside `.opencode/commands/weave-explore.md`.
 - Do not overwrite user modifications during install or update.
 
 ## Future Enhancements

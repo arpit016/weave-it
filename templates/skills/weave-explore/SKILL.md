@@ -1,5 +1,5 @@
 ---
-name: weave-prd
+name: weave-explore
 description: Stress-test product requirements against the current system, workflows, and domain language. Use when refining PRDs, validating workflows, uncovering edge cases, clarifying ownership, or aligning new changes with existing product behavior.
 ---
 

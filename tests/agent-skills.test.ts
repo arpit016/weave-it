@@ -21,13 +21,13 @@ async function readManifest(cwd: string): Promise<unknown> {
 }
 
 describe("agent skills", () => {
-  it("ships weave-prd as a canonical Agent Skills template", async () => {
-    const skill = await readDefaultSkill("weave-prd");
+  it("ships weave-explore as a canonical Agent Skills template", async () => {
+    const skill = await readDefaultSkill("weave-explore");
 
-    expect(skill.name).toBe("weave-prd");
+    expect(skill.name).toBe("weave-explore");
     expect(skill.description).toContain("Stress-test product requirements");
     expect(skill.content).toContain("weave workspace --json");
-    expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-prd", "SKILL.md"));
+    expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-explore", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
@@ -52,7 +52,7 @@ describe("agent skills", () => {
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
         expect.objectContaining({
-          name: "weave-prd",
+          name: "weave-explore",
           description: expect.stringContaining("Stress-test product requirements"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
@@ -71,27 +71,27 @@ describe("agent skills", () => {
     const codex = await installAgentSkills({ cwd, agent: "codex", now: new Date("2026-05-19T00:00:00.000Z") });
     const cursor = await installAgentSkills({ cwd, agent: "cursor", now: new Date("2026-05-19T00:00:01.000Z") });
 
-    const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"), "utf8");
+    const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"), "utf8");
     const manifest = await readManifest(cwd);
 
-    expect(codex.results).toContainEqual(expect.objectContaining({ agent: "codex", kind: "skill", skill: "weave-prd", status: "installed" }));
-    expect(cursor.results).toContainEqual(expect.objectContaining({ agent: "cursor", kind: "skill", skill: "weave-prd", status: "unchanged" }));
-    expect(installed).toContain("name: weave-prd");
+    expect(codex.results).toContainEqual(expect.objectContaining({ agent: "codex", kind: "skill", skill: "weave-explore", status: "installed" }));
+    expect(cursor.results).toContainEqual(expect.objectContaining({ agent: "cursor", kind: "skill", skill: "weave-explore", status: "unchanged" }));
+    expect(installed).toContain("name: weave-explore");
     expect(manifest).toMatchObject({
       version: 1,
       installed: {
         codex: {
           skills: {
-            "weave-prd": {
-              path: ".agents/skills/weave-prd/SKILL.md",
+            "weave-explore": {
+              path: ".agents/skills/weave-explore/SKILL.md",
               installed_at: "2026-05-19T00:00:00.000Z",
             },
           },
         },
         cursor: {
           skills: {
-            "weave-prd": {
-              path: ".agents/skills/weave-prd/SKILL.md",
+            "weave-explore": {
+              path: ".agents/skills/weave-explore/SKILL.md",
               installed_at: "2026-05-19T00:00:01.000Z",
             },
           },
@@ -108,18 +108,18 @@ describe("agent skills", () => {
     await installAgentSkills({ cwd: allCwd, agent: "all" });
     const manifest = await readManifest(allCwd);
 
-    await expect(stat(path.join(claudeCwd, ".claude", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(allCwd, ".agents", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(allCwd, ".claude", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-prd.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(claudeCwd, ".claude", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(allCwd, ".agents", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(allCwd, ".claude", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-explore.md"))).resolves.toMatchObject({});
     expect(manifest).toMatchObject({
       installed: {
-        codex: { skills: { "weave-prd": { path: ".agents/skills/weave-prd/SKILL.md" } } },
-        cursor: { skills: { "weave-prd": { path: ".agents/skills/weave-prd/SKILL.md" } } },
-        claude: { skills: { "weave-prd": { path: ".claude/skills/weave-prd/SKILL.md" } } },
+        codex: { skills: { "weave-explore": { path: ".agents/skills/weave-explore/SKILL.md" } } },
+        cursor: { skills: { "weave-explore": { path: ".agents/skills/weave-explore/SKILL.md" } } },
+        claude: { skills: { "weave-explore": { path: ".claude/skills/weave-explore/SKILL.md" } } },
         opencode: {
-          skills: { "weave-prd": { path: ".agents/skills/weave-prd/SKILL.md" } },
-          commands: { "weave-prd": { path: ".opencode/commands/weave-prd.md" } },
+          skills: { "weave-explore": { path: ".agents/skills/weave-explore/SKILL.md" } },
+          commands: { "weave-explore": { path: ".opencode/commands/weave-explore.md" } },
         },
       },
     });
@@ -127,7 +127,7 @@ describe("agent skills", () => {
 
   it("does not overwrite a user-modified installed skill during install or update", async () => {
     const cwd = await tempDir();
-    const installedPath = path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md");
+    const installedPath = path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md");
 
     await installAgentSkills({ cwd, agent: "codex" });
     await writeFile(installedPath, "custom user edit\n");
@@ -143,15 +143,15 @@ describe("agent skills", () => {
   it("updates untouched installed skills when the default source changes", async () => {
     const cwd = await tempDir();
     const templatesDir = path.join(cwd, "templates", "skills");
-    const skillDir = path.join(templatesDir, "weave-prd");
+    const skillDir = path.join(templatesDir, "weave-explore");
     await mkdir(skillDir, { recursive: true });
-    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-prd\ndescription: Original\n---\n\nOriginal\n");
+    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-explore\ndescription: Original\n---\n\nOriginal\n");
 
     await installAgentSkills({ cwd, agent: "codex", templatesDir });
-    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-prd\ndescription: Updated\n---\n\nUpdated\n");
+    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-explore\ndescription: Updated\n---\n\nUpdated\n");
 
     const update = await updateAgentSkills({ cwd, agent: "codex", templatesDir });
-    const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"), "utf8");
+    const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"), "utf8");
 
     expect(update.results).toContainEqual(expect.objectContaining({ status: "updated" }));
     expect(installed).toContain("Updated");
@@ -159,25 +159,25 @@ describe("agent skills", () => {
 
   it("resets modified skills only when explicitly requested", async () => {
     const cwd = await tempDir();
-    const installedPath = path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md");
+    const installedPath = path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md");
 
     await installAgentSkills({ cwd, agent: "codex" });
     await writeFile(installedPath, "custom user edit\n");
 
-    const reset = await resetAgentSkills({ cwd, agent: "codex", skill: "weave-prd" });
+    const reset = await resetAgentSkills({ cwd, agent: "codex", skill: "weave-explore" });
 
     expect(reset.results).toContainEqual(expect.objectContaining({ status: "reset" }));
-    await expect(readFile(installedPath, "utf8")).resolves.toContain("name: weave-prd");
+    await expect(readFile(installedPath, "utf8")).resolves.toContain("name: weave-explore");
   });
 
   it("shows diffs between installed skills and current defaults", async () => {
     const cwd = await tempDir();
-    const installedPath = path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md");
+    const installedPath = path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md");
 
     await installAgentSkills({ cwd, agent: "codex" });
     await writeFile(installedPath, "custom user edit\n");
 
-    const result = await diffAgentSkills({ cwd, agent: "codex", skill: "weave-prd" });
+    const result = await diffAgentSkills({ cwd, agent: "codex", skill: "weave-explore" });
 
     expect(result.status).toBe("ok");
     expect(result.message).toContain("--- installed");
@@ -190,28 +190,28 @@ describe("agent skills", () => {
     const cwd = await tempDir();
 
     const install = await installAgentSkills({ cwd, agent: "opencode", now: new Date("2026-05-19T00:00:00.000Z") });
-    const prdSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"), "utf8");
+    const prdSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"), "utf8");
     const newSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-new", "SKILL.md"), "utf8");
     const issuesSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"), "utf8");
-    const prdCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
+    const prdCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-explore.md"), "utf8");
     const newCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-new.md"), "utf8");
     const issuesCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-issues.md"), "utf8");
     const manifest = await readManifest(cwd);
 
     expect(install.results).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-prd", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-explore", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-issues", status: "installed" }),
-        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-prd", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-explore", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-issues", status: "installed" }),
       ]),
     );
-    expect(prdSkill).toContain("name: weave-prd");
+    expect(prdSkill).toContain("name: weave-explore");
     expect(newSkill).toContain("name: weave-new");
     expect(issuesSkill).toContain("name: weave-issues");
-    expect(prdCommand).toContain("Load and follow the `weave-prd` skill.");
+    expect(prdCommand).toContain("Load and follow the `weave-explore` skill.");
     expect(prdCommand).toContain("Topic: $ARGUMENTS");
     expect(newCommand).toContain("Load and follow the `weave-new` skill.");
     expect(issuesCommand).toContain("Load and follow the `weave-issues` skill.");
@@ -220,8 +220,8 @@ describe("agent skills", () => {
       installed: {
         opencode: {
           skills: {
-            "weave-prd": {
-              path: ".agents/skills/weave-prd/SKILL.md",
+            "weave-explore": {
+              path: ".agents/skills/weave-explore/SKILL.md",
             },
             "weave-new": {
               path: ".agents/skills/weave-new/SKILL.md",
@@ -231,8 +231,8 @@ describe("agent skills", () => {
             },
           },
           commands: {
-            "weave-prd": {
-              path: ".opencode/commands/weave-prd.md",
+            "weave-explore": {
+              path: ".opencode/commands/weave-explore.md",
             },
             "weave-new": {
               path: ".opencode/commands/weave-new.md",
@@ -254,8 +254,8 @@ describe("agent skills", () => {
 
     expect(installAgain.results).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-prd", status: "unchanged" }),
-        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-prd", status: "unchanged" }),
+        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-explore", status: "unchanged" }),
+        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-explore", status: "unchanged" }),
       ]),
     );
     await expect(stat(path.join(cwd, ".opencode", "skills"))).rejects.toMatchObject({ code: "ENOENT" });
@@ -263,7 +263,7 @@ describe("agent skills", () => {
 
   it("does not overwrite a user-modified opencode command during install or update", async () => {
     const cwd = await tempDir();
-    const commandPath = path.join(cwd, ".opencode", "commands", "weave-prd.md");
+    const commandPath = path.join(cwd, ".opencode", "commands", "weave-explore.md");
 
     await installAgentSkills({ cwd, agent: "opencode" });
     await writeFile(commandPath, "custom opencode command\n");
@@ -280,17 +280,17 @@ describe("agent skills", () => {
     const cwd = await tempDir();
     const templatesDir = path.join(cwd, "templates", "skills");
     const commandTemplatesDir = path.join(cwd, "templates", "opencode", "commands");
-    const skillDir = path.join(templatesDir, "weave-prd");
+    const skillDir = path.join(templatesDir, "weave-explore");
     await mkdir(skillDir, { recursive: true });
     await mkdir(commandTemplatesDir, { recursive: true });
-    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-prd\ndescription: Original\n---\n\nOriginal\n");
-    await writeFile(commandTemplatesDir + "/weave-prd.md", "---\ndescription: Original command\n---\n\nOriginal command\n");
+    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-explore\ndescription: Original\n---\n\nOriginal\n");
+    await writeFile(commandTemplatesDir + "/weave-explore.md", "---\ndescription: Original command\n---\n\nOriginal command\n");
 
     await installAgentSkills({ cwd, agent: "opencode", templatesDir, commandTemplatesDir });
-    await writeFile(commandTemplatesDir + "/weave-prd.md", "---\ndescription: Updated command\n---\n\nUpdated command\n");
+    await writeFile(commandTemplatesDir + "/weave-explore.md", "---\ndescription: Updated command\n---\n\nUpdated command\n");
 
     const update = await updateAgentSkills({ cwd, agent: "opencode", templatesDir, commandTemplatesDir });
-    const command = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
+    const command = await readFile(path.join(cwd, ".opencode", "commands", "weave-explore.md"), "utf8");
 
     expect(update.results).toContainEqual(expect.objectContaining({ kind: "command", status: "updated" }));
     expect(command).toContain("Updated command");
@@ -298,14 +298,14 @@ describe("agent skills", () => {
 
   it("resets opencode skill and command when explicitly requested", async () => {
     const cwd = await tempDir();
-    const skillPath = path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md");
-    const commandPath = path.join(cwd, ".opencode", "commands", "weave-prd.md");
+    const skillPath = path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md");
+    const commandPath = path.join(cwd, ".opencode", "commands", "weave-explore.md");
 
     await installAgentSkills({ cwd, agent: "opencode" });
     await writeFile(skillPath, "custom skill\n");
     await writeFile(commandPath, "custom command\n");
 
-    const reset = await resetAgentSkills({ cwd, agent: "opencode", skill: "weave-prd" });
+    const reset = await resetAgentSkills({ cwd, agent: "opencode", skill: "weave-explore" });
 
     expect(reset.results).toEqual(
       expect.arrayContaining([
@@ -313,7 +313,7 @@ describe("agent skills", () => {
         expect.objectContaining({ kind: "command", status: "reset" }),
       ]),
     );
-    await expect(readFile(skillPath, "utf8")).resolves.toContain("name: weave-prd");
+    await expect(readFile(skillPath, "utf8")).resolves.toContain("name: weave-explore");
     await expect(readFile(commandPath, "utf8")).resolves.toContain("Topic: $ARGUMENTS");
   });
 });
