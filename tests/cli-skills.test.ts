@@ -51,16 +51,19 @@ describe("skills CLI", () => {
     await createProgram().parseAsync(["skill", "show", "weave-explore"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-prd"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-architect"], { from: "user" });
+    await createProgram().parseAsync(["skill", "show", "weave-clarify"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-issues"], { from: "user" });
 
     const output = write.mock.calls.map((call) => String(call[0])).join("");
     expect(output).toContain("weave-explore");
     expect(output).toContain("weave-prd");
     expect(output).toContain("weave-architect");
+    expect(output).toContain("weave-clarify");
     expect(output).toContain("weave-issues");
     expect(output).toContain("weave workspace --json");
     expect(output).toContain("Treat `prd.md` as a living product artifact");
     expect(output).toContain("Treat `prd.md` as the primary product contract");
+    expect(output).toContain("Treat the selected target artifact as the only write target");
     expect(output).toContain("tracer-bullet");
   });
 
@@ -105,14 +108,17 @@ describe("skills CLI", () => {
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-architect", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".agents", "skills", "weave-clarify", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-explore.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-prd.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-architect.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".opencode", "commands", "weave-clarify.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-issues.md"))).resolves.toMatchObject({});
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-explore command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-architect command for opencode"));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-clarify command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-issues command for opencode"));
   });
 

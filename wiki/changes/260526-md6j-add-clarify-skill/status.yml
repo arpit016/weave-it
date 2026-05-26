@@ -1,0 +1,9 @@
+version: 1
+id: 260526-md6j-add-clarify-skill
+slug: add-clarify-skill
+title: Add clarify skill
+type: feat
+stage: exploration
+branch: change/260526-md6j-add-clarify-skill
+created_at: 2026-05-26T08:07:23.535Z
+updated_at: 2026-05-26T08:07:23.535Z

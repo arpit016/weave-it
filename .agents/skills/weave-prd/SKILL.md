@@ -5,7 +5,7 @@ description: Generate or revise prd.md from the active Weave exploration. Use wh
 
 # Weave PRD
 
-This skill converts an existing Weave exploration into a product requirements document.
+This skill converts an existing usable Weave exploration into a product requirements document.
 
 Use this after product discovery has been captured in `exploration.md`. This is not a discovery interview skill; use existing Weave context first. Ask the user only when a missing answer would materially change product scope, user behavior, permissions, rollout, or acceptance.
 
@@ -14,6 +14,7 @@ Use this after product discovery has been captured in `exploration.md`. This is 
 # Operating Principles
 
 - Treat `exploration.md` as the primary source.
+- Require a usable `exploration.md` before generating or revising `prd.md`.
 - Treat `prd.md` as a living product artifact.
 - Create `prd.md` when it does not exist.
 - Revise `prd.md` in place when it already exists.
@@ -80,11 +81,20 @@ Read first:
 wiki/changes/<change-id>/exploration.md
 ```
 
-If `exploration.md` is missing, stop and say:
+If `exploration.md` is missing or unusable, stop and say:
 
 ```text
-No exploration.md found for <change-id>. Run `weave-explore` or `weave-capture` first, then run `weave-prd`.
+No usable exploration.md found for <change-id>. Run `weave-explore` first, then run `weave-prd` again.
 ```
+
+Treat `exploration.md` as unusable when it is:
+
+- missing
+- blank or whitespace-only
+- scaffold-only with headings but no substantive content
+- explicitly marked `PRD Readiness` as `Not ready`
+
+Do not generate `prd.md` from unusable exploration context. Do not simulate `weave-explore`, conduct the full discovery interview inside `weave-prd`, or write `exploration.md`. Stop and ask the user to run `weave-explore` first.
 
 ## 2. Current PRD Baseline
 
