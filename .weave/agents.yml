@@ -6,131 +6,181 @@ installed:
         path: .claude/skills/weave-explore/SKILL.md
         source_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
         installed_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
-        installed_at: 2026-05-25T16:15:49.632Z
+        installed_at: 2026-05-26T05:41:11.677Z
       weave-capture:
         path: .claude/skills/weave-capture/SKILL.md
         source_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
         installed_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
-        installed_at: 2026-05-25T16:15:49.632Z
+        installed_at: 2026-05-26T05:41:11.677Z
       weave-new:
         path: .claude/skills/weave-new/SKILL.md
         source_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
         installed_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
-        installed_at: 2026-05-25T16:15:49.632Z
+        installed_at: 2026-05-26T05:41:11.678Z
       weave-propagate:
         path: .claude/skills/weave-propagate/SKILL.md
         source_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
         installed_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
-        installed_at: 2026-05-25T16:15:49.633Z
+        installed_at: 2026-05-26T05:41:11.679Z
       weave-issues:
         path: .claude/skills/weave-issues/SKILL.md
-        source_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_at: 2026-05-25T18:19:28.311Z
+        source_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_at: 2026-05-26T05:41:11.678Z
+      weave-prd:
+        path: .claude/skills/weave-prd/SKILL.md
+        source_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_at: 2026-05-26T05:41:11.678Z
+      weave-architect:
+        path: .claude/skills/weave-architect/SKILL.md
+        source_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_at: 2026-05-26T07:46:49.000Z
   opencode:
     commands:
       weave-explore:
         path: .opencode/commands/weave-explore.md
         source_hash: sha256:2f8a3409100f89bc52e41cec935f9eff9bbc56591727dc8292eed1a770fb2e1c
         installed_hash: sha256:2f8a3409100f89bc52e41cec935f9eff9bbc56591727dc8292eed1a770fb2e1c
-        installed_at: 2026-05-25T16:15:49.637Z
+        installed_at: 2026-05-26T05:41:11.681Z
+      weave-prd:
+        path: .opencode/commands/weave-prd.md
+        source_hash: sha256:b3457e3d61257a1e1efd12d001c60280d370edddcd60614b25498ae3fda9d234
+        installed_hash: sha256:b3457e3d61257a1e1efd12d001c60280d370edddcd60614b25498ae3fda9d234
+        installed_at: 2026-05-26T05:41:11.681Z
       weave-capture:
         path: .opencode/commands/weave-capture.md
         source_hash: sha256:3d657d490d2737391870542ba6e009e63aa3008cd31ba5fba8c83c7fa060e9e3
         installed_hash: sha256:3d657d490d2737391870542ba6e009e63aa3008cd31ba5fba8c83c7fa060e9e3
-        installed_at: 2026-05-25T16:15:49.637Z
+        installed_at: 2026-05-26T05:41:11.681Z
       weave-new:
         path: .opencode/commands/weave-new.md
         source_hash: sha256:c712ca4390de10d036bb1516772f51565f907dae25c0852a32e3b81eac962680
         installed_hash: sha256:c712ca4390de10d036bb1516772f51565f907dae25c0852a32e3b81eac962680
-        installed_at: 2026-05-25T16:15:49.637Z
+        installed_at: 2026-05-26T05:41:11.681Z
       weave-propagate:
         path: .opencode/commands/weave-propagate.md
         source_hash: sha256:a2832ad15a2b9eddbeb34c760e09301af254e98635b3ad2efea4f08c936bf256
         installed_hash: sha256:a2832ad15a2b9eddbeb34c760e09301af254e98635b3ad2efea4f08c936bf256
-        installed_at: 2026-05-25T16:15:49.638Z
+        installed_at: 2026-05-26T05:41:11.682Z
       weave-issues:
         path: .opencode/commands/weave-issues.md
         source_hash: sha256:d234adde97119bf0638a316237157606a9e5ca98d0f57a5cdb5354eeb64ea4c6
         installed_hash: sha256:d234adde97119bf0638a316237157606a9e5ca98d0f57a5cdb5354eeb64ea4c6
-        installed_at: 2026-05-25T18:19:28.311Z
+        installed_at: 2026-05-26T05:41:11.681Z
+      weave-architect:
+        path: .opencode/commands/weave-architect.md
+        source_hash: sha256:c94e4e3b051a8d4cac6d11204df07b872ea626c75c228af62c3821cefaa2d1ef
+        installed_hash: sha256:c94e4e3b051a8d4cac6d11204df07b872ea626c75c228af62c3821cefaa2d1ef
+        installed_at: 2026-05-26T07:46:49.000Z
     skills:
       weave-capture:
         path: .agents/skills/weave-capture/SKILL.md
         source_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
         installed_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
-        installed_at: 2026-05-25T16:15:49.635Z
+        installed_at: 2026-05-26T05:41:11.680Z
       weave-new:
         path: .agents/skills/weave-new/SKILL.md
         source_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
         installed_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
-        installed_at: 2026-05-25T16:15:49.636Z
+        installed_at: 2026-05-26T05:41:11.681Z
       weave-explore:
         path: .agents/skills/weave-explore/SKILL.md
         source_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
         installed_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
-        installed_at: 2026-05-25T16:15:49.636Z
+        installed_at: 2026-05-26T05:41:11.680Z
       weave-propagate:
         path: .agents/skills/weave-propagate/SKILL.md
         source_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
         installed_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
-        installed_at: 2026-05-25T16:15:49.636Z
+        installed_at: 2026-05-26T05:41:11.681Z
       weave-issues:
         path: .agents/skills/weave-issues/SKILL.md
-        source_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_at: 2026-05-25T18:19:28.311Z
+        source_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_at: 2026-05-26T05:41:11.680Z
+      weave-prd:
+        path: .agents/skills/weave-prd/SKILL.md
+        source_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_at: 2026-05-26T05:41:11.681Z
+      weave-architect:
+        path: .agents/skills/weave-architect/SKILL.md
+        source_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_at: 2026-05-26T07:46:49.000Z
   cursor:
     skills:
       weave-explore:
         path: .agents/skills/weave-explore/SKILL.md
         source_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
         installed_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
-        installed_at: 2026-05-25T16:15:49.630Z
+        installed_at: 2026-05-26T05:41:11.676Z
       weave-capture:
         path: .agents/skills/weave-capture/SKILL.md
         source_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
         installed_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
-        installed_at: 2026-05-25T16:15:49.630Z
+        installed_at: 2026-05-26T05:41:11.676Z
       weave-new:
         path: .agents/skills/weave-new/SKILL.md
         source_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
         installed_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
-        installed_at: 2026-05-25T16:15:49.630Z
+        installed_at: 2026-05-26T05:41:11.676Z
       weave-propagate:
         path: .agents/skills/weave-propagate/SKILL.md
         source_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
         installed_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
-        installed_at: 2026-05-25T16:15:49.631Z
+        installed_at: 2026-05-26T05:41:11.676Z
       weave-issues:
         path: .agents/skills/weave-issues/SKILL.md
-        source_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_at: 2026-05-25T18:19:28.311Z
+        source_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_at: 2026-05-26T05:41:11.676Z
+      weave-prd:
+        path: .agents/skills/weave-prd/SKILL.md
+        source_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_at: 2026-05-26T05:41:11.676Z
+      weave-architect:
+        path: .agents/skills/weave-architect/SKILL.md
+        source_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_at: 2026-05-26T07:46:49.000Z
   codex:
     skills:
       weave-explore:
         path: .agents/skills/weave-explore/SKILL.md
         source_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
         installed_hash: sha256:abde09920d84c3722b7245e39188c27eefcf3af2349041dcfb745449a4330ba2
-        installed_at: 2026-05-25T18:19:28.312Z
+        installed_at: 2026-05-26T05:41:11.672Z
       weave-capture:
         path: .agents/skills/weave-capture/SKILL.md
         source_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
         installed_hash: sha256:c336ddc0c93329a87570204dac4721007fbf901532280d66c26eb0f40396bdd9
-        installed_at: 2026-05-25T18:19:28.310Z
+        installed_at: 2026-05-26T05:41:11.671Z
       weave-new:
         path: .agents/skills/weave-new/SKILL.md
         source_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
         installed_hash: sha256:18c264d03a3bfbc9b3fbc0de1b537efa9f2adc5c50d8c5b54fc8f43cbd86db31
-        installed_at: 2026-05-25T18:19:28.311Z
+        installed_at: 2026-05-26T05:41:11.673Z
       weave-propagate:
         path: .agents/skills/weave-propagate/SKILL.md
         source_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
         installed_hash: sha256:c27412fafce29db274044ec943e3405e57755e86d70d2fbd14dfcde58f3bd5d2
-        installed_at: 2026-05-25T18:19:28.312Z
+        installed_at: 2026-05-26T05:41:11.674Z
       weave-issues:
         path: .agents/skills/weave-issues/SKILL.md
-        source_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_hash: sha256:fc487db5301eb8c19d43f7fa0a1020aaddff71a892b2c6025f632e896857d1e5
-        installed_at: 2026-05-25T18:19:28.311Z
+        source_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_hash: sha256:b1f57185fa824b83ba844fa8b6ce7054a0841d0ed24a018250232ba0de7036b5
+        installed_at: 2026-05-26T05:41:11.673Z
+      weave-prd:
+        path: .agents/skills/weave-prd/SKILL.md
+        source_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_hash: sha256:570172be14880df57a7dd4d99db342708bba09f976257fe6ce87214843f33dc9
+        installed_at: 2026-05-26T05:41:11.674Z
+      weave-architect:
+        path: .agents/skills/weave-architect/SKILL.md
+        source_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_hash: sha256:884a396194e74ed21c21a6aaa90251925fa9c82f65363fa39d45ed6d31e8ca78
+        installed_at: 2026-05-26T07:46:49.000Z

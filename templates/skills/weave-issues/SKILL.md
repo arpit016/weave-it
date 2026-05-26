@@ -1,6 +1,6 @@
 ---
 name: weave-issues
-description: Break a implementation plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
+description: Break an architecture, implementation plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
 ---
 
 # To Issues
@@ -12,6 +12,13 @@ Break a plan into independently-grabbable issues using vertical slices (tracer b
 ### 1. Gather context
 
 Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, fetch it from the issue tracker and read its full body and comments.
+
+For a Weave change, prefer durable change artifacts before drafting issues:
+
+- Read `wiki/changes/<change-id>/prd.md` as the product contract when present.
+- Read `wiki/changes/<change-id>/architecture.md` as the engineering design when present.
+- If both exist, use `prd.md` for user behavior and acceptance, and `architecture.md` for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
+- If `architecture.md` exists but appears stale against `prd.md`, call that out before creating implementation issues and recommend revising it with `weave-architect`.
 
 ### 2. Explore the codebase (optional)
 
