@@ -15,6 +15,7 @@ Use this after product discovery has been captured in `exploration.md`. This is 
 
 - Treat `exploration.md` as the primary source.
 - Require a usable `exploration.md` before generating or revising `prd.md`.
+- Treat `weave-prd` as entering or resuming the PRD lane for the active change.
 - Treat `prd.md` as a living product artifact.
 - Create `prd.md` when it does not exist.
 - Revise `prd.md` in place when it already exists.
@@ -116,7 +117,35 @@ If `prd.md` exists, read it as the baseline to revise. Preserve still-valid cont
 
 If `prd.md` does not exist, create it from the available context.
 
-## 3. Change Metadata and Supporting Artifacts
+## 3. PRD Resume Context
+
+Read relevant session files when present:
+
+```text
+wiki/changes/<change-id>/sessions/*-prd.md
+```
+
+Load PRD session files newest-first. Use the latest `## Next Resume Point` to decide whether to continue synthesis, ask a blocking product question, or revise a specific PRD section.
+
+Rules:
+
+- Read `prd.md` before session notes. The live artifact is canonical current truth.
+- Use session notes for rationale, unresolved points, user preferences, agent recommendations, and where to resume.
+- Use older PRD session files only when needed to understand rationale or unresolved decisions.
+- If session notes conflict with `prd.md`, prefer `prd.md` unless the latest session records an explicit newer user decision.
+- If the user gives an explicit direction, follow it over the stored resume point.
+
+At the start of resumed PRD work, briefly state what was loaded:
+
+```text
+Resuming PRD for <change-id>.
+Loaded prd.md and <N> PRD session note(s).
+Latest resume point: <summary>
+```
+
+If `prd.md` does not exist, skip PRD session resume and create the initial PRD from exploration context.
+
+## 4. Change Metadata and Supporting Artifacts
 
 Read when present:
 
@@ -131,7 +160,7 @@ wiki/changes/<change-id>/tasks.md
 
 Use these as supporting context. If artifacts conflict, prefer the latest explicit product decision from `exploration.md` or `decisions.md`. Record important conflicts in `Assumptions`, `Open Questions`, or `Revision History`.
 
-## 4. Knowledge Context
+## 5. Knowledge Context
 
 Read Weave knowledge files when present:
 
@@ -144,7 +173,7 @@ wiki/knowledge/*/context.md
 
 Load only knowledge domains that appear relevant to the change. Use knowledge to align terminology, workflows, permissions, and existing product behavior.
 
-## 5. Repo Documentation
+## 6. Repo Documentation
 
 If Weave knowledge is thin or missing, inspect existing repo documentation for product context:
 

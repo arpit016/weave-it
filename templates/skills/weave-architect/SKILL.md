@@ -32,6 +32,7 @@ In Plan Mode, do not write repo-tracked artifacts directly. Produce the architec
 # Operating Principles
 
 - Treat `prd.md` as the primary product contract.
+- Treat `weave-architect` as entering or resuming the architecture lane for the active change.
 - Treat `architecture.md` as a living technical artifact.
 - Create `architecture.md` when it does not exist.
 - Revise `architecture.md` in place when it already exists.
@@ -150,7 +151,35 @@ If `architecture.md` exists, read it as the baseline to revise. Preserve still-v
 
 If `architecture.md` does not exist, create it from the PRD and technical context.
 
-## 3. Exploration and Change Metadata
+## 3. Architecture Resume Context
+
+Read relevant session files when present:
+
+```text
+wiki/changes/<change-id>/sessions/*-architecture.md
+```
+
+Load architecture session files newest-first. Use the latest `## Next Resume Point` to decide whether to continue design, ask a blocking architecture question, or revise a specific architecture section.
+
+Rules:
+
+- Read `architecture.md` before session notes. The live artifact is canonical current truth.
+- Use session notes for rationale, unresolved technical questions, user preferences, agent recommendations, risks, and where to resume.
+- Use older architecture session files only when needed to understand rationale or unresolved decisions.
+- If session notes conflict with `architecture.md`, prefer `architecture.md` unless the latest session records an explicit newer user decision.
+- If the user gives an explicit direction, follow it over the stored resume point.
+
+At the start of resumed architecture work, briefly state what was loaded:
+
+```text
+Resuming architecture for <change-id>.
+Loaded architecture.md and <N> architecture session note(s).
+Latest resume point: <summary>
+```
+
+If `architecture.md` does not exist, skip architecture session resume and create the initial architecture from PRD and technical context.
+
+## 4. Exploration and Change Metadata
 
 Read when present:
 
@@ -166,7 +195,7 @@ wiki/changes/<change-id>/tasks.md
 
 Use these as supporting context. If artifacts conflict, prefer `prd.md` for product behavior and the latest explicit decision for technical direction. Record important conflicts in `Assumptions`, `Open Technical Questions`, or `Revision History`.
 
-## 4. Knowledge Context
+## 5. Knowledge Context
 
 Read Weave knowledge files when present:
 
@@ -179,7 +208,7 @@ wiki/knowledge/*/context.md
 
 Load only knowledge domains that appear relevant to the change. Use knowledge to align terminology, workflows, permissions, data ownership, integrations, and operational constraints.
 
-## 5. Repo Documentation and ADRs
+## 6. Repo Documentation and ADRs
 
 Inspect existing repo documentation for architecture context:
 
@@ -194,7 +223,7 @@ adr/
 
 Prioritize ADRs and architecture docs when they exist. Record any relevant constraints or decisions that shape the design.
 
-## 6. Source Code
+## 7. Source Code
 
 Inspect source code areas needed to understand the current implementation.
 

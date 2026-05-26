@@ -145,7 +145,27 @@ wiki/changes/<change-id>/tasks.md
 
 Do not reread the target artifact twice unless needed. Use supporting artifacts to understand context, conflicts, and follow-up impact.
 
-## 3. Knowledge Context
+## 3. Target Resume Context
+
+Read relevant session files for the selected target when present:
+
+```text
+wiki/changes/<change-id>/sessions/*-exploration.md
+wiki/changes/<change-id>/sessions/*-prd.md
+wiki/changes/<change-id>/sessions/*-architecture.md
+```
+
+Only load session files that match the selected target artifact, newest-first.
+
+Rules:
+
+- Read the selected live artifact before session notes. The live artifact is canonical current truth.
+- Use the latest `## Next Resume Point`, unresolved points, user preferences, and agent recommendations as clarification context.
+- Use older matching session files only when needed to understand rationale or unresolved decisions.
+- If session notes conflict with the selected live artifact, prefer the live artifact unless the latest session records an explicit newer user decision.
+- If the user gives an explicit clarification instruction, follow it over the stored resume point.
+
+## 4. Knowledge Context
 
 Read Weave knowledge files when present:
 
@@ -158,7 +178,7 @@ wiki/knowledge/*/context.md
 
 Load only knowledge domains that appear relevant to the clarification.
 
-## 4. Repo Documentation
+## 5. Repo Documentation
 
 If Weave knowledge is thin or missing, inspect existing repo documentation for product or technical context:
 

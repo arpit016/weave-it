@@ -32,6 +32,11 @@ describe("agent skills", () => {
     expect(skill.content).toContain("In Plan Mode, do not write repo-tracked artifacts directly");
     expect(skill.content).toContain("weave workspace --json");
     expect(skill.content).toContain("weave artifact current set exploration --json");
+    expect(skill.content).toContain("`weave-explore` means enter or resume exploration for the active change.");
+    expect(skill.content).toContain("Read `wiki/changes/<change-id>/exploration.md` first. Treat the live artifact as canonical current truth.");
+    expect(skill.content).toContain("sessions/*-exploration.md");
+    expect(skill.content).toContain("Prioritize the latest `## Next Resume Point`");
+    expect(skill.content).toContain("Loaded exploration.md and <N> exploration session note(s).");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-explore", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -51,6 +56,12 @@ describe("agent skills", () => {
     expect(skill.content).toContain("weave artifact current set prd --json");
     expect(skill.content).toContain("artifact: prd");
     expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
+    expect(skill.content).toContain("Treat `weave-prd` as entering or resuming the PRD lane for the active change.");
+    expect(skill.content).toContain("## 3. PRD Resume Context");
+    expect(skill.content).toContain("sessions/*-prd.md");
+    expect(skill.content).toContain("Read `prd.md` before session notes. The live artifact is canonical current truth.");
+    expect(skill.content).toContain("Use the latest `## Next Resume Point`");
+    expect(skill.content).toContain("Loaded prd.md and <N> PRD session note(s).");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-prd", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -73,6 +84,12 @@ describe("agent skills", () => {
     expect(skill.content).toContain("weave artifact current set architecture --json");
     expect(skill.content).toContain("artifact: architecture");
     expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
+    expect(skill.content).toContain("Treat `weave-architect` as entering or resuming the architecture lane for the active change.");
+    expect(skill.content).toContain("## 3. Architecture Resume Context");
+    expect(skill.content).toContain("sessions/*-architecture.md");
+    expect(skill.content).toContain("Read `architecture.md` before session notes. The live artifact is canonical current truth.");
+    expect(skill.content).toContain("Use the latest `## Next Resume Point`");
+    expect(skill.content).toContain("Loaded architecture.md and <N> architecture session note(s).");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-architect", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -109,6 +126,10 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Treat the selected target artifact as the only write target");
     expect(skill.content).toContain("Supported target artifacts");
     expect(skill.content).toContain("Do not edit follow-up artifacts");
+    expect(skill.content).toContain("## 3. Target Resume Context");
+    expect(skill.content).toContain("Only load session files that match the selected target artifact, newest-first.");
+    expect(skill.content).toContain("Read the selected live artifact before session notes. The live artifact is canonical current truth.");
+    expect(skill.content).toContain("Use the latest `## Next Resume Point`, unresolved points, user preferences, and agent recommendations as clarification context.");
     expect(skill.content).toContain("Clarified <target>: wiki/changes/<change-id>/<artifact>.md");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-clarify", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);

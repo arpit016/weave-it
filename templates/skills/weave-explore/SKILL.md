@@ -58,6 +58,7 @@ If a relevant change folder exists, read the applicable change artifacts:
 ```text
 exploration.md
 prd.md
+sessions/*-exploration.md
 decisions.md
 contracts.md
 status.yml
@@ -67,6 +68,31 @@ tasks.md
 ```
 
 Do not assume every folder in the session is equally relevant. Identify which folders appear relevant and why.
+
+---
+
+# Resume Context
+
+`weave-explore` means enter or resume exploration for the active change.
+
+When an active change already has exploration context, resume before asking new discovery questions:
+
+1. Read `wiki/changes/<change-id>/exploration.md` first. Treat the live artifact as canonical current truth.
+2. Read relevant `wiki/changes/<change-id>/sessions/*-exploration.md` files newest-first.
+3. Prioritize the latest `## Next Resume Point` when deciding what to ask or examine next.
+4. Use older exploration session files only when needed for rationale, unresolved points, user preferences, or agent recommendations.
+5. If session notes conflict with the live artifact, prefer the live artifact unless the latest session records an explicit newer user decision.
+6. If the user gives an explicit direction, follow it over the stored resume point.
+
+At the start of a resumed exploration, briefly state what was loaded:
+
+```text
+Resuming exploration for <change-id>.
+Loaded exploration.md and <N> exploration session note(s).
+Latest resume point: <summary>
+```
+
+If no useful prior exploration content or session notes exist, start normal exploration.
 
 ---
 
