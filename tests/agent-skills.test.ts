@@ -26,6 +26,10 @@ describe("agent skills", () => {
 
     expect(skill.name).toBe("weave-explore");
     expect(skill.description).toContain("Stress-test product requirements");
+    expect(skill.content).toContain("# Plan Mode Guard");
+    expect(skill.content).toContain("This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-explore again.");
+    expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
+    expect(skill.content).toContain("In Plan Mode, do not write repo-tracked artifacts directly");
     expect(skill.content).toContain("weave workspace --json");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-explore", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
@@ -52,6 +56,10 @@ describe("agent skills", () => {
 
     expect(skill.name).toBe("weave-architect");
     expect(skill.description).toContain("Generate or revise architecture.md");
+    expect(skill.content).toContain("# Plan Mode Guard");
+    expect(skill.content).toContain("This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-architect again.");
+    expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
+    expect(skill.content).toContain("In Plan Mode, do not write repo-tracked artifacts directly");
     expect(skill.content).toContain("Treat `prd.md` as the primary product contract");
     expect(skill.content).toContain("Interview the user relentlessly about the engineering design");
     expect(skill.content).toContain("Ask questions one at a time and wait for the user's response");

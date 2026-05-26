@@ -7,6 +7,26 @@ description: Stress-test product requirements against the current system, workfl
 
 This is a Weave product exploration skill.
 
+---
+
+# Plan Mode Guard
+
+This skill must run in Plan Mode.
+
+If the current environment exposes collaboration mode and it is not Plan Mode, stop immediately and say:
+
+```text
+This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-explore again.
+```
+
+Do not inspect deeply, ask discovery questions, update artifacts, or continue the exploration before this guard passes.
+
+Static Weave skill content cannot automatically switch collaboration mode. The host, user, or developer layer must switch modes before this skill continues.
+
+In Plan Mode, do not write repo-tracked artifacts directly. Produce the exploration plan, decisions, questions, or proposed artifact changes needed for the user to approve. Actual artifact writes should happen only after the user exits Plan Mode and asks to implement the plan.
+
+---
+
 Start by discovering the current Weave session:
 
 ```bash
