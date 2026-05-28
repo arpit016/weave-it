@@ -92,7 +92,7 @@ Use the local date for `yyyy-mm-dd`. Use a 4-character lowercase alphanumeric id
 
 Do not copy or store the raw transcript. Summarize and structure the discussion.
 
-7. Merge durable content into the selected live artifact:
+7. Create or merge durable content into the selected live artifact:
 
 ```text
 exploration -> wiki/changes/<change-id>/exploration.md
@@ -110,7 +110,9 @@ Only merge artifact-relevant current truth:
 - risks or edge cases relevant to the artifact
 - next-phase-relevant context
 
-Preserve the artifact's template structure and lifecycle frontmatter. Do not add transcript-style discussion to the live artifact.
+When the live artifact already exists, preserve its template structure and lifecycle frontmatter. When the live artifact is missing but allowed by the target rules below, create it with appropriate lifecycle frontmatter and the normal artifact structure for that lane.
+
+Do not add transcript-style discussion to the live artifact.
 
 # Target Rules
 
@@ -119,17 +121,28 @@ Preserve the artifact's template structure and lifecycle frontmatter. Do not add
 - `weave-prd` maps to `prd`.
 - `weave-architect` maps to `architecture`.
 - Stored context must point to the active change. If it points elsewhere, treat it as invalid and ask for a target.
-- If the selected live artifact does not exist, follow that artifact's prerequisite flow instead of inventing an invalid artifact:
-  - missing `exploration.md`: ask the user to create or switch to a valid change
-  - missing `prd.md`: ask the user to run `weave-prd`
-  - missing `architecture.md`: ask the user to run `weave-architect`
+- If the selected live artifact does not exist, create it only when the active change, target context, and prerequisite artifact are valid:
+  - missing `exploration.md`: create it for the valid active change
+  - missing `prd.md`: create it only when a usable `exploration.md` exists
+  - missing `architecture.md`: create it only when a usable `prd.md` exists
+- Treat a prerequisite artifact as unusable when it is missing, blank or whitespace-only, scaffold-only with headings but no substantive content, or explicitly marked not ready for the next lane.
+- If a prerequisite artifact is missing or unusable, stop before writing and ask the user to run the prerequisite lane skill first.
+
+# Missing Artifact Creation
+
+Creating a missing live artifact is allowed only for the selected capture target. The captured discussion supplies the current lane context, and prerequisite artifacts supply the upstream product or technical contract.
+
+- For `exploration.md`, synthesize the artifact from the current discussion and mark unresolved discovery points clearly.
+- For `prd.md`, synthesize the artifact from the current discussion plus usable `exploration.md`; do not simulate a full exploration interview inside capture.
+- For `architecture.md`, synthesize the artifact from the current discussion plus usable `prd.md`; a just-completed Plan Mode `weave-architect` discussion is valid source material for the first architecture draft.
+- If the current discussion does not contain enough durable content for the selected missing artifact, write the session note and stop before creating the live artifact. Tell the user which lane conversation is needed next.
 
 # Behavior Rules
 
 - The CLI owns active change lookup and artifact context lookup.
 - The skill owns discussion synthesis, session note writing, and live artifact merging.
 - Do not create a new change unless the user explicitly asks for a new change.
-- Do not create `prd.md` or `architecture.md` from capture alone.
+- Do not create `exploration.md`, `prd.md`, or `architecture.md` without a valid active change, valid target context, and required prerequisite artifact.
 - Do not store raw transcripts in v1.
 - Do not remove existing lifecycle frontmatter.
 - Do not modify `status.yml` unless the user explicitly asks for change lifecycle updates.
