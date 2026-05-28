@@ -316,6 +316,7 @@ weave-capture    capture the current discussion as a change exploration
 weave-explore    stress-test product requirements and PRD readiness
 weave-prd        generate or revise a PRD from the active exploration
 weave-architect  generate or revise engineering architecture from the active PRD
+weave-next       answer what to do next for the active change
 weave-clarify    clarify an existing exploration, PRD, or architecture artifact
 weave-issues     break architecture, a PRD, or implementation plan into tracer-bullet issues
 weave-propagate  copy an existing change exploration to another repo
@@ -362,6 +363,7 @@ Then start Claude Code in the repo and ask:
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
+/weave-next
 /weave-clarify prd
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
@@ -383,6 +385,7 @@ Then ask Cursor Agent from the repo:
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
+/weave-next
 /weave-clarify prd
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
@@ -404,6 +407,7 @@ $weave-capture
 $weave-explore "Analytics of reviews"
 $weave-prd
 $weave-architect
+$weave-next
 $weave-clarify prd
 $weave-issues "Break the active PRD into implementation issues"
 $weave-propagate 260522-f3q9-review-analytics to api
@@ -425,6 +429,7 @@ Then invoke the slash command in opencode:
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
+/weave-next
 /weave-clarify prd
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
@@ -436,12 +441,15 @@ Or invoke the skill naturally:
 Use the weave-explore skill for Analytics of reviews.
 Use the weave-prd skill to generate the PRD.
 Use the weave-architect skill to generate the engineering design.
+Use the weave-next skill to decide what to run next.
 Use the weave-clarify skill to revise the active PRD after scope changes.
 ```
 
+`weave-next` is read-only and advisory. It summarizes the active change, artifact state, current artifact context, and recent resume notes, then recommends the next Weave skill without writing artifacts or invoking the recommendation automatically.
+
 `weave-clarify` is for refining an existing change artifact when scope, requirements, assumptions, or decisions change midstream. It updates one selected artifact at a time, such as `exploration.md`, `prd.md`, or `architecture.md`, and reports follow-up artifacts that should be clarified separately. Use `weave-prd` and `weave-architect` for initial generation; use `weave-clarify` when an existing artifact needs a focused amendment.
 
-Claude Code, Cursor, and opencode use slash commands such as `/weave-explore`, `/weave-prd`, `/weave-architect`, and `/weave-clarify`. Codex uses `$weave-explore`, `$weave-prd`, `$weave-architect`, and `$weave-clarify` to explicitly invoke installed skills. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
+Claude Code, Cursor, and opencode use slash commands such as `/weave-explore`, `/weave-prd`, `/weave-architect`, `/weave-next`, and `/weave-clarify`. Codex uses `$weave-explore`, `$weave-prd`, `$weave-architect`, `$weave-next`, and `$weave-clarify` to explicitly invoke installed skills. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
 
 ## `weave skills` and `weave skill`
 
@@ -453,6 +461,7 @@ weave skill show weave-new
 weave skill show weave-explore
 weave skill show weave-prd
 weave skill show weave-architect
+weave skill show weave-next
 weave skill show weave-clarify
 weave skill show weave-issues
 ```
