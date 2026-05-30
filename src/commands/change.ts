@@ -1,19 +1,24 @@
 import { Command, InvalidArgumentError } from "commander";
 import {
   ChangeCommandError,
+  changeStages,
   changeTypes,
+  type ChangeStage,
   createChange,
   currentChange,
   listChanges,
   type ChangeListResult,
   type ChangeOperationResult,
   type ChangeType,
+  progressChange,
+  type ProgressChangeResult,
   propagateChange,
   statusChange,
   switchChange,
   type CurrentChangeResult,
   type StatusChangeResult,
   type SwitchChangeResult,
+  isChangeStage,
 } from "../lib/changes.js";
 
 interface ChangeNewOptions {
@@ -110,6 +115,23 @@ export function changeCommand(): Command {
     });
 
   command
+    .command("progress")
+    .description("Record lifecycle progress for the active change.")
+    .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
+    .option("--target <target>", "target folder path or session folder id")
+    .option("--json", "print machine-readable JSON")
+    .action(async (stage: ChangeStage, options: ChangeStatusOptions) => {
+      await runAction(options.json ?? false, async () => {
+        const result = await progressChange({
+          cwd: process.cwd(),
+          stage,
+          target: options.target,
+        });
+        writeResult(result, options.json ?? false);
+      });
+    });
+
+  command
     .command("switch")
     .description("Switch to an existing change.")
     .argument("<change>", "change id, token, slug, or title substring")
@@ -146,6 +168,14 @@ export function changeCommand(): Command {
   return command;
 }
 
+function parseChangeStage(value: string): ChangeStage {
+  if (isChangeStage(value)) {
+    return value;
+  }
+
+  throw new InvalidArgumentError(`Unsupported change stage: ${value}. Expected ${changeStages.join(", ")}`);
+}
+
 function parseChangeType(value: string): ChangeType {
   if ((changeTypes as string[]).includes(value)) {
     return value as ChangeType;
@@ -155,7 +185,7 @@ function parseChangeType(value: string): ChangeType {
 }
 
 function writeResult(
-  result: ChangeOperationResult | ChangeListResult | CurrentChangeResult | StatusChangeResult | SwitchChangeResult,
+  result: ChangeOperationResult | ChangeListResult | CurrentChangeResult | StatusChangeResult | SwitchChangeResult | ProgressChangeResult,
   json: boolean,
 ): void {
   if (json) {

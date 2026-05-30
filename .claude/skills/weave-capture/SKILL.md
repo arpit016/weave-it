@@ -172,6 +172,16 @@ When the live artifact already exists, preserve its template structure and lifec
 
 Do not add transcript-style discussion to the live artifact.
 
+10. For artifact capture, after successfully creating or updating the live artifact, run lifecycle progress for the selected artifact:
+
+```bash
+weave change progress exploration --json
+weave change progress prd --json
+weave change progress architecture --json
+```
+
+Run only the command matching the selected artifact. If lifecycle progress fails, do not rewrite the session note or live artifact just to recover. Report the progress failure in the completion response.
+
 # Target Rules
 
 ## Session-Only Capture
@@ -218,7 +228,8 @@ Creating a missing live artifact is allowed only for the selected capture target
 - Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and required prerequisite artifact.
 - Do not store raw transcripts in v1.
 - Do not remove existing lifecycle frontmatter.
-- Do not modify `status.yml` unless the user explicitly asks for change lifecycle updates.
+- Do not call lifecycle progress in session-only mode.
+- Do not hand-edit `status.yml`; use `weave change progress <lane> --json` after successful artifact capture.
 - Do not update `reviewed_at`, `approved_at`, or `approved_by` unless a future approval flow defines that behavior.
 - Keep unresolved choices explicit in the session note and live artifact where relevant.
 

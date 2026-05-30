@@ -280,6 +280,18 @@ Setting local artifact context with `weave artifact current set prd --json` is a
 
 ---
 
+# Lifecycle Progress
+
+After successfully writing or revising `prd.md`, run:
+
+```bash
+weave change progress prd --json
+```
+
+If lifecycle progress fails, do not rewrite `prd.md` just to recover. Report the progress failure in the completion response so the user can rerun the command or inspect `status.yml`.
+
+---
+
 # PRD Template
 
 Use this structure.
