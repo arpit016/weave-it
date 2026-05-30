@@ -100,16 +100,27 @@ describe("agent skills", () => {
     expect(skill.name).toBe("weave-capture");
     expect(skill.description).toContain("structured session note");
     expect(skill.content).toContain("weave artifact current --json");
+    expect(skill.content).toContain("weave-capture session");
+    expect(skill.content).toContain("weave-capture session exploration");
+    expect(skill.content).toContain("weave-capture session prd");
+    expect(skill.content).toContain("weave-capture session architecture");
+    expect(skill.content).toContain("Which lane should I capture this session under: exploration, prd, or architecture?");
     expect(skill.content).toContain("Which artifact should I capture this into: exploration, prd, or architecture?");
-    expect(skill.content).toContain("yyyy-mm-dd-<4-char-id>-<artifact>.md");
+    expect(skill.content).toContain("YYYYMMDD-HHMMSS-<4-char-id>-<artifact>.md");
+    expect(skill.content).toContain("Existing session files using `yyyy-mm-dd-<4-char-id>-<artifact>.md` remain valid historical notes.");
+    expect(skill.content).toContain("For session-only capture, write `None; session-only capture` or equivalent under `Live Artifact Updates Applied`.");
+    expect(skill.content).toContain("Session-only capture does not require the selected live artifact to exist.");
+    expect(skill.content).toContain("Session-only capture does not enforce upstream prerequisite artifacts.");
+    expect(skill.content).toContain("Session-only capture must not create or update `exploration.md`, `prd.md`, or `architecture.md`.");
     expect(skill.content).toContain("Do not copy or store the raw transcript");
     expect(skill.content).toContain("When the live artifact already exists, preserve its template structure and lifecycle frontmatter");
     expect(skill.content).toContain("missing `exploration.md`: create it for the valid active change");
     expect(skill.content).toContain("missing `prd.md`: create it only when a usable `exploration.md` exists");
     expect(skill.content).toContain("missing `architecture.md`: create it only when a usable `prd.md` exists");
     expect(skill.content).toContain("a just-completed Plan Mode `weave-architect` discussion is valid source material");
-    expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, or `architecture.md` without a valid active change, valid target context, and required prerequisite artifact.");
+    expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and required prerequisite artifact.");
     expect(skill.content).toContain("Captured session: wiki/changes/<change-id>/sessions/<filename>.md");
+    expect(skill.content).toContain("Updated artifact: none (session-only capture)");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-capture", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -398,6 +409,7 @@ describe("agent skills", () => {
     const prdSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"), "utf8");
     const architectSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-architect", "SKILL.md"), "utf8");
     const clarifySkill = await readFile(path.join(cwd, ".agents", "skills", "weave-clarify", "SKILL.md"), "utf8");
+    const captureSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-capture", "SKILL.md"), "utf8");
     const newSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-new", "SKILL.md"), "utf8");
     const issuesSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"), "utf8");
     const nextSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-next", "SKILL.md"), "utf8");
@@ -405,6 +417,7 @@ describe("agent skills", () => {
     const prdCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
     const architectCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-architect.md"), "utf8");
     const clarifyCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-clarify.md"), "utf8");
+    const captureCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-capture.md"), "utf8");
     const newCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-new.md"), "utf8");
     const issuesCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-issues.md"), "utf8");
     const nextCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-next.md"), "utf8");
@@ -416,6 +429,7 @@ describe("agent skills", () => {
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-prd", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-architect", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-clarify", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-capture", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-issues", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-next", status: "installed" }),
@@ -423,6 +437,7 @@ describe("agent skills", () => {
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-prd", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-architect", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-clarify", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-capture", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-issues", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-next", status: "installed" }),
@@ -432,6 +447,8 @@ describe("agent skills", () => {
     expect(prdSkill).toContain("name: weave-prd");
     expect(architectSkill).toContain("name: weave-architect");
     expect(clarifySkill).toContain("name: weave-clarify");
+    expect(captureSkill).toContain("name: weave-capture");
+    expect(captureSkill).toContain("weave-capture session prd");
     expect(newSkill).toContain("name: weave-new");
     expect(issuesSkill).toContain("name: weave-issues");
     expect(nextSkill).toContain("name: weave-next");
@@ -442,6 +459,9 @@ describe("agent skills", () => {
     expect(architectCommand).toContain("Context: $ARGUMENTS");
     expect(clarifyCommand).toContain("Load and follow the `weave-clarify` skill.");
     expect(clarifyCommand).toContain("Context: $ARGUMENTS");
+    expect(captureCommand).toContain("Capture the current discussion into a Weave artifact or session-only note");
+    expect(captureCommand).toContain("Load and follow the `weave-capture` skill.");
+    expect(captureCommand).toContain("Context: $ARGUMENTS");
     expect(newCommand).toContain("Load and follow the `weave-new` skill.");
     expect(issuesCommand).toContain("Load and follow the `weave-issues` skill.");
     expect(issuesCommand).toContain("Context: $ARGUMENTS");
@@ -462,6 +482,9 @@ describe("agent skills", () => {
             },
             "weave-clarify": {
               path: ".agents/skills/weave-clarify/SKILL.md",
+            },
+            "weave-capture": {
+              path: ".agents/skills/weave-capture/SKILL.md",
             },
             "weave-new": {
               path: ".agents/skills/weave-new/SKILL.md",
@@ -485,6 +508,9 @@ describe("agent skills", () => {
             },
             "weave-clarify": {
               path: ".opencode/commands/weave-clarify.md",
+            },
+            "weave-capture": {
+              path: ".opencode/commands/weave-capture.md",
             },
             "weave-new": {
               path: ".opencode/commands/weave-new.md",

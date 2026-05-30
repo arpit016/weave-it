@@ -312,7 +312,7 @@ Skills:
 
 ```text
 weave-new        start a new change exploration from a title or topic
-weave-capture    capture the current discussion as a change exploration
+weave-capture    capture the current discussion into an artifact or session-only note
 weave-explore    stress-test product requirements and PRD readiness
 weave-prd        generate or revise a PRD from the active exploration
 weave-architect  generate or revise engineering architecture from the active PRD
@@ -360,6 +360,8 @@ Then start Claude Code in the repo and ask:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
+/weave-capture session
+/weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
@@ -382,6 +384,8 @@ Then ask Cursor Agent from the repo:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
+/weave-capture session
+/weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
@@ -404,6 +408,8 @@ Then ask Codex from the repo:
 ```text
 $weave-new "Analytics of reviews"
 $weave-capture
+$weave-capture session
+$weave-capture session prd
 $weave-explore "Analytics of reviews"
 $weave-prd
 $weave-architect
@@ -426,6 +432,8 @@ Then invoke the slash command in opencode:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
+/weave-capture session
+/weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
@@ -439,11 +447,14 @@ Or invoke the skill naturally:
 
 ```text
 Use the weave-explore skill for Analytics of reviews.
+Use the weave-capture skill to capture this session without updating artifacts.
 Use the weave-prd skill to generate the PRD.
 Use the weave-architect skill to generate the engineering design.
 Use the weave-next skill to decide what to run next.
 Use the weave-clarify skill to revise the active PRD after scope changes.
 ```
+
+Bare `weave-capture` writes a structured session note and merges durable content into the current live artifact. `weave-capture session` writes only a lane-aware session note using the current artifact context, and `weave-capture session prd` or another explicit lane stores the note under that lane without updating live artifacts.
 
 `weave-next` is read-only and advisory. It summarizes the active change, artifact state, current artifact context, and recent resume notes, then recommends the next Weave skill without writing artifacts or invoking the recommendation automatically.
 
