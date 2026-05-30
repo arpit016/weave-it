@@ -17,8 +17,10 @@ For a Weave change, prefer durable change artifacts before drafting issues:
 
 - Read `wiki/changes/<change-id>/prd.md` as the product contract when present.
 - Read `wiki/changes/<change-id>/architecture.md` as the engineering design when present.
+- Read `wiki/changes/<change-id>/status.yml` when present to check stale lifecycle state.
 - If both exist, use `prd.md` for user behavior and acceptance, and `architecture.md` for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
 - If `architecture.md` exists but appears stale against `prd.md`, call that out before creating implementation issues and recommend revising it with `weave-architect`.
+- If `status.yml.stale.architecture` exists, warn that architecture is stale and ask for explicit confirmation before creating tasks or external issues. If the user does not explicitly confirm, stop and recommend `weave-architect`.
 
 ### 2. Explore the codebase (optional)
 
@@ -86,3 +88,13 @@ Or "None - can start immediately" if no blockers.
 </issue-template>
 
 Do NOT close or modify any parent issue.
+
+### 6. Record lifecycle progress
+
+After tasks or external issues are successfully created, run:
+
+```bash
+weave change progress issues --json
+```
+
+If lifecycle progress fails, do not recreate tasks or issues just to recover. Report the progress failure so the user can rerun the command or inspect `status.yml`.

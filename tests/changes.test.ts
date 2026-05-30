@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
 import { clearCurrentArtifact, currentArtifact, setCurrentArtifact } from "../src/lib/artifact-context.js";
-import { createChange, currentChange, listChanges, propagateChange, statusChange, switchChange } from "../src/lib/changes.js";
+import { createChange, currentChange, listChanges, progressChange, propagateChange, statusChange, switchChange } from "../src/lib/changes.js";
 
 const execFileAsync = promisify(execFile);
 const testNow = new Date(2026, 4, 22, 10, 0, 0);
@@ -496,5 +496,79 @@ describe("changes", () => {
       change: expect.objectContaining({ id: created.id }),
       active: true,
     });
+  });
+
+  it("records lifecycle progress and downstream stale lanes", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Lifecycle state",
+      now: testNow,
+      randomId: () => "l111",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+    await writeFile(path.join(changePath, "prd.md"), "# PRD\n\nSubstantive PRD.\n");
+    await writeFile(path.join(changePath, "architecture.md"), "# Architecture\n\nSubstantive architecture.\n");
+    await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
+
+    const progressed = await progressChange({
+      cwd,
+      stage: "exploration",
+      sessionPath: session,
+      now: testNow,
+    });
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+
+    expect(progressed.change).toMatchObject({
+      id: created.id,
+      stage: "issues",
+      stale: {
+        prd: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+        architecture: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+        issues: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+      },
+    });
+    expect(status).toMatchObject({
+      stage: "issues",
+      stale: {
+        prd: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+        architecture: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+        issues: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+      },
+    });
+  });
+
+  it("clears only the refreshed stale lane and keeps stage from regressing", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Refresh lifecycle state",
+      now: testNow,
+      randomId: () => "l222",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+    await writeFile(path.join(changePath, "prd.md"), "# PRD\n\nSubstantive PRD.\n");
+    await writeFile(path.join(changePath, "architecture.md"), "# Architecture\n\nSubstantive architecture.\n");
+    await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
+
+    await progressChange({ cwd, stage: "prd", sessionPath: session, now: testNow });
+    const refreshed = await progressChange({
+      cwd,
+      stage: "architecture",
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 11, 0, 0),
+    });
+    const status = await statusChange({ cwd, sessionPath: session });
+
+    expect(refreshed.change.stage).toBe("issues");
+    expect(refreshed.change.stale.prd).toBeUndefined();
+    expect(refreshed.change.stale.architecture).toBeUndefined();
+    expect(refreshed.change.stale.issues).toMatchObject({ invalidated_by: "architecture" });
+    expect(status.message).toContain("Stage: issues");
+    expect(status.message).toContain("Stale: issues (invalidated by architecture)");
   });
 });
