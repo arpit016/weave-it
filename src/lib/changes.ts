@@ -25,8 +25,16 @@ export type BranchStatus = "created" | "checked_out" | "already_active" | "skipp
 export type ChangeType = "feat" | "fix" | "refactor" | "docs" | "test" | "ci" | "chore";
 export type BranchMatch = "match" | "mismatch" | "not_git" | "unknown";
 export type CurrentSource = "session" | "inferred_saved" | "none";
+export type ChangeStage = (typeof changeStages)[number];
+export type StaleChangeLanes = Partial<Record<ChangeStage, StaleChangeLaneMetadata>>;
 
 export const changeTypes: ChangeType[] = ["feat", "fix", "refactor", "docs", "test", "ci", "chore"];
+export const changeStages = ["exploration", "prd", "architecture", "issues"] as const;
+
+export interface StaleChangeLaneMetadata {
+  invalidated_by: ChangeStage;
+  invalidated_at: string;
+}
 
 export class ChangeCommandError extends Error {
   constructor(
@@ -62,7 +70,8 @@ export interface ChangeSummary {
   slug: string;
   title: string;
   type: ChangeType;
-  stage: string;
+  stage: ChangeStage;
+  stale: StaleChangeLanes;
   branch: string;
   path: string;
   changePath: string;
@@ -179,6 +188,26 @@ export interface StatusChangeOptions {
   sessionPath?: string;
 }
 
+export interface ProgressChangeOptions {
+  cwd: string;
+  stage: ChangeStage;
+  target?: string;
+  now?: Date;
+  sessionPath?: string;
+}
+
+export interface ProgressChangeResult {
+  status: "ok";
+  target: {
+    id?: string;
+    name?: string;
+    path: string;
+  };
+  change: ChangeSummary;
+  progressed: ChangeStage;
+  message: string;
+}
+
 export interface SwitchChangeOptions {
   cwd: string;
   change: string;
@@ -201,7 +230,8 @@ interface ExistingChangeMetadata {
 }
 
 interface ChangeStatusMetadata extends ExistingChangeMetadata {
-  stage: string;
+  stage: ChangeStage;
+  stale: StaleChangeLanes;
   created_at?: string;
   updated_at?: string;
 }
@@ -429,6 +459,78 @@ export async function switchChange(options: SwitchChangeOptions): Promise<Switch
   };
 }
 
+export async function progressChange(options: ProgressChangeOptions): Promise<ProgressChangeResult> {
+  const now = options.now ?? new Date();
+  const sessionPath = options.sessionPath ?? defaultSessionPath();
+  const session = await loadOrCreateSession(sessionPath, now);
+  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
+
+  if (targets.length !== 1) {
+    throw new ChangeCommandError("ambiguous_target", "Progress one change target at a time");
+  }
+
+  const target = targets[0];
+  const context = await currentContextForTarget(session, target, now, { saveInferred: true });
+  if (context.saved) {
+    await saveCurrentSession(session, sessionPath);
+  }
+  if (!context.current) {
+    throw new ChangeCommandError("no_current_change", "No active Weave change found. Run `weave change new` or `weave change switch` first.");
+  }
+
+  const statusPath = path.join(context.current.changePath, "status.yml");
+  const raw = await readStatusFile(statusPath);
+  const existing = await readChangeMetadata(context.current.changePath, context.current.id);
+  const reached = await readReachedStages(context.current.changePath, existing.stage);
+  reached.add(options.stage);
+
+  const nextStage = maxStage([...reached, existing.stage, options.stage]);
+  const stale: StaleChangeLanes = { ...existing.stale };
+  delete stale[options.stage];
+
+  const invalidatedAt = now.toISOString();
+  for (const stage of changeStages) {
+    if (stageIndex(stage) <= stageIndex(options.stage)) {
+      continue;
+    }
+    if (!reached.has(stage)) {
+      continue;
+    }
+    stale[stage] = {
+      invalidated_by: options.stage,
+      invalidated_at: invalidatedAt,
+    };
+  }
+
+  const nextStatus = {
+    ...raw,
+    stage: nextStage,
+    updated_at: invalidatedAt,
+  };
+  if (Object.keys(stale).length > 0) {
+    Object.assign(nextStatus, { stale });
+  } else {
+    delete (nextStatus as { stale?: StaleChangeLanes }).stale;
+  }
+
+  await writeFile(statusPath, YAML.stringify(nextStatus));
+  const updated = await readChangeMetadata(context.current.changePath, context.current.id);
+  const change: ChangeSummary = {
+    ...updated,
+    path: context.current.path,
+    changePath: context.current.changePath,
+    active: true,
+  };
+
+  return {
+    status: "ok",
+    target: { id: target.id, name: target.name, path: target.path },
+    change,
+    progressed: options.stage,
+    message: formatProgressMessage({ id: target.id, name: target.name, path: target.path }, change, options.stage),
+  };
+}
+
 function normalizeChangeSlug(value: string): string {
   const slug = slugify(value, "change");
   return slug.split("-").filter(Boolean).slice(0, 6).join("-") || "change";
@@ -553,25 +655,115 @@ async function readChanges(root: string, activeId?: string): Promise<ChangeSumma
 
 async function readChangeMetadata(changePath: string, fallbackId: string): Promise<ChangeStatusMetadata> {
   const statusPath = path.join(changePath, "status.yml");
-  const parsed = (await pathExists(statusPath))
-    ? (YAML.parse(await readFile(statusPath, "utf8")) as Partial<ChangeStatusMetadata> | null)
-    : {};
-  const id = parsed?.id ?? fallbackId;
-  const slug = parsed?.slug ?? id.split("-").slice(2).join("-");
-  const title = parsed?.title ?? titleFromSlug(slug);
+  const parsed = (await pathExists(statusPath)) ? await readStatusFile(statusPath) : {};
+  const id = typeof parsed?.id === "string" ? parsed.id : fallbackId;
+  const slug = typeof parsed?.slug === "string" ? parsed.slug : id.split("-").slice(2).join("-");
+  const title = typeof parsed?.title === "string" ? parsed.title : titleFromSlug(slug);
   const type = isChangeType(parsed?.type) ? parsed.type : "feat";
-  const branch = parsed?.branch ?? changeBranch(id);
-  const stage = parsed?.stage ?? "exploration";
+  const branch = typeof parsed?.branch === "string" ? parsed.branch : changeBranch(id);
+  const stage = isChangeStage(parsed?.stage) ? parsed.stage : "exploration";
   return {
     id,
     slug,
     title,
     type,
     stage,
+    stale: parseStaleLanes(parsed?.stale),
     branch,
-    created_at: parsed?.created_at,
-    updated_at: parsed?.updated_at,
+    created_at: typeof parsed?.created_at === "string" ? parsed.created_at : undefined,
+    updated_at: typeof parsed?.updated_at === "string" ? parsed.updated_at : undefined,
   };
+}
+
+async function readStatusFile(statusPath: string): Promise<Record<string, unknown>> {
+  const parsed = YAML.parse(await readFile(statusPath, "utf8"));
+  return isRecord(parsed) ? parsed : {};
+}
+
+function parseStaleLanes(value: unknown): StaleChangeLanes {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const stale: StaleChangeLanes = {};
+  for (const [lane, metadata] of Object.entries(value)) {
+    if (!isChangeStage(lane) || !isRecord(metadata)) {
+      continue;
+    }
+    const invalidatedBy = metadata.invalidated_by;
+    const invalidatedAt = metadata.invalidated_at;
+    if (!isChangeStage(invalidatedBy) || typeof invalidatedAt !== "string") {
+      continue;
+    }
+    stale[lane] = {
+      invalidated_by: invalidatedBy,
+      invalidated_at: invalidatedAt,
+    };
+  }
+  return stale;
+}
+
+async function readReachedStages(changePath: string, currentStage: ChangeStage): Promise<Set<ChangeStage>> {
+  const reached = new Set<ChangeStage>();
+  addReachedThrough(reached, currentStage);
+
+  if (await hasSubstantiveMarkdown(path.join(changePath, artifactFileName("prd")))) {
+    addReachedThrough(reached, "prd");
+  }
+  if (await hasSubstantiveMarkdown(path.join(changePath, artifactFileName("architecture")))) {
+    addReachedThrough(reached, "architecture");
+  }
+  if (await hasIssueEvidence(changePath)) {
+    addReachedThrough(reached, "issues");
+  }
+
+  return reached;
+}
+
+function addReachedThrough(reached: Set<ChangeStage>, stage: ChangeStage): void {
+  for (const candidate of changeStages) {
+    reached.add(candidate);
+    if (candidate === stage) {
+      return;
+    }
+  }
+}
+
+async function hasSubstantiveMarkdown(filePath: string): Promise<boolean> {
+  if (!(await pathExists(filePath))) {
+    return false;
+  }
+  const content = await readFile(filePath, "utf8");
+  const withoutFrontmatter = content.replace(/^---\n[\s\S]*?\n---\n?/, "");
+  const withoutScaffold = withoutFrontmatter
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      return trimmed && !trimmed.startsWith("#") && trimmed !== "Not ready";
+    })
+    .join("\n")
+    .trim();
+  return withoutScaffold.length > 0;
+}
+
+async function hasIssueEvidence(changePath: string): Promise<boolean> {
+  const tasksPath = path.join(changePath, "tasks.md");
+  if (await hasSubstantiveMarkdown(tasksPath)) {
+    return true;
+  }
+
+  for (const filename of ["exploration.md", "prd.md", "architecture.md"]) {
+    const filePath = path.join(changePath, filename);
+    if (!(await pathExists(filePath))) {
+      continue;
+    }
+    const content = await readFile(filePath, "utf8");
+    if (/(https?:\/\/\S+\/issues\/\d+|(^|\s)#\d+\b)/m.test(content)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function compareChangesNewestFirst(left: ChangeSummary, right: ChangeSummary): number {
@@ -912,6 +1104,7 @@ function formatCurrentTarget(target: CurrentChangeTargetResult): string {
     `Title: ${target.current.title}`,
     `Type: ${target.current.type}`,
     `Stage: ${target.current.stage}`,
+    ...formatStaleLines(target.current.stale),
     `Branch: ${target.current.branch}`,
     `Path: ${target.current.path}`,
     `Source: ${formatCurrentSource(target.source)}`,
@@ -946,12 +1139,34 @@ function formatStatusTarget(target: StatusChangeTargetResult): string {
     `Title: ${target.change.title}`,
     `Type: ${target.change.type}`,
     `Stage: ${target.change.stage}`,
+    ...formatStaleLines(target.change.stale),
     `Branch: ${target.change.branch}`,
     `Path: ${target.change.path}`,
     `Active: ${target.active ? "yes" : "no"}`,
     `Branch match: ${target.branchMatch}`,
     `Source: ${formatCurrentSource(target.source)}`,
   ].join("\n");
+}
+
+function formatProgressMessage(target: ChangeTarget, change: ChangeSummary, progressed: ChangeStage): string {
+  const heading = target.name ? `${target.name} (${target.path})` : target.path;
+  return [
+    `Progressed change in ${heading}: ${change.id}`,
+    `Progressed lane: ${progressed}`,
+    `Stage: ${change.stage}`,
+    ...formatStaleLines(change.stale),
+    `Path: ${change.path}`,
+  ].join("\n");
+}
+
+function formatStaleLines(stale: StaleChangeLanes): string[] {
+  const entries = changeStages
+    .filter((stage) => stale[stage])
+    .map((stage) => {
+      const metadata = stale[stage]!;
+      return `${stage} (invalidated by ${metadata.invalidated_by})`;
+    });
+  return entries.length > 0 ? [`Stale: ${entries.join(", ")}`] : [];
 }
 
 function formatCurrentSource(source: CurrentSource | "explicit"): string {
@@ -982,6 +1197,22 @@ function formatBranchStatus(status: BranchStatus): string {
 
 function isChangeType(value: unknown): value is ChangeType {
   return typeof value === "string" && (changeTypes as string[]).includes(value);
+}
+
+export function isChangeStage(value: unknown): value is ChangeStage {
+  return typeof value === "string" && (changeStages as readonly string[]).includes(value);
+}
+
+function maxStage(stages: ChangeStage[]): ChangeStage {
+  return stages.reduce((highest, stage) => (stageIndex(stage) > stageIndex(highest) ? stage : highest), "exploration" as ChangeStage);
+}
+
+function stageIndex(stage: ChangeStage): number {
+  return changeStages.indexOf(stage);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

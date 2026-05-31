@@ -22,7 +22,8 @@ This is not a generation skill. Do not create a new change, create issues, gener
 - Do not silently delete old requirements, decisions, constraints, or risks.
 - Record superseded, removed, or narrowed scope explicitly.
 - Report likely follow-up artifacts instead of editing them automatically.
-- Do not advance the change stage or lifecycle.
+- After writing the selected artifact, update lifecycle state with `weave change progress <target> --json`.
+- Do not hand-edit `status.yml`; lifecycle state is owned by the CLI.
 - Do not run autonomous or internal auto mode. V1 is user-invoked and interactive only.
 
 ---
@@ -308,6 +309,20 @@ wiki/changes/<change-id>/architecture.md
 ```
 
 Do not write any other files.
+
+---
+
+# Lifecycle Progress
+
+After successfully writing the selected artifact, run the matching lifecycle command:
+
+```bash
+weave change progress exploration --json
+weave change progress prd --json
+weave change progress architecture --json
+```
+
+Run only the command matching the selected target artifact. If lifecycle progress fails, do not rewrite the clarified artifact just to recover. Report the progress failure in the completion response.
 
 ---
 
