@@ -5,7 +5,7 @@ import {
   setCurrentArtifact,
   type ArtifactCurrentResult,
 } from "../lib/artifact-context.js";
-import { isArtifactName, type ArtifactName } from "../lib/artifact-metadata.js";
+import { isLaneName, laneNames, type LaneName } from "../lib/lane.js";
 import { ChangeCommandError } from "../lib/changes.js";
 
 interface ArtifactCurrentOptions {
@@ -37,10 +37,10 @@ export function artifactCommand(): Command {
   current
     .command("set")
     .description("Set the current artifact context for the active change.")
-    .argument("<artifact>", "artifact: exploration, prd, or architecture", parseArtifactName)
+    .argument("<artifact>", `artifact: ${laneNames.join(", ")}`, parseArtifactName)
     .option("--target <target>", "target folder path or session folder id")
     .option("--json", "print machine-readable JSON")
-    .action(async (artifact: ArtifactName, options: ArtifactCurrentSetOptions) => {
+    .action(async (artifact: LaneName, options: ArtifactCurrentSetOptions) => {
       await runAction(options.json ?? false, async () => {
         const result = await setCurrentArtifact({
           cwd: process.cwd(),
@@ -70,12 +70,12 @@ export function artifactCommand(): Command {
   return command;
 }
 
-function parseArtifactName(value: string): ArtifactName {
-  if (isArtifactName(value)) {
+function parseArtifactName(value: string): LaneName {
+  if (isLaneName(value)) {
     return value;
   }
 
-  throw new InvalidArgumentError(`Unsupported artifact: ${value}`);
+  throw new InvalidArgumentError(`Unsupported artifact: ${value}. Expected one of: ${laneNames.join(", ")}.`);
 }
 
 function writeResult(result: ArtifactCurrentResult, json: boolean): void {
