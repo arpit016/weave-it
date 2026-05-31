@@ -243,6 +243,7 @@ Do not edit follow-up artifacts in the same invocation, even when they are stale
 When updating:
 
 - preserve still-valid content
+- Preserve existing artifact lifecycle frontmatter; if the selected artifact has no frontmatter, add compatible lifecycle frontmatter using UTC ISO timestamps for `created_at` and `updated_at`.
 - update current behavior or proposed behavior to reflect the latest decision
 - move removed scope to `Non-Goals` or `Out of Scope` where appropriate
 - record superseded requirements or decisions in `Revision History`, `Assumptions`, `Open Questions`, or an artifact-specific notes section

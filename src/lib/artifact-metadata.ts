@@ -36,23 +36,16 @@ export function defaultArtifactSource(artifact: ArtifactName): string {
 
 export function artifactFrontmatter(options: ArtifactFrontmatterOptions): string {
   const artifact = options.artifact;
-  const date = formatArtifactDate(options.now);
+  const timestamp = options.now.toISOString();
   return `---\n${YAML.stringify({
     artifact,
     status: options.status ?? "draft",
     owner: options.owner ?? defaultArtifactOwner(artifact),
-    created_at: date,
-    updated_at: date,
+    created_at: timestamp,
+    updated_at: timestamp,
     reviewed_at: null,
     approved_at: null,
     approved_by: null,
     source: options.source ?? defaultArtifactSource(artifact),
   })}---\n\n`;
-}
-
-function formatArtifactDate(now: Date): string {
-  const year = String(now.getFullYear()).padStart(4, "0");
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }

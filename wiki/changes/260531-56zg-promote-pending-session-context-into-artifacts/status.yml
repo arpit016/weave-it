@@ -1,0 +1,9 @@
+version: 1
+id: 260531-56zg-promote-pending-session-context-into-artifacts
+slug: promote-pending-session-context-into-artifacts
+title: Promote pending session context into artifacts
+type: feat
+stage: issues
+branch: change/260531-56zg-promote-pending-session-context-into-artifacts
+created_at: 2026-05-31T06:07:20.630Z
+updated_at: 2026-05-31T06:51:45.521Z

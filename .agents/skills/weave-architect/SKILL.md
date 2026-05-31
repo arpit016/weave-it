@@ -280,14 +280,16 @@ Start the file with artifact frontmatter:
 artifact: architecture
 status: draft
 owner: engineering
-created_at: <YYYY-MM-DD>
-updated_at: <YYYY-MM-DD>
+created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
+updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
 reviewed_at: null
 approved_at: null
 approved_by: null
 source: prd.md
 ---
 ```
+
+Use UTC ISO timestamps for `created_at` and `updated_at`.
 
 Add `Revision History` with an initial entry:
 

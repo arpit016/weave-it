@@ -10,6 +10,7 @@ import { createChange, currentChange, listChanges, progressChange, propagateChan
 
 const execFileAsync = promisify(execFile);
 const testNow = new Date(2026, 4, 22, 10, 0, 0);
+const testNowIso = testNow.toISOString();
 
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "weave-it-changes-"));
@@ -75,8 +76,8 @@ describe("changes", () => {
       artifact: "exploration",
       status: "draft",
       owner: "product",
-      created_at: "2026-05-22",
-      updated_at: "2026-05-22",
+      created_at: testNowIso,
+      updated_at: testNowIso,
       reviewed_at: null,
       approved_at: null,
       approved_by: null,

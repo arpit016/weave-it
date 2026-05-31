@@ -11,7 +11,7 @@ Use this when the user wants to preserve discussion rationale, decisions, option
 
 There are two capture modes:
 
-- Artifact capture: bare `weave-capture` creates a structured session note and updates the selected live artifact.
+- Artifact capture: bare `weave-capture` creates a structured session note, promotes pending session context for the selected lane, and updates the selected live artifact.
 - Session-only capture: `weave-capture session [exploration|prd|architecture]` creates a lane-aware structured session note and does not create or update any live artifact.
 
 The session file is a continuation aid. Live artifacts remain the durable current truth.
@@ -113,6 +113,12 @@ Existing session files using `yyyy-mm-dd-<4-char-id>-<artifact>.md` remain valid
 7. Write structured session notes with this shape:
 
 ```md
+---
+artifact: <exploration|prd|architecture>
+capture_mode: <artifact|session>
+captured_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
+---
+
 # Session Capture: <Artifact> - <YYYY-MM-DD>
 
 ## Summary
@@ -136,6 +142,8 @@ Existing session files using `yyyy-mm-dd-<4-char-id>-<artifact>.md` remain valid
 
 Do not copy or store the raw transcript. Summarize and structure the discussion.
 
+Set `capture_mode: session` for session-only capture. Set `capture_mode: artifact` for regular artifact capture.
+
 For session-only capture, write `None; session-only capture` or equivalent under `Live Artifact Updates Applied`.
 
 8. For session-only capture, stop after writing the session note.
@@ -157,6 +165,22 @@ exploration -> wiki/changes/<change-id>/exploration.md
 prd -> wiki/changes/<change-id>/prd.md
 architecture -> wiki/changes/<change-id>/architecture.md
 ```
+
+Before writing the live artifact, inspect pending session notes for the selected lane:
+
+```text
+wiki/changes/<change-id>/sessions/*-<artifact>.md
+```
+
+Pending session notes are session captures that may contain durable discoveries, decisions, constraints, rejected approaches, unresolved questions, risks, preferences, or next-resume context that has not yet been reflected in the live artifact.
+
+Selection rules:
+
+- If the selected live artifact does not exist, consider all matching lane session notes.
+- If the selected live artifact exists, consider matching lane session notes newer than the artifact `updated_at` timestamp.
+- Determine session time from YAML `captured_at` first. If missing, derive it from the timestamped filename. For legacy `yyyy-mm-dd-<id>-<artifact>.md` notes or ambiguous session time, include the note conservatively when it might be newer than the artifact.
+- Do not reconsider older matching notes after their durable content is reflected in a live artifact update; future bare captures use the live artifact `updated_at` cutoff.
+- Do not read session notes for other lanes.
 
 Only merge artifact-relevant current truth:
 
@@ -223,6 +247,7 @@ Creating a missing live artifact is allowed only for the selected capture target
 
 - The CLI owns active change lookup and artifact context lookup.
 - The skill owns discussion synthesis, session note writing, and live artifact merging.
+- Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.
 - Do not create a new change unless the user explicitly asks for a new change.
 - Do not create `exploration.md`, `prd.md`, or `architecture.md` in session-only mode.
 - Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and required prerequisite artifact.

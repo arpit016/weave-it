@@ -56,6 +56,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("weave artifact current set prd --json");
     expect(skill.content).toContain("weave change progress prd --json");
     expect(skill.content).toContain("artifact: prd");
+    expect(skill.content).toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
+    expect(skill.content).toContain("updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
+    expect(skill.content).toContain("Use UTC ISO timestamps for `created_at` and `updated_at`.");
     expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
     expect(skill.content).toContain("Treat `weave-prd` as entering or resuming the PRD lane for the active change.");
     expect(skill.content).toContain("## 3. PRD Resume Context");
@@ -63,6 +66,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Read `prd.md` before session notes. The live artifact is canonical current truth.");
     expect(skill.content).toContain("Use the latest `## Next Resume Point`");
     expect(skill.content).toContain("Loaded prd.md and <N> PRD session note(s).");
+    expect(skill.content).not.toContain("Before writing the live artifact, inspect pending session notes for the selected lane");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-prd", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -85,6 +89,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("weave artifact current set architecture --json");
     expect(skill.content).toContain("weave change progress architecture --json");
     expect(skill.content).toContain("artifact: architecture");
+    expect(skill.content).toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
+    expect(skill.content).toContain("updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
+    expect(skill.content).toContain("Use UTC ISO timestamps for `created_at` and `updated_at`.");
     expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
     expect(skill.content).toContain("Treat `weave-architect` as entering or resuming the architecture lane for the active change.");
     expect(skill.content).toContain("## 3. Architecture Resume Context");
@@ -92,6 +99,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Read `architecture.md` before session notes. The live artifact is canonical current truth.");
     expect(skill.content).toContain("Use the latest `## Next Resume Point`");
     expect(skill.content).toContain("Loaded architecture.md and <N> architecture session note(s).");
+    expect(skill.content).not.toContain("Before writing the live artifact, inspect pending session notes for the selected lane");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-architect", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -110,10 +118,19 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Which artifact should I capture this into: exploration, prd, or architecture?");
     expect(skill.content).toContain("YYYYMMDD-HHMMSS-<4-char-id>-<artifact>.md");
     expect(skill.content).toContain("Existing session files using `yyyy-mm-dd-<4-char-id>-<artifact>.md` remain valid historical notes.");
+    expect(skill.content).toContain("capture_mode: <artifact|session>");
+    expect(skill.content).toContain("captured_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
+    expect(skill.content).toContain("Set `capture_mode: session` for session-only capture. Set `capture_mode: artifact` for regular artifact capture.");
     expect(skill.content).toContain("For session-only capture, write `None; session-only capture` or equivalent under `Live Artifact Updates Applied`.");
     expect(skill.content).toContain("Session-only capture does not require the selected live artifact to exist.");
     expect(skill.content).toContain("Session-only capture does not enforce upstream prerequisite artifacts.");
     expect(skill.content).toContain("Session-only capture must not create or update `exploration.md`, `prd.md`, or `architecture.md`.");
+    expect(skill.content).toContain("Before writing the live artifact, inspect pending session notes for the selected lane:");
+    expect(skill.content).toContain("wiki/changes/<change-id>/sessions/*-<artifact>.md");
+    expect(skill.content).toContain("If the selected live artifact does not exist, consider all matching lane session notes.");
+    expect(skill.content).toContain("If the selected live artifact exists, consider matching lane session notes newer than the artifact `updated_at` timestamp.");
+    expect(skill.content).toContain("Determine session time from YAML `captured_at` first. If missing, derive it from the timestamped filename.");
+    expect(skill.content).toContain("Do not read session notes for other lanes.");
     expect(skill.content).toContain("Do not copy or store the raw transcript");
     expect(skill.content).toContain("When the live artifact already exists, preserve its template structure and lifecycle frontmatter");
     expect(skill.content).toContain("missing `exploration.md`: create it for the valid active change");
@@ -124,6 +141,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("weave change progress prd --json");
     expect(skill.content).toContain("weave change progress architecture --json");
     expect(skill.content).toContain("Do not call lifecycle progress in session-only mode.");
+    expect(skill.content).toContain("Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.");
     expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and required prerequisite artifact.");
     expect(skill.content).toContain("Captured session: wiki/changes/<change-id>/sessions/<filename>.md");
     expect(skill.content).toContain("Updated artifact: none (session-only capture)");
@@ -153,12 +171,13 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Recommended Next Step");
     expect(skill.content).toContain("Alternate Pipeline Step");
     expect(skill.content).toContain("Optional Checkpoint");
+    expect(skill.content).not.toContain("Before writing the live artifact, inspect pending session notes for the selected lane");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-next", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
   it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
-    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next"]) {
+    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify"]) {
       const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
 
       await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
@@ -180,6 +199,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Only load session files that match the selected target artifact, newest-first.");
     expect(skill.content).toContain("Read the selected live artifact before session notes. The live artifact is canonical current truth.");
     expect(skill.content).toContain("Use the latest `## Next Resume Point`, unresolved points, user preferences, and agent recommendations as clarification context.");
+    expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter; if the selected artifact has no frontmatter, add compatible lifecycle frontmatter using UTC ISO timestamps for `created_at` and `updated_at`.");
     expect(skill.content).toContain("Clarified <target>: wiki/changes/<change-id>/<artifact>.md");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-clarify", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);

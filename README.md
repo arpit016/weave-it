@@ -476,7 +476,7 @@ Use the weave-next skill to decide what to run next.
 Use the weave-clarify skill to revise the active PRD after scope changes.
 ```
 
-Bare `weave-capture` writes a structured session note and merges durable content into the current live artifact. `weave-capture session` writes only a lane-aware session note using the current artifact context, and `weave-capture session prd` or another explicit lane stores the note under that lane without updating live artifacts.
+Bare `weave-capture` writes a structured session note, promotes pending lane session context, and merges durable content into the current live artifact. If the live artifact is missing, bare capture considers all matching lane session notes; if the artifact exists, it considers matching session notes newer than the artifact `updated_at` timestamp. `weave-capture session` writes only a lane-aware session note using the current artifact context, and `weave-capture session prd` or another explicit lane stores the note under that lane without updating live artifacts. Downstream skills keep using live artifacts as canonical context in v1; they do not scan pending session notes before running.
 
 `weave-next` is read-only and advisory. It summarizes the active change, artifact state, current artifact context, and recent resume notes, then recommends the next Weave skill without writing artifacts or invoking the recommendation automatically.
 

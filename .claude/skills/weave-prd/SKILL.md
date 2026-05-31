@@ -201,14 +201,16 @@ Start the file with artifact frontmatter:
 artifact: prd
 status: draft
 owner: product
-created_at: <YYYY-MM-DD>
-updated_at: <YYYY-MM-DD>
+created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
+updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
 reviewed_at: null
 approved_at: null
 approved_by: null
 source: exploration.md
 ---
 ```
+
+Use UTC ISO timestamps for `created_at` and `updated_at`.
 
 Add `Revision History` with an initial entry:
 
