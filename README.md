@@ -214,6 +214,7 @@ weave change new "<title>" [options]
 weave change list [target|all] [options]
 weave change current [target|all] [options]
 weave change status [change] [options]
+weave change progress <lane> [options]
 weave change switch <change> [options]
 weave change propagate <change-id> --to <target...> [options]
 ```
@@ -251,6 +252,14 @@ target                 folder path, current session folder id, or all
 --json                 print machine-readable JSON
 ```
 
+Options for `progress`:
+
+```text
+lane                  exploration, prd, architecture, or issues
+--target <target>     target folder path or current session folder id
+--json                print machine-readable JSON
+```
+
 Examples:
 
 ```bash
@@ -260,6 +269,7 @@ weave change list
 weave change list all
 weave change current
 weave change status
+weave change progress prd --json
 weave change status 260522-f3q9-review-analytics --target app
 weave change switch f3q9
 weave change propagate 260522-f3q9-review-analytics --from app --to api
@@ -272,6 +282,18 @@ npm run dev -- change new "Analytics of reviews"
 ```
 
 `weave change list` is a clean index and marks the active change with `*`. `weave change current` shows the active change and can recover missing session state from a matching `change/{id}` branch. `weave change status` reports metadata and branch alignment. `weave change switch` is the explicit way to move to another existing change.
+
+`weave change progress <lane>` records lifecycle progress for the active change. `stage` means the highest reached lane, while `stale` records downstream lanes that should be refreshed after an upstream lane changes:
+
+```yaml
+stage: issues
+stale:
+  architecture:
+    invalidated_by: prd
+    invalidated_at: "2026-05-31T04:06:16.000Z"
+```
+
+Weave-managed artifact-writing skills call `progress` after successful live artifact writes. Existing changes without `stale` continue to work and are treated as having no stale lanes.
 
 If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` and `propagate` block when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
 
@@ -368,7 +390,7 @@ Skills:
 
 ```text
 weave-new        start a new change exploration from a title or topic
-weave-capture    capture the current discussion as a change exploration
+weave-capture    capture the current discussion into an artifact or session-only note
 weave-explore    stress-test product requirements and PRD readiness
 weave-prd        generate or revise a PRD from the active exploration
 weave-architect  generate or revise engineering architecture from the active PRD
@@ -417,6 +439,8 @@ Then start Claude Code in the repo and ask:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
+/weave-capture session
+/weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
@@ -440,6 +464,8 @@ Then ask Cursor Agent from the repo:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
+/weave-capture session
+/weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
@@ -463,6 +489,8 @@ Then ask Codex from the repo:
 ```text
 $weave-new "Analytics of reviews"
 $weave-capture
+$weave-capture session
+$weave-capture session prd
 $weave-explore "Analytics of reviews"
 $weave-prd
 $weave-architect
@@ -486,6 +514,8 @@ Then invoke the slash command in opencode:
 ```text
 /weave-new "Analytics of reviews"
 /weave-capture
+/weave-capture session
+/weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
@@ -500,11 +530,14 @@ Or invoke the skill naturally:
 
 ```text
 Use the weave-explore skill for Analytics of reviews.
+Use the weave-capture skill to capture this session without updating artifacts.
 Use the weave-prd skill to generate the PRD.
 Use the weave-architect skill to generate the engineering design.
 Use the weave-next skill to decide what to run next.
 Use the weave-clarify skill to revise the active PRD after scope changes.
 ```
+
+Bare `weave-capture` writes a structured session note and merges durable content into the current live artifact. `weave-capture session` writes only a lane-aware session note using the current artifact context, and `weave-capture session prd` or another explicit lane stores the note under that lane without updating live artifacts.
 
 `weave-next` is read-only and advisory. It summarizes the active change, artifact state, current artifact context, and recent resume notes, then recommends the next Weave skill without writing artifacts or invoking the recommendation automatically.
 

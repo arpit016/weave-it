@@ -357,6 +357,18 @@ Setting local artifact context with `weave artifact current set architecture --j
 
 ---
 
+# Lifecycle Progress
+
+After successfully writing or revising `architecture.md`, run:
+
+```bash
+weave change progress architecture --json
+```
+
+If lifecycle progress fails, do not rewrite `architecture.md` just to recover. Report the progress failure in the completion response so the user can rerun the command or inspect `status.yml`.
+
+---
+
 # Architecture Template
 
 Use this structure.

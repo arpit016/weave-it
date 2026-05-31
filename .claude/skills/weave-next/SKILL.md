@@ -63,6 +63,7 @@ If a target branch does not match the active change branch, include that branch 
 For each active-change target, read live artifacts first:
 
 ```text
+wiki/changes/<change-id>/status.yml
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
@@ -107,6 +108,14 @@ For issue evidence, use conservative v1 heuristics only:
 Do not treat an empty or scaffold-only `tasks.md` as issue breakdown evidence.
 
 # Recommendation Rules
+
+Stale-first recommendation:
+
+- If `status.yml.stale` contains one or more lanes, recommend the earliest stale lane by lifecycle order before forward progress.
+- stale `prd` -> run `weave-prd`
+- stale `architecture` -> run `weave-architect`
+- stale `issues` -> run `weave-issues`
+- Explain which upstream lane invalidated the recommendation when `invalidated_by` is present.
 
 Forward pipeline recommendation:
 
