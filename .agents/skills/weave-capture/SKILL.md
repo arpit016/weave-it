@@ -248,3 +248,11 @@ For session-only capture, report the session and explicitly state that no live a
 Captured session: wiki/changes/<change-id>/sessions/<filename>.md
 Updated artifact: none (session-only capture)
 ```
+
+If the capture wrote new content to the live artifact (or its session note) and the user has not yet shipped this lane, also suggest:
+
+```text
+To publish this update, run: weave ship
+```
+
+Skip the suggestion when no content was actually written or when the user explicitly asked you not to ship.

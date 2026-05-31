@@ -1,6 +1,10 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { artifactFileName, isArtifactName, type ArtifactName } from "./artifact-metadata.js";
+import YAML from "yaml";
+import { artifactFileName } from "./artifact-metadata.js";
 import { ChangeCommandError, currentChange } from "./changes.js";
+import { pathExists, writeFileAtomic } from "./files.js";
+import { isFileBackedLane, isLaneName, type LaneName } from "./lane.js";
 import {
   clearCurrentArtifactForPath,
   currentArtifactForPath,
@@ -92,14 +96,18 @@ export async function setCurrentArtifact(options: ArtifactCurrentSetOptions): Pr
     updated_at: now.toISOString(),
     folders: {},
   };
+  const artifactPath = isFileBackedLane(artifact)
+    ? path.join(target.current.path, artifactFileName(artifact))
+    : target.current.path;
   const artifactState = {
     artifact,
     change_id: target.current.id,
-    path: path.join(target.current.path, artifactFileName(artifact)),
+    path: artifactPath,
   };
 
   setCurrentArtifactForPath(session, target.path, artifactState, now);
   await saveCurrentSession(session, sessionPath);
+  await mirrorStageToStatusYml(target.path, target.current.path, artifact);
 
   const saved = currentArtifactForPath(session, target.path);
   const results: ArtifactCurrentTargetResult[] = [
@@ -163,12 +171,41 @@ export async function clearCurrentArtifact(options: ArtifactCurrentOptions): Pro
   };
 }
 
-function parseArtifact(value: string): ArtifactName {
-  if (isArtifactName(value)) {
+function parseArtifact(value: string): LaneName {
+  if (isLaneName(value)) {
     return value;
   }
 
-  throw new ChangeCommandError("invalid_artifact", `Unsupported artifact: ${value}. Expected exploration, prd, or architecture.`);
+  throw new ChangeCommandError(
+    "invalid_artifact",
+    `Unsupported artifact: ${value}. Expected exploration, prd, architecture, implementation, or review.`,
+  );
+}
+
+async function mirrorStageToStatusYml(targetRoot: string, changeRelativePath: string, lane: LaneName): Promise<void> {
+  const statusPath = path.join(targetRoot, changeRelativePath, "status.yml");
+  try {
+    if (!(await pathExists(statusPath))) {
+      return;
+    }
+
+    const raw = await readFile(statusPath, "utf8");
+    const parsed = YAML.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return;
+    }
+
+    const data = parsed as Record<string, unknown>;
+    if (data.stage === lane) {
+      return;
+    }
+
+    data.stage = lane;
+    data.updated_at = new Date().toISOString();
+    await writeFileAtomic(statusPath, YAML.stringify(data));
+  } catch (error) {
+    process.stderr.write(`weave: warning: failed to mirror stage to ${statusPath}: ${(error as Error).message}\n`);
+  }
 }
 
 function formatCurrentArtifactMessage(targets: ArtifactCurrentTargetResult[]): string {

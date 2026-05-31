@@ -297,6 +297,62 @@ Weave-managed artifact-writing skills call `progress` after successful live arti
 
 If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` and `propagate` block when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
 
+## `weave ship`
+
+Stages, commits, pushes, and opens or refreshes a GitHub PR for the active Weave change. `weave ship` is a pure orchestrator: it introduces no new persistent state and derives every output from live `git`, `gh`, and existing Weave session state.
+
+```bash
+weave ship [options]
+```
+
+Options:
+
+```text
+--lane <name>             override lane (exploration, prd, architecture, implementation, review)
+--draft                   force-open the PR as draft
+--ready                   force-open or promote the PR to ready
+--stash                   stash leaked files instead of refusing to ship
+--message-body <text>     extra paragraphs to append to the commit body
+--pr-body-extra <text>    extra paragraphs to append to the PR body
+--target <target>         target folder path or session folder id
+--json                    print machine-readable JSON to stdout
+```
+
+Examples:
+
+```bash
+weave ship                         # ship using auto-detected lane
+weave ship --lane implementation   # one-shot lane override
+weave ship --ready                 # promote a draft PR to ready
+weave ship --json                  # machine-readable result
+```
+
+Lane resolution order:
+
+1. `--lane` flag (one-shot override; never persisted).
+2. `weave artifact current` from the local Weave session.
+3. Artifact-presence inference (populated `tasks.md` -> `implementation`; else `architecture.md`, then `prd.md`, then `exploration.md`).
+
+Default PR posture is draft for `exploration | prd | architecture` lanes and ready for `implementation | review` lanes. `--draft` and `--ready` override either way and unlock automatic promotion of an existing draft PR when the resolved lane is `implementation` or `review`.
+
+The lane-aware leak guard refuses to ship dirty files outside the active lane's allowed scope. Pass `--stash` to set those files aside (and have ship restore them after the operation completes).
+
+Exit codes:
+
+```text
+0  ok (or already up to date)
+1  unexpected error
+2  precondition failed (no active change, wrong branch, not git, change corrupt)
+3  guard blocked, hook failed, or gh interaction failed
+4  push failed
+```
+
+To run the matching skill from an installed agent:
+
+```text
+/weave-ship
+```
+
 ## `weave agent`
 
 Installs and manages Weave Agent Skills for supported coding agents.
@@ -342,6 +398,7 @@ weave-next       answer what to do next for the active change
 weave-clarify    clarify an existing exploration, PRD, or architecture artifact
 weave-issues     break architecture, a PRD, or implementation plan into tracer-bullet issues
 weave-propagate  copy an existing change exploration to another repo
+weave-ship       stage, commit, push, and open or refresh a PR for the active change
 ```
 
 Install them for one agent:
@@ -391,6 +448,7 @@ Then start Claude Code in the repo and ask:
 /weave-clarify prd
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
+/weave-ship
 ```
 
 ### Cursor
@@ -415,6 +473,7 @@ Then ask Cursor Agent from the repo:
 /weave-clarify prd
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
+/weave-ship
 ```
 
 ### Codex
@@ -439,6 +498,7 @@ $weave-next
 $weave-clarify prd
 $weave-issues "Break the active PRD into implementation issues"
 $weave-propagate 260522-f3q9-review-analytics to api
+$weave-ship
 ```
 
 ### opencode
@@ -463,6 +523,7 @@ Then invoke the slash command in opencode:
 /weave-clarify prd
 /weave-issues "Break the active PRD into implementation issues"
 /weave-propagate 260522-f3q9-review-analytics to api
+/weave-ship
 ```
 
 Or invoke the skill naturally:
@@ -497,6 +558,7 @@ weave skill show weave-architect
 weave skill show weave-next
 weave skill show weave-clarify
 weave skill show weave-issues
+weave skill show weave-ship
 ```
 
 ## Project Structure
@@ -507,20 +569,29 @@ src/
   commands/
     add.ts
     agent.ts
+    artifact.ts
     change.ts
     init.ts
+    ship.ts
     skills.ts
     workspace.ts
   lib/
     add-folder.ts
     agent-skills.ts
+    artifact-context.ts
+    artifact-metadata.ts
     changes.ts
     files.ts
     folders.ts
+    gh.ts
     git.ts
+    git-ops.ts
     ids.ts
     init-workspace.ts
+    lane.ts
+    lane-scope.ts
     session-state.ts
+    ship.ts
     show-workspace.ts
     sync.ts
     weave-scaffold.ts

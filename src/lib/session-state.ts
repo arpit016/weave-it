@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import YAML from "yaml";
-import type { ArtifactName } from "./artifact-metadata.js";
+import type { LaneName } from "./lane.js";
 import { ensureDir, pathExists, writeFileAtomic } from "./files.js";
 import type { ResolvedFolder } from "./folders.js";
 import { slugify, titleFromSlug } from "./ids.js";
@@ -15,7 +15,7 @@ export type SessionCurrentChange = {
 };
 
 export type SessionCurrentArtifact = {
-  artifact: ArtifactName;
+  artifact: LaneName;
   change_id: string;
   path: string;
   updated_at: string;

@@ -98,3 +98,13 @@ weave change progress issues --json
 ```
 
 If lifecycle progress fails, do not recreate tasks or issues just to recover. Report the progress failure so the user can rerun the command or inspect `status.yml`.
+
+# After publishing or saving
+
+If the breakdown landed on disk (e.g. `tasks.md`) or in a tracker, suggest:
+
+```text
+To publish this breakdown, run: weave ship
+```
+
+Skip the suggestion when no new content was written.

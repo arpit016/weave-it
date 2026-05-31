@@ -1,12 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { execFile } from "node:child_process";
 import { cp, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
 import YAML from "yaml";
 import { artifactFileName, artifactFrontmatter, type ArtifactName } from "./artifact-metadata.js";
 import { pathExists } from "./files.js";
-import { findGitRoot } from "./git.js";
+import { currentBranch, findGitRoot, git, gitRequired } from "./git.js";
 import { slugify, titleFromSlug } from "./ids.js";
 import {
   clearCurrentArtifactForPath,
@@ -21,7 +19,6 @@ import {
 } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
 
-const execFileAsync = promisify(execFile);
 const idChars = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 export type BranchStatus = "created" | "checked_out" | "already_active" | "skipped_not_git";
@@ -1018,15 +1015,6 @@ async function assertCleanGitTargets(targets: ChangeTarget[]): Promise<void> {
   }
 }
 
-async function currentBranch(cwd: string): Promise<string | undefined> {
-  const gitRoot = await findGitRoot(cwd);
-  if (!gitRoot) {
-    return undefined;
-  }
-
-  return git(["branch", "--show-current"], gitRoot);
-}
-
 function branchMatch(branch: string | undefined, expected: string, gitRoot: string | undefined): BranchMatch {
   if (!gitRoot) {
     return "not_git";
@@ -1035,20 +1023,6 @@ function branchMatch(branch: string | undefined, expected: string, gitRoot: stri
     return "unknown";
   }
   return branch === expected ? "match" : "mismatch";
-}
-
-async function git(args: string[], cwd: string): Promise<string | undefined> {
-  try {
-    const { stdout } = await execFileAsync("git", args, { cwd });
-    const value = stdout.trim();
-    return value.length > 0 ? value : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-async function gitRequired(args: string[], cwd: string): Promise<void> {
-  await execFileAsync("git", args, { cwd });
 }
 
 function summarizeChangeOperation(input: {
