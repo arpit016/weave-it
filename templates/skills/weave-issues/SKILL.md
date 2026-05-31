@@ -86,3 +86,13 @@ Or "None - can start immediately" if no blockers.
 </issue-template>
 
 Do NOT close or modify any parent issue.
+
+# After publishing or saving
+
+If the breakdown landed on disk (e.g. `tasks.md`) or in a tracker, suggest:
+
+```text
+To publish this breakdown, run: weave ship
+```
+
+Skip the suggestion when no new content was written.
