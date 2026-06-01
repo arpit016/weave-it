@@ -499,7 +499,7 @@ describe("changes", () => {
     });
   });
 
-  it("records lifecycle progress and downstream stale lanes", async () => {
+  it("records source-aware progress metadata without upstream inference", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);
     const created = await createChange({
@@ -510,13 +510,12 @@ describe("changes", () => {
       sessionPath: session,
     });
     const changePath = path.join(cwd, "wiki", "changes", created.id);
-    await writeFile(path.join(changePath, "prd.md"), "# PRD\n\nSubstantive PRD.\n");
     await writeFile(path.join(changePath, "architecture.md"), "# Architecture\n\nSubstantive architecture.\n");
-    await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
 
     const progressed = await progressChange({
       cwd,
-      stage: "exploration",
+      stage: "architecture",
+      sources: ["discussion", "codebase"],
       sessionPath: session,
       now: testNow,
     });
@@ -524,21 +523,132 @@ describe("changes", () => {
 
     expect(progressed.change).toMatchObject({
       id: created.id,
-      stage: "issues",
-      stale: {
-        prd: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
-        architecture: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
-        issues: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+      stage: "architecture",
+      stale: {},
+      artifacts: {
+        architecture: {
+          sources: ["discussion", "codebase"],
+          updated_at: testNow.toISOString(),
+        },
       },
     });
     expect(status).toMatchObject({
-      stage: "issues",
-      stale: {
-        prd: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
-        architecture: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
-        issues: { invalidated_by: "exploration", invalidated_at: testNow.toISOString() },
+      stage: "architecture",
+      artifacts: {
+        architecture: {
+          sources: ["discussion", "codebase"],
+          updated_at: testNow.toISOString(),
+        },
       },
     });
+    expect(status.stale).toBeUndefined();
+  });
+
+  it("does not stale direct architecture when PRD progresses", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Direct architecture",
+      now: testNow,
+      randomId: () => "l222",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+    await writeFile(path.join(changePath, "prd.md"), "# PRD\n\nSubstantive PRD.\n");
+    await writeFile(path.join(changePath, "architecture.md"), "# Architecture\n\nSubstantive architecture.\n");
+
+    await progressChange({
+      cwd,
+      stage: "architecture",
+      sources: ["discussion", "codebase"],
+      sessionPath: session,
+      now: testNow,
+    });
+    const progressed = await progressChange({
+      cwd,
+      stage: "prd",
+      sources: ["exploration"],
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 11, 0, 0),
+    });
+
+    expect(progressed.change.stage).toBe("architecture");
+    expect(progressed.change.stale).toEqual({});
+  });
+
+  it("stales transitive dependents from recorded artifact sources", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Transitive lifecycle state",
+      now: testNow,
+      randomId: () => "l333",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+    await writeFile(path.join(changePath, "prd.md"), "# PRD\n\nSubstantive PRD.\n");
+    await writeFile(path.join(changePath, "architecture.md"), "# Architecture\n\nSubstantive architecture.\n");
+    await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
+
+    await progressChange({ cwd, stage: "architecture", sources: ["prd", "codebase"], sessionPath: session, now: testNow });
+    await progressChange({ cwd, stage: "issues", sessionPath: session, now: new Date(2026, 4, 22, 10, 30, 0) });
+    const progressed = await progressChange({
+      cwd,
+      stage: "prd",
+      sources: ["exploration"],
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 11, 0, 0),
+    });
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+
+    expect(progressed.change.stage).toBe("issues");
+    expect(progressed.change.stale).toMatchObject({
+      architecture: { invalidated_by: "prd", invalidated_at: new Date(2026, 4, 22, 11, 0, 0).toISOString() },
+      issues: { invalidated_by: "prd", invalidated_at: new Date(2026, 4, 22, 11, 0, 0).toISOString() },
+    });
+    expect(status.artifacts.issues.sources).toEqual(["architecture"]);
+  });
+
+  it("records a no-source note when progress has no sources or default", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "No source progress",
+      now: testNow,
+      randomId: () => "l444",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+
+    const progressed = await progressChange({ cwd, stage: "prd", sessionPath: session, now: testNow });
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+
+    expect(progressed.sources).toEqual([]);
+    expect(progressed.note).toContain("No sources recorded for prd");
+    expect(progressed.message).toContain("Note: No sources recorded for prd");
+    expect(status.artifacts.prd.sources).toEqual([]);
+  });
+
+  it("rejects unknown progress sources before writing status", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Unknown source",
+      now: testNow,
+      randomId: () => "l555",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+
+    await expect(
+      progressChange({ cwd, stage: "architecture", sources: ["prd", "browser"], sessionPath: session, now: testNow }),
+    ).rejects.toMatchObject({ code: "unsupported_source" });
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+    expect(status.artifacts).toBeUndefined();
   });
 
   it("clears only the refreshed stale lane and keeps stage from regressing", async () => {
@@ -548,7 +658,7 @@ describe("changes", () => {
       cwd,
       title: "Refresh lifecycle state",
       now: testNow,
-      randomId: () => "l222",
+      randomId: () => "l666",
       sessionPath: session,
     });
     const changePath = path.join(cwd, "wiki", "changes", created.id);
@@ -556,12 +666,15 @@ describe("changes", () => {
     await writeFile(path.join(changePath, "architecture.md"), "# Architecture\n\nSubstantive architecture.\n");
     await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
 
-    await progressChange({ cwd, stage: "prd", sessionPath: session, now: testNow });
+    await progressChange({ cwd, stage: "architecture", sources: ["prd"], sessionPath: session, now: testNow });
+    await progressChange({ cwd, stage: "issues", sessionPath: session, now: new Date(2026, 4, 22, 10, 30, 0) });
+    await progressChange({ cwd, stage: "prd", sources: ["exploration"], sessionPath: session, now: new Date(2026, 4, 22, 11, 0, 0) });
     const refreshed = await progressChange({
       cwd,
       stage: "architecture",
+      sources: ["prd", "codebase"],
       sessionPath: session,
-      now: new Date(2026, 4, 22, 11, 0, 0),
+      now: new Date(2026, 4, 22, 11, 30, 0),
     });
     const status = await statusChange({ cwd, sessionPath: session });
 

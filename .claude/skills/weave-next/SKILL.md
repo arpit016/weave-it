@@ -109,21 +109,24 @@ Do not treat an empty or scaffold-only `tasks.md` as issue breakdown evidence.
 
 # Recommendation Rules
 
-Stale-first recommendation:
+Source-aware stale-first recommendation:
 
-- If `status.yml.stale` contains one or more lanes, recommend the earliest stale lane by lifecycle order before forward progress.
+- If `status.yml.stale` contains one or more lanes, recommend refreshing stale lanes before forward progress.
 - stale `prd` -> run `weave-prd`
 - stale `architecture` -> run `weave-architect`
 - stale `issues` -> run `weave-issues`
 - Explain which upstream lane invalidated the recommendation when `invalidated_by` is present.
+- Treat stale entries as source-aware dependency invalidation from `status.yml.artifacts`, not proof that every earlier pipeline lane was completed.
 
-Forward pipeline recommendation:
+Type-aware forward recommendation:
 
 - missing, scaffold-only, or not-ready `exploration.md` -> run `weave-explore`
 - ready `exploration.md` plus missing `prd.md` -> run `weave-prd`
 - usable `prd.md` plus missing `architecture.md` -> run `weave-architect`
 - usable `architecture.md` plus no issue evidence -> run `weave-issues`
 - populated `tasks.md` or obvious issue references -> implementation handoff ready
+- For `fix`, `refactor`, `docs`, `test`, `ci`, and `chore`, prefer architecture or issues when product behavior is already clear; do not require PRD just to advance.
+- For `feat`, prefer exploration or PRD when product behavior, scope, requirements, or acceptance remain unclear.
 
 Resume recommendation:
 
@@ -133,7 +136,7 @@ Resume recommendation:
 
 When resume and forward recommendations differ, make the resume command primary and show the forward recommendation as `Alternate Pipeline Step`.
 
-When there is no valid resume context, make the forward pipeline recommendation primary.
+When there is no valid resume context, make the type-aware recommendation primary.
 
 # Output Format
 

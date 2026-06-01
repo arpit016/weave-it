@@ -43,6 +43,10 @@ interface ChangeStatusOptions {
   json?: boolean;
 }
 
+interface ChangeProgressOptions extends ChangeStatusOptions {
+  source?: string[];
+}
+
 export function changeCommand(): Command {
   const command = new Command("change").description("Create, inspect, and propagate Weave change artifacts.");
 
@@ -119,13 +123,15 @@ export function changeCommand(): Command {
     .description("Record lifecycle progress for the active change.")
     .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
     .option("--target <target>", "target folder path or session folder id")
+    .option("--source <source>", "source dependency: exploration, prd, architecture, discussion, sessions, or codebase", collectValues, [])
     .option("--json", "print machine-readable JSON")
-    .action(async (stage: ChangeStage, options: ChangeStatusOptions) => {
+    .action(async (stage: ChangeStage, options: ChangeProgressOptions) => {
       await runAction(options.json ?? false, async () => {
         const result = await progressChange({
           cwd: process.cwd(),
           stage,
           target: options.target,
+          sources: options.source,
         });
         writeResult(result, options.json ?? false);
       });
@@ -182,6 +188,10 @@ function parseChangeType(value: string): ChangeType {
   }
 
   throw new InvalidArgumentError(`Unsupported change type: ${value}`);
+}
+
+function collectValues(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function writeResult(

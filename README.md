@@ -257,6 +257,7 @@ Options for `progress`:
 ```text
 lane                  exploration, prd, architecture, or issues
 --target <target>     target folder path or current session folder id
+--source <source>     repeatable source dependency: exploration, prd, architecture, discussion, sessions, or codebase
 --json                print machine-readable JSON
 ```
 
@@ -269,7 +270,7 @@ weave change list
 weave change list all
 weave change current
 weave change status
-weave change progress prd --json
+weave change progress prd --source exploration --source sessions --json
 weave change status 260522-f3q9-review-analytics --target app
 weave change switch f3q9
 weave change propagate 260522-f3q9-review-analytics --from app --to api
@@ -283,7 +284,26 @@ npm run dev -- change new "Analytics of reviews"
 
 `weave change list` is a clean index and marks the active change with `*`. `weave change current` shows the active change and can recover missing session state from a matching `change/{id}` branch. `weave change status` reports metadata and branch alignment. `weave change switch` is the explicit way to move to another existing change.
 
-`weave change progress <lane>` records lifecycle progress for the active change. `stage` means the highest reached lane, while `stale` records downstream lanes that should be refreshed after an upstream lane changes:
+`weave change progress <lane>` records lifecycle progress for the active change. `stage` is orientation for the furthest progressed lane; it does not prove skipped upstream artifacts were created. `artifacts` records the source graph used for stale invalidation:
+
+```yaml
+stage: architecture
+artifacts:
+  prd:
+    sources:
+      - exploration
+      - sessions
+    updated_at: "2026-05-31T04:00:00.000Z"
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: "2026-05-31T04:05:00.000Z"
+```
+
+Pass each source with repeatable `--source` flags. Source lists are replaced on each progress call for that lane.
+
+`stale` records source-aware dependents that should be refreshed after a source lane changes:
 
 ```yaml
 stage: issues
@@ -293,7 +313,7 @@ stale:
     invalidated_at: "2026-05-31T04:06:16.000Z"
 ```
 
-Weave-managed artifact-writing skills call `progress` after successful live artifact writes. Existing changes without `stale` continue to work and are treated as having no stale lanes.
+Weave-managed artifact-writing skills call `progress` after successful live artifact writes. Existing changes without `artifacts` or `stale` continue to work and are treated as having no recorded dependencies or stale lanes.
 
 If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` and `propagate` block when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
 

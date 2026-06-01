@@ -255,8 +255,8 @@ When updating:
 After writing the selected artifact, identify other supported artifacts that may need clarification:
 
 - If `exploration.md` changed and `prd.md` exists, report `prd.md` as a likely follow-up when product behavior, scope, requirements, or acceptance changed.
-- If `prd.md` changed and `architecture.md` exists, report `architecture.md` as a likely follow-up when technical design, rollout, risks, or tests may be stale.
-- If `architecture.md` changed and `tasks.md` exists, report `tasks.md` as a likely follow-up when implementation slices may be stale.
+- If `prd.md` changed and `status.yml.artifacts.architecture.sources` includes `prd`, report `architecture.md` as a likely follow-up when technical design, rollout, risks, or tests may be stale.
+- If `architecture.md` changed and issue/task evidence depends on `architecture`, report issues or `tasks.md` as a likely follow-up when implementation slices may be stale.
 
 Do not edit those artifacts. Ask the user to run `weave-clarify <target>` separately for each follow-up artifact.
 
@@ -318,12 +318,12 @@ Do not write any other files.
 After successfully writing the selected artifact, run the matching lifecycle command:
 
 ```bash
-weave change progress exploration --json
-weave change progress prd --json
-weave change progress architecture --json
+weave change progress exploration --source discussion --json
+weave change progress prd --source exploration --source sessions --json
+weave change progress architecture --source prd --source codebase --json
 ```
 
-Run only the command matching the selected target artifact. If lifecycle progress fails, do not rewrite the clarified artifact just to recover. Report the progress failure in the completion response.
+Run only the command matching the selected target artifact and pass only sources that actually informed the clarified artifact. If lifecycle progress fails, do not rewrite the clarified artifact just to recover. Report the progress failure in the completion response.
 
 ---
 

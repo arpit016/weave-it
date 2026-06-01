@@ -47,14 +47,14 @@ describe("agent skills", () => {
     expect(skill.name).toBe("weave-prd");
     expect(skill.description).toContain("Generate or revise prd.md");
     expect(skill.content).toContain("Treat `prd.md` as a living product artifact");
-    expect(skill.content).toContain("Require a usable `exploration.md` before generating or revising `prd.md`");
-    expect(skill.content).toContain("No usable exploration.md found for <change-id>. Run `weave-explore` first, then run `weave-prd` again.");
+    expect(skill.content).toContain("Do not require `exploration.md` before generating or revising `prd.md`");
+    expect(skill.content).toContain("interview the user until the PRD can stand alone");
     expect(skill.content).toContain("scaffold-only with headings but no substantive content");
     expect(skill.content).toContain("explicitly marked `PRD Readiness` as `Not ready`");
-    expect(skill.content).toContain("Do not simulate `weave-explore`");
+    expect(skill.content).toContain("Do not write `exploration.md` from this skill.");
     expect(skill.content).toContain("weave change status");
     expect(skill.content).toContain("weave artifact current set prd --json");
-    expect(skill.content).toContain("weave change progress prd --json");
+    expect(skill.content).toContain("weave change progress prd --source exploration --source sessions --json");
     expect(skill.content).toContain("artifact: prd");
     expect(skill.content).toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
     expect(skill.content).toContain("updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
@@ -80,14 +80,15 @@ describe("agent skills", () => {
     expect(skill.content).toContain("This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-architect again.");
     expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
     expect(skill.content).toContain("In Plan Mode, do not write repo-tracked artifacts directly");
-    expect(skill.content).toContain("Treat `prd.md` as the primary product contract");
+    expect(skill.content).toContain("Treat `prd.md` as the preferred product contract when it exists and is useful");
+    expect(skill.content).toContain("Do not require `prd.md` before generating or revising `architecture.md`");
     expect(skill.content).toContain("Interview the user relentlessly about the engineering design");
     expect(skill.content).toContain("Ask questions one at a time and wait for the user's response");
     expect(skill.content).toContain('explicitly offer: "Explain with an example before deciding"');
     expect(skill.content).toContain("restate the original decision question");
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture.md");
     expect(skill.content).toContain("weave artifact current set architecture --json");
-    expect(skill.content).toContain("weave change progress architecture --json");
+    expect(skill.content).toContain("weave change progress architecture --source prd --source codebase --json");
     expect(skill.content).toContain("artifact: architecture");
     expect(skill.content).toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
     expect(skill.content).toContain("updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
@@ -134,15 +135,15 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Do not copy or store the raw transcript");
     expect(skill.content).toContain("When the live artifact already exists, preserve its template structure and lifecycle frontmatter");
     expect(skill.content).toContain("missing `exploration.md`: create it for the valid active change");
-    expect(skill.content).toContain("missing `prd.md`: create it only when a usable `exploration.md` exists");
-    expect(skill.content).toContain("missing `architecture.md`: create it only when a usable `prd.md` exists");
-    expect(skill.content).toContain("a just-completed Plan Mode `weave-architect` discussion is valid source material");
-    expect(skill.content).toContain("weave change progress exploration --json");
-    expect(skill.content).toContain("weave change progress prd --json");
-    expect(skill.content).toContain("weave change progress architecture --json");
+    expect(skill.content).toContain("missing `prd.md`: create it from current discussion, PRD sessions, and useful exploration context when enough product truth exists");
+    expect(skill.content).toContain("missing `architecture.md`: create it from current discussion, architecture sessions, useful PRD context, and codebase/technical context when enough engineering truth exists");
+    expect(skill.content).toContain("just-completed Plan Mode `weave-architect` discussion is valid source material");
+    expect(skill.content).toContain("weave change progress exploration --source discussion --json");
+    expect(skill.content).toContain("weave change progress prd --source exploration --source sessions --json");
+    expect(skill.content).toContain("weave change progress architecture --source prd --source codebase --json");
     expect(skill.content).toContain("Do not call lifecycle progress in session-only mode.");
     expect(skill.content).toContain("Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.");
-    expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and required prerequisite artifact.");
+    expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and enough selected-lane context.");
     expect(skill.content).toContain("Captured session: wiki/changes/<change-id>/sessions/<filename>.md");
     expect(skill.content).toContain("Updated artifact: none (session-only capture)");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-capture", "SKILL.md"));
@@ -165,8 +166,8 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Inspect only workspace targets whose current change matches the active change.");
     expect(skill.content).toContain("read live artifacts first");
     expect(skill.content).toContain("wiki/changes/<change-id>/status.yml");
-    expect(skill.content).toContain("Stale-first recommendation");
-    expect(skill.content).toContain("recommend the earliest stale lane");
+    expect(skill.content).toContain("Source-aware stale-first recommendation");
+    expect(skill.content).toContain("source-aware dependency invalidation from `status.yml.artifacts`");
     expect(skill.content).toContain("Prefer the latest relevant `## Next Resume Point`");
     expect(skill.content).toContain("Recommended Next Step");
     expect(skill.content).toContain("Alternate Pipeline Step");
@@ -177,7 +178,7 @@ describe("agent skills", () => {
   });
 
   it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
-    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify"]) {
+    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify", "weave-issues"]) {
       const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
 
       await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
@@ -194,7 +195,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Supported target artifacts");
     expect(skill.content).toContain("Do not edit follow-up artifacts");
     expect(skill.content).toContain("weave change progress <target> --json");
-    expect(skill.content).toContain("weave change progress architecture --json");
+    expect(skill.content).toContain("weave change progress architecture --source prd --source codebase --json");
     expect(skill.content).toContain("## 3. Target Resume Context");
     expect(skill.content).toContain("Only load session files that match the selected target artifact, newest-first.");
     expect(skill.content).toContain("Read the selected live artifact before session notes. The live artifact is canonical current truth.");
@@ -483,7 +484,7 @@ describe("agent skills", () => {
     expect(newSkill).toContain("name: weave-new");
     expect(issuesSkill).toContain("name: weave-issues");
     expect(issuesSkill).toContain("status.yml.stale.architecture");
-    expect(issuesSkill).toContain("weave change progress issues --json");
+    expect(issuesSkill).toContain("weave change progress issues --source architecture --json");
     expect(nextSkill).toContain("name: weave-next");
     expect(exploreCommand).toContain("Load and follow the `weave-explore` skill.");
     expect(prdCommand).toContain("Load and follow the `weave-prd` skill.");

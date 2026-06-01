@@ -199,12 +199,12 @@ Do not add transcript-style discussion to the live artifact.
 10. For artifact capture, after successfully creating or updating the live artifact, run lifecycle progress for the selected artifact:
 
 ```bash
-weave change progress exploration --json
-weave change progress prd --json
-weave change progress architecture --json
+weave change progress exploration --source discussion --json
+weave change progress prd --source exploration --source sessions --json
+weave change progress architecture --source prd --source codebase --json
 ```
 
-Run only the command matching the selected artifact. If lifecycle progress fails, do not rewrite the session note or live artifact just to recover. Report the progress failure in the completion response.
+Run only the command matching the selected artifact and pass only sources that actually informed the live artifact. If lifecycle progress fails, do not rewrite the session note or live artifact just to recover. Report the progress failure in the completion response.
 
 # Target Rules
 
@@ -227,20 +227,20 @@ Run only the command matching the selected artifact. If lifecycle progress fails
 - `weave-prd` maps to `prd`.
 - `weave-architect` maps to `architecture`.
 - Stored context must point to the active change. If it points elsewhere, treat it as invalid and ask for a target.
-- If the selected live artifact does not exist, create it only when the active change, target context, and prerequisite artifact are valid:
+- If the selected live artifact does not exist, create it only when the active change, target context, and selected-lane context are sufficient:
   - missing `exploration.md`: create it for the valid active change
-  - missing `prd.md`: create it only when a usable `exploration.md` exists
-  - missing `architecture.md`: create it only when a usable `prd.md` exists
-- Treat a prerequisite artifact as unusable when it is missing, blank or whitespace-only, scaffold-only with headings but no substantive content, or explicitly marked not ready for the next lane.
-- If a prerequisite artifact is missing or unusable, stop before writing and ask the user to run the prerequisite lane skill first.
+  - missing `prd.md`: create it from current discussion, PRD sessions, and useful exploration context when enough product truth exists
+  - missing `architecture.md`: create it from current discussion, architecture sessions, useful PRD context, and codebase/technical context when enough engineering truth exists
+- Treat upstream artifacts as optional sources, not prerequisites.
+- If selected-lane context is insufficient, write the session note and stop before creating the live artifact. Tell the user which lane conversation or interview is needed next.
 
 # Missing Artifact Creation
 
-Creating a missing live artifact is allowed only for the selected capture target. The captured discussion supplies the current lane context, and prerequisite artifacts supply the upstream product or technical contract.
+Creating a missing live artifact is allowed only for the selected capture target. The captured discussion supplies the current lane context, and upstream artifacts supply optional product or technical context when they exist and are useful.
 
 - For `exploration.md`, synthesize the artifact from the current discussion and mark unresolved discovery points clearly.
-- For `prd.md`, synthesize the artifact from the current discussion plus usable `exploration.md`; do not simulate a full exploration interview inside capture.
-- For `architecture.md`, synthesize the artifact from the current discussion plus usable `prd.md`; a just-completed Plan Mode `weave-architect` discussion is valid source material for the first architecture draft.
+- For `prd.md`, synthesize the artifact from current discussion, PRD sessions, and useful exploration context. Do not require `exploration.md`.
+- For `architecture.md`, synthesize the artifact from current discussion, architecture sessions, useful PRD context, and codebase/technical context. A just-completed Plan Mode `weave-architect` discussion is valid source material for the first architecture draft.
 - If the current discussion does not contain enough durable content for the selected missing artifact, write the session note and stop before creating the live artifact. Tell the user which lane conversation is needed next.
 
 # Behavior Rules
@@ -250,7 +250,7 @@ Creating a missing live artifact is allowed only for the selected capture target
 - Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.
 - Do not create a new change unless the user explicitly asks for a new change.
 - Do not create `exploration.md`, `prd.md`, or `architecture.md` in session-only mode.
-- Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and required prerequisite artifact.
+- Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and enough selected-lane context.
 - Do not store raw transcripts in v1.
 - Do not remove existing lifecycle frontmatter.
 - Do not call lifecycle progress in session-only mode.

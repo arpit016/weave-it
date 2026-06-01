@@ -29,14 +29,22 @@ export type ChangeType = "feat" | "fix" | "refactor" | "docs" | "test" | "ci" | 
 export type BranchMatch = "match" | "mismatch" | "not_git" | "unknown";
 export type CurrentSource = "session" | "inferred_saved" | "none";
 export type ChangeStage = (typeof changeStages)[number];
+export type ArtifactSourceId = (typeof artifactSourceIds)[number];
 export type StaleChangeLanes = Partial<Record<ChangeStage, StaleChangeLaneMetadata>>;
+export type ChangeArtifactsMetadata = Partial<Record<ChangeStage, ChangeArtifactMetadata>>;
 
 export const changeTypes: ChangeType[] = ["feat", "fix", "refactor", "docs", "test", "ci", "chore"];
 export const changeStages = ["exploration", "prd", "architecture", "issues"] as const;
+export const artifactSourceIds = ["exploration", "prd", "architecture", "discussion", "sessions", "codebase"] as const;
 
 export interface StaleChangeLaneMetadata {
   invalidated_by: ChangeStage;
   invalidated_at: string;
+}
+
+export interface ChangeArtifactMetadata {
+  sources: ArtifactSourceId[];
+  updated_at: string;
 }
 
 export class ChangeCommandError extends Error {
@@ -75,6 +83,7 @@ export interface ChangeSummary {
   type: ChangeType;
   stage: ChangeStage;
   stale: StaleChangeLanes;
+  artifacts: ChangeArtifactsMetadata;
   branch: string;
   path: string;
   changePath: string;
@@ -194,6 +203,7 @@ export interface StatusChangeOptions {
 export interface ProgressChangeOptions {
   cwd: string;
   stage: ChangeStage;
+  sources?: readonly string[];
   target?: string;
   now?: Date;
   sessionPath?: string;
@@ -208,6 +218,8 @@ export interface ProgressChangeResult {
   };
   change: ChangeSummary;
   progressed: ChangeStage;
+  sources: ArtifactSourceId[];
+  note?: string;
   message: string;
 }
 
@@ -235,6 +247,7 @@ interface ExistingChangeMetadata {
 interface ChangeStatusMetadata extends ExistingChangeMetadata {
   stage: ChangeStage;
   stale: StaleChangeLanes;
+  artifacts: ChangeArtifactsMetadata;
   created_at?: string;
   updated_at?: string;
 }
@@ -484,21 +497,21 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
   const statusPath = path.join(context.current.changePath, "status.yml");
   const raw = await readStatusFile(statusPath);
   const existing = await readChangeMetadata(context.current.changePath, context.current.id);
-  const reached = await readReachedStages(context.current.changePath, existing.stage);
-  reached.add(options.stage);
+  const sourceResolution = await resolveProgressSources(options, context.current.changePath);
 
-  const nextStage = maxStage([...reached, existing.stage, options.stage]);
+  const nextStage = maxStage([existing.stage, options.stage]);
+  const artifacts: ChangeArtifactsMetadata = {
+    ...existing.artifacts,
+    [options.stage]: {
+      sources: sourceResolution.sources,
+      updated_at: now.toISOString(),
+    },
+  };
   const stale: StaleChangeLanes = { ...existing.stale };
   delete stale[options.stage];
 
   const invalidatedAt = now.toISOString();
-  for (const stage of changeStages) {
-    if (stageIndex(stage) <= stageIndex(options.stage)) {
-      continue;
-    }
-    if (!reached.has(stage)) {
-      continue;
-    }
+  for (const stage of transitiveDependents(options.stage, artifacts)) {
     stale[stage] = {
       invalidated_by: options.stage,
       invalidated_at: invalidatedAt,
@@ -508,6 +521,7 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
   const nextStatus = {
     ...raw,
     stage: nextStage,
+    artifacts,
     updated_at: invalidatedAt,
   };
   if (Object.keys(stale).length > 0) {
@@ -530,7 +544,9 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
     target: { id: target.id, name: target.name, path: target.path },
     change,
     progressed: options.stage,
-    message: formatProgressMessage({ id: target.id, name: target.name, path: target.path }, change, options.stage),
+    sources: sourceResolution.sources,
+    note: sourceResolution.note,
+    message: formatProgressMessage({ id: target.id, name: target.name, path: target.path }, change, options.stage, sourceResolution.note),
   };
 }
 
@@ -672,6 +688,7 @@ async function readChangeMetadata(changePath: string, fallbackId: string): Promi
     type,
     stage,
     stale: parseStaleLanes(parsed?.stale),
+    artifacts: parseArtifactsMetadata(parsed?.artifacts),
     branch,
     created_at: typeof parsed?.created_at === "string" ? parsed.created_at : undefined,
     updated_at: typeof parsed?.updated_at === "string" ? parsed.updated_at : undefined,
@@ -706,30 +723,91 @@ function parseStaleLanes(value: unknown): StaleChangeLanes {
   return stale;
 }
 
-async function readReachedStages(changePath: string, currentStage: ChangeStage): Promise<Set<ChangeStage>> {
-  const reached = new Set<ChangeStage>();
-  addReachedThrough(reached, currentStage);
-
-  if (await hasSubstantiveMarkdown(path.join(changePath, artifactFileName("prd")))) {
-    addReachedThrough(reached, "prd");
-  }
-  if (await hasSubstantiveMarkdown(path.join(changePath, artifactFileName("architecture")))) {
-    addReachedThrough(reached, "architecture");
-  }
-  if (await hasIssueEvidence(changePath)) {
-    addReachedThrough(reached, "issues");
+function parseArtifactsMetadata(value: unknown): ChangeArtifactsMetadata {
+  if (!isRecord(value)) {
+    return {};
   }
 
-  return reached;
+  const artifacts: ChangeArtifactsMetadata = {};
+  for (const [lane, metadata] of Object.entries(value)) {
+    if (!isChangeStage(lane) || !isRecord(metadata)) {
+      continue;
+    }
+    const updatedAt = metadata.updated_at;
+    if (typeof updatedAt !== "string") {
+      continue;
+    }
+    artifacts[lane] = {
+      sources: parseArtifactSources(metadata.sources),
+      updated_at: updatedAt,
+    };
+  }
+  return artifacts;
 }
 
-function addReachedThrough(reached: Set<ChangeStage>, stage: ChangeStage): void {
-  for (const candidate of changeStages) {
-    reached.add(candidate);
-    if (candidate === stage) {
-      return;
+function parseArtifactSources(value: unknown): ArtifactSourceId[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return dedupeSources(value.filter(isArtifactSourceId));
+}
+
+async function resolveProgressSources(
+  options: ProgressChangeOptions,
+  changePath: string,
+): Promise<{ sources: ArtifactSourceId[]; note?: string }> {
+  const requested = options.sources ?? [];
+  const sources = dedupeSources(requested.map((source) => normalizeArtifactSourceId(source)));
+  if (sources.length > 0) {
+    return { sources };
+  }
+
+  if (options.stage === "issues" && (await hasSubstantiveMarkdown(path.join(changePath, artifactFileName("architecture"))))) {
+    return { sources: ["architecture"] };
+  }
+
+  return {
+    sources,
+    note: `No sources recorded for ${options.stage}; downstream stale invalidation will only use explicitly recorded dependencies.`,
+  };
+}
+
+function normalizeArtifactSourceId(value: string): ArtifactSourceId {
+  if (isArtifactSourceId(value)) {
+    return value;
+  }
+
+  throw new ChangeCommandError(
+    "unsupported_source",
+    `Unsupported artifact source: ${value}. Expected ${artifactSourceIds.join(", ")}`,
+    { source: value, supported: artifactSourceIds },
+  );
+}
+
+function dedupeSources(sources: ArtifactSourceId[]): ArtifactSourceId[] {
+  return [...new Set(sources)];
+}
+
+function transitiveDependents(source: ChangeStage, artifacts: ChangeArtifactsMetadata): ChangeStage[] {
+  const dependents = new Set<ChangeStage>();
+  const queue: ChangeStage[] = [source];
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    for (const candidate of changeStages) {
+      if (candidate === source || dependents.has(candidate)) {
+        continue;
+      }
+      const candidateSources = artifacts[candidate]?.sources ?? [];
+      if (candidateSources.some((candidateSource) => candidateSource === current)) {
+        dependents.add(candidate);
+        queue.push(candidate);
+      }
     }
   }
+
+  return changeStages.filter((stage) => dependents.has(stage));
 }
 
 async function hasSubstantiveMarkdown(filePath: string): Promise<boolean> {
@@ -1174,13 +1252,14 @@ function formatStatusTarget(target: StatusChangeTargetResult): string {
   ].join("\n");
 }
 
-function formatProgressMessage(target: ChangeTarget, change: ChangeSummary, progressed: ChangeStage): string {
+function formatProgressMessage(target: ChangeTarget, change: ChangeSummary, progressed: ChangeStage, note?: string): string {
   const heading = target.name ? `${target.name} (${target.path})` : target.path;
   return [
     `Progressed change in ${heading}: ${change.id}`,
     `Progressed lane: ${progressed}`,
     `Stage: ${change.stage}`,
     ...formatStaleLines(change.stale),
+    ...(note ? [`Note: ${note}`] : []),
     `Path: ${change.path}`,
   ].join("\n");
 }
@@ -1227,6 +1306,10 @@ function isChangeType(value: unknown): value is ChangeType {
 
 export function isChangeStage(value: unknown): value is ChangeStage {
   return typeof value === "string" && (changeStages as readonly string[]).includes(value);
+}
+
+export function isArtifactSourceId(value: unknown): value is ArtifactSourceId {
+  return typeof value === "string" && (artifactSourceIds as readonly string[]).includes(value);
 }
 
 function maxStage(stages: ChangeStage[]): ChangeStage {

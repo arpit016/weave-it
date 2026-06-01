@@ -1,13 +1,13 @@
 ---
 name: weave-architect
-description: Generate or revise architecture.md from an active Weave PRD by inspecting the codebase and technical context. Use when the user wants engineering architecture, technical design, implementation strategy, tradeoff analysis, risk review, or a design doc for a Weave change.
+description: Generate or revise architecture.md for an active Weave change by inspecting the codebase and technical context. Use when the user wants engineering architecture, technical design, implementation strategy, tradeoff analysis, risk review, or a design doc.
 ---
 
 # Weave Architect
 
-This skill converts a Weave PRD into an engineer-facing architecture and technical design document.
+This skill converts available Weave product and technical context into an engineer-facing architecture and technical design document.
 
-Use this after `prd.md` exists. This is not a product PRD generator and not an issue breakdown skill. Ask the user only when a missing answer would materially affect architecture, implementation risk, operational guarantees, security, scalability, data integrity, or delivery sequencing.
+Use `prd.md` when it exists and is useful, but do not require it. This is not a product PRD generator and not an issue breakdown skill. Ask the user only when a missing answer would materially affect architecture, implementation risk, operational guarantees, security, scalability, data integrity, or delivery sequencing.
 
 ---
 
@@ -31,7 +31,9 @@ In Plan Mode, do not write repo-tracked artifacts directly. Produce the architec
 
 # Operating Principles
 
-- Treat `prd.md` as the primary product contract.
+- Treat `prd.md` as the preferred product contract when it exists and is useful.
+- Do not require `prd.md` before generating or revising `architecture.md`.
+- Use architecture session notes, current discussion, codebase inspection, and focused technical interview questions when PRD context is missing or insufficient.
 - Treat `weave-architect` as entering or resuming the architecture lane for the active change.
 - Treat `architecture.md` as a living technical artifact.
 - Create `architecture.md` when it does not exist.
@@ -41,7 +43,7 @@ In Plan Mode, do not write repo-tracked artifacts directly. Produce the architec
 - Make reasonable engineering assumptions for minor gaps and document them in `Assumptions`.
 - Put unresolved technical decisions in `Open Technical Questions`.
 - Ask product questions only when technical design exposes ambiguity not settled by the PRD.
-- Stop and recommend revisiting `prd.md` if the PRD is too incomplete to support technical design.
+- Ask focused product or technical questions when available context is too incomplete to support responsible technical design.
 - Do not create implementation issues; use `weave-issues` after architecture is ready.
 - Do not write or modify source code.
 
@@ -119,25 +121,15 @@ Do not assume every folder in the workspace is relevant. Use the resolved change
 
 For each relevant change folder, read files in this order.
 
-## 1. PRD
+## 1. Product and Technical Context
 
-Read first:
+Read when present:
 
 ```text
 wiki/changes/<change-id>/prd.md
 ```
 
-If `prd.md` is missing, stop and say:
-
-```text
-No prd.md found for <change-id>. Run `weave-prd` first, then run `weave-architect`.
-```
-
-If `prd.md` lacks enough product behavior, user workflow, requirements, or acceptance context to support technical design, stop and say:
-
-```text
-The PRD for <change-id> is not complete enough for technical architecture. Revisit `prd.md` with `weave-prd`, then run `weave-architect` again.
-```
+If `prd.md` is missing or thin, continue with architecture sessions, current discussion, codebase inspection, and interview questions. Stop only when a missing answer blocks responsible technical design and cannot be represented as an assumption or open question.
 
 ## 2. Current Architecture Baseline
 
@@ -364,7 +356,14 @@ Setting local artifact context with `weave artifact current set architecture --j
 After successfully writing or revising `architecture.md`, run:
 
 ```bash
-weave change progress architecture --json
+weave change progress architecture --source prd --source codebase --json
+```
+
+Pass only sources that actually informed the architecture. Examples:
+
+```bash
+weave change progress architecture --source prd --source codebase --json
+weave change progress architecture --source discussion --source codebase --json
 ```
 
 If lifecycle progress fails, do not rewrite `architecture.md` just to recover. Report the progress failure in the completion response so the user can rerun the command or inspect `status.yml`.

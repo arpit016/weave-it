@@ -64,7 +64,7 @@ describe("skills CLI", () => {
     expect(output).toContain("weave-next");
     expect(output).toContain("weave workspace --json");
     expect(output).toContain("Treat `prd.md` as a living product artifact");
-    expect(output).toContain("Treat `prd.md` as the primary product contract");
+    expect(output).toContain("Treat `prd.md` as the preferred product contract when it exists and is useful");
     expect(output).toContain("Treat the selected target artifact as the only write target");
     expect(output).toContain("tracer-bullet");
     expect(output).toContain("`weave-next` is read-only advisory");

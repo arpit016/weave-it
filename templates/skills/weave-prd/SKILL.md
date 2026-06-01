@@ -1,20 +1,21 @@
 ---
 name: weave-prd
-description: Generate or revise prd.md from the active Weave exploration. Use when the user wants to convert exploration context into a product requirements document.
+description: Generate or revise prd.md for an active Weave change. Use when the user wants to convert exploration, discussion, sessions, or product interview context into a product requirements document.
 ---
 
 # Weave PRD
 
-This skill converts an existing usable Weave exploration into a product requirements document.
+This skill converts available Weave product context into a product requirements document.
 
-Use this after product discovery has been captured in `exploration.md`. This is not a discovery interview skill; use existing Weave context first. Ask the user only when a missing answer would materially change product scope, user behavior, permissions, rollout, or acceptance.
+Use `exploration.md` when it exists and is useful, but do not require it. If product context is missing or insufficient, interview the user until the PRD can stand alone. Ask the user when a missing answer would materially change product scope, user behavior, permissions, rollout, or acceptance.
 
 ---
 
 # Operating Principles
 
-- Treat `exploration.md` as the primary source.
-- Require a usable `exploration.md` before generating or revising `prd.md`.
+- Treat `exploration.md` as a preferred source when it exists and is useful.
+- Do not require `exploration.md` before generating or revising `prd.md`.
+- Use current discussion, PRD session notes, knowledge context, and focused product interview questions when exploration context is missing or insufficient.
 - Treat `weave-prd` as entering or resuming the PRD lane for the active change.
 - Treat `prd.md` as a living product artifact.
 - Create `prd.md` when it does not exist.
@@ -82,28 +83,22 @@ Do not assume every folder in the workspace is relevant. Use the resolved change
 
 For each relevant change folder, read files in this order.
 
-## 1. Exploration
+## 1. Product Context
 
-Read first:
+Read when present:
 
 ```text
 wiki/changes/<change-id>/exploration.md
 ```
 
-If `exploration.md` is missing or unusable, stop and say:
-
-```text
-No usable exploration.md found for <change-id>. Run `weave-explore` first, then run `weave-prd` again.
-```
-
-Treat `exploration.md` as unusable when it is:
+Treat `exploration.md` as thin context when it is:
 
 - missing
 - blank or whitespace-only
 - scaffold-only with headings but no substantive content
 - explicitly marked `PRD Readiness` as `Not ready`
 
-Do not generate `prd.md` from unusable exploration context. Do not simulate `weave-explore`, conduct the full discovery interview inside `weave-prd`, or write `exploration.md`. Stop and ask the user to run `weave-explore` first.
+Do not stop solely because exploration is thin or missing. Use same-lane session notes, current discussion, knowledge context, and product interview questions until `prd.md` can stand alone. Do not write `exploration.md` from this skill.
 
 ## 2. Current PRD Baseline
 
@@ -287,7 +282,14 @@ Setting local artifact context with `weave artifact current set prd --json` is a
 After successfully writing or revising `prd.md`, run:
 
 ```bash
-weave change progress prd --json
+weave change progress prd --source exploration --source sessions --json
+```
+
+Pass only sources that actually informed the PRD. Examples:
+
+```bash
+weave change progress prd --source discussion --json
+weave change progress prd --source exploration --source sessions --json
 ```
 
 If lifecycle progress fails, do not rewrite `prd.md` just to recover. Report the progress failure in the completion response so the user can rerun the command or inspect `status.yml`.
