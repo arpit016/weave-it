@@ -228,7 +228,7 @@ describe("agent skills", () => {
         }),
         expect.objectContaining({
           name: "weave-issues",
-          description: expect.stringContaining("implementation plan"),
+          description: expect.stringContaining("local implementation tasks"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
         expect.objectContaining({
@@ -484,7 +484,22 @@ describe("agent skills", () => {
     expect(newSkill).toContain("name: weave-new");
     expect(issuesSkill).toContain("name: weave-issues");
     expect(issuesSkill).toContain("status.yml.stale.architecture");
+    expect(issuesSkill).toContain("wiki/changes/<change-id>/tasks.md");
+    expect(issuesSkill).toContain("It does not publish, close, comment on, label, or otherwise mutate external issue trackers.");
+    expect(issuesSkill).toContain("Do not create `issues.md`.");
+    expect(issuesSkill).toContain("## Source Context");
+    expect(issuesSkill).toContain("## Local Tracking Status");
+    expect(issuesSkill).toContain("## Status Legend");
+    expect(issuesSkill).toContain("## Active Task Index");
+    expect(issuesSkill).toContain("## Invalid Tasks");
+    expect(issuesSkill).toContain("not_tested");
+    expect(issuesSkill).toContain("Generated tasks start as `todo` unless a real blocker is already known.");
+    expect(issuesSkill).toContain("Do not assign `not_tested` during task generation");
+    expect(issuesSkill).toContain("If `tasks.md` already exists:");
+    expect(issuesSkill).toContain("mark obsolete tasks as `invalid` instead of deleting them");
+    expect(issuesSkill).toContain("Do not use unsupported source IDs such as `external`, `reference`, or `local_path`.");
     expect(issuesSkill).toContain("weave change progress issues --source architecture --json");
+    expect(issuesSkill).toContain("weave change progress issues --source prd --source codebase --json");
     expect(nextSkill).toContain("name: weave-next");
     expect(exploreCommand).toContain("Load and follow the `weave-explore` skill.");
     expect(prdCommand).toContain("Load and follow the `weave-prd` skill.");
@@ -497,6 +512,7 @@ describe("agent skills", () => {
     expect(captureCommand).toContain("Load and follow the `weave-capture` skill.");
     expect(captureCommand).toContain("Context: $ARGUMENTS");
     expect(newCommand).toContain("Load and follow the `weave-new` skill.");
+    expect(issuesCommand).toContain("Break a Weave plan into local tasks.md implementation tasks");
     expect(issuesCommand).toContain("Load and follow the `weave-issues` skill.");
     expect(issuesCommand).toContain("Context: $ARGUMENTS");
     expect(nextCommand).toContain("Load and follow the `weave-next` skill.");

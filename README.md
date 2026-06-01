@@ -360,7 +360,7 @@ weave-prd        generate or revise a PRD from the active exploration
 weave-architect  generate or revise engineering architecture from the active PRD
 weave-next       answer what to do next for the active change
 weave-clarify    clarify an existing exploration, PRD, or architecture artifact
-weave-issues     break architecture, a PRD, or implementation plan into tracer-bullet issues
+weave-issues     create or reconcile local tasks.md implementation tasks
 weave-propagate  copy an existing change exploration to another repo
 ```
 
@@ -409,7 +409,7 @@ Then start Claude Code in the repo and ask:
 /weave-architect
 /weave-next
 /weave-clarify prd
-/weave-issues "Break the active PRD into implementation issues"
+/weave-issues "Create local tasks.md from the active PRD"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -433,7 +433,7 @@ Then ask Cursor Agent from the repo:
 /weave-architect
 /weave-next
 /weave-clarify prd
-/weave-issues "Break the active PRD into implementation issues"
+/weave-issues "Create local tasks.md from the active PRD"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -457,7 +457,7 @@ $weave-prd
 $weave-architect
 $weave-next
 $weave-clarify prd
-$weave-issues "Break the active PRD into implementation issues"
+$weave-issues "Create local tasks.md from the active PRD"
 $weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -481,7 +481,7 @@ Then invoke the slash command in opencode:
 /weave-architect
 /weave-next
 /weave-clarify prd
-/weave-issues "Break the active PRD into implementation issues"
+/weave-issues "Create local tasks.md from the active PRD"
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 

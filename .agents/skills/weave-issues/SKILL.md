@@ -1,51 +1,77 @@
 ---
 name: weave-issues
-description: Break an architecture, implementation plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
+description: Break an architecture, implementation plan, spec, PRD, or referenced context into local implementation tasks in tasks.md using tracer-bullet vertical slices.
 ---
 
-# To Issues
+# To Local Tasks
 
-Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
+Break a plan into independently-grabbable local tasks using vertical slices (tracer bullets).
+
+`weave-issues` creates or reconciles:
+
+```text
+wiki/changes/<change-id>/tasks.md
+```
+
+It does not publish, close, comment on, label, or otherwise mutate external issue trackers. External issue URLs, issue numbers, and local paths may be used as read-only source context only.
 
 ## Process
 
-### 1. Gather context
+### 1. Gather Context
 
-Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, fetch it from the issue tracker and read its full body and comments.
+Work from whatever is already in the conversation context. If the user passes an issue reference, URL, issue number, or local path as an argument, read it as source context when available. Do not mutate the referenced tracker item or file.
 
-For a Weave change, prefer durable change artifacts before drafting issues:
+For a Weave change, prefer durable change artifacts before drafting tasks:
 
 - Read `wiki/changes/<change-id>/prd.md` as the product contract when present.
 - Read `wiki/changes/<change-id>/architecture.md` as the engineering design when present.
 - Read `wiki/changes/<change-id>/status.yml` when present to check stale lifecycle state.
-- If both exist, use `prd.md` for user behavior and acceptance, and `architecture.md` for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
-- If `status.yml.stale.architecture` exists, warn that architecture is stale from its recorded sources and ask for explicit confirmation before creating tasks or external issues. If the user does not explicitly confirm, stop and recommend `weave-architect`.
+- Read existing `wiki/changes/<change-id>/tasks.md` when present so reruns can reconcile instead of replacing blindly.
+- If both PRD and architecture exist, use `prd.md` for user behavior and acceptance, and `architecture.md` for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
+- If `status.yml.stale.architecture` exists, warn that architecture is stale from its recorded sources and ask for explicit confirmation before creating or reconciling tasks. If the user does not explicitly confirm, stop and recommend `weave-architect`.
 - Do not assume architecture is stale merely because `prd.md` changed; rely on source-aware stale state in `status.yml`.
 
-### 2. Explore the codebase (optional)
+Task generation may use any sufficiently concrete plan or context, including PRD, architecture, implementation plan, spec, sessions, discussion, codebase findings, local paths, or external issue references.
 
-If you have not already explored the codebase, do so to understand the current state of the code. Issue titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
+### 2. Explore The Codebase
 
-### 3. Draft vertical slices
+Explore the codebase enough to understand current implementation conventions before drafting tasks. Issue titles and task descriptions should use the project's domain glossary vocabulary and respect ADRs in the area being touched.
 
-Break the plan into **tracer bullet** issues. Each issue is a thin vertical slice that cuts through ALL integration layers end-to-end, NOT a horizontal slice of one layer.
+Also inspect testing conventions:
 
-Slices may be 'HITL' or 'AFK'. HITL slices require human interaction, such as an architectural decision or a design review. AFK slices can be implemented and merged without human interaction. Prefer AFK over HITL where possible.
+- package scripts or documented test commands
+- test directories and file naming
+- existing test helpers or fixtures
+- manual, smoke, or build verification conventions
+
+If a usable automated test base exists, code-affecting tasks should include relevant automated test expectations and verification commands. If no usable automated test base exists, missing tests should not block task generation by itself; include explicit manual or smoke verification expectations instead.
+
+Do not require strict test-first TDD wording. Preserve vertical-slice completeness by making each task verifiable in the way that fits the repo.
+
+### 3. Draft Vertical-Slice Tasks
+
+Break the plan into **tracer bullet** tasks. Each task is a thin vertical slice that cuts through all relevant integration layers end-to-end, not a horizontal slice of one layer.
+
+Slices may be `HITL` or `AFK`. HITL slices require human interaction, such as an architectural decision or a design review. AFK slices can be implemented and merged without human interaction. Prefer AFK over HITL where possible.
 
 <vertical-slice-rules>
-- Each slice delivers a narrow but COMPLETE path through every layer (schema, API, UI, tests)
-- A completed slice is demoable or verifiable on its own
-- Prefer many thin slices over few thick ones
+- Each slice delivers a narrow but complete path through the relevant layers.
+- Each slice is demoable or verifiable on its own.
+- Prefer many thin slices over a few thick ones.
+- Include automated test expectations when a usable test base exists.
+- Include manual or smoke verification when automated tests are unavailable.
 </vertical-slice-rules>
 
-### 4. Quiz the user
+Generated tasks start as `todo` unless a real blocker is already known. Do not assign `not_tested` during task generation; implementers apply `not_tested` later if implementation appears complete but automated verification could not be completed.
 
-Present the proposed breakdown as a numbered list. For each slice, show:
+### 4. Quiz The User
+
+Present the proposed breakdown as a numbered list before writing `tasks.md`. For each slice, show:
 
 - **Title**: short descriptive name
 - **Type**: HITL / AFK
-- **Blocked by**: which other slices (if any) must complete first
-- **User stories covered**: which user stories this addresses (if the source material has them)
+- **Blocked by**: which other slices, if any, must complete first
+- **User stories covered**: which user stories this addresses, if the source material has them
 
 Ask the user:
 
@@ -56,45 +82,128 @@ Ask the user:
 
 Iterate until the user approves the breakdown.
 
-### 5. Publish the issues to the issue tracker
+### 5. Write Or Reconcile Local `tasks.md`
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
+After the user approves, create or reconcile:
 
-Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
+```text
+wiki/changes/<change-id>/tasks.md
+```
 
-<issue-template>
-## Parent
+Do not create `issues.md`.
 
-A reference to the parent issue on the issue tracker (if the source was an existing issue, otherwise omit this section).
+If `tasks.md` does not exist, create it using the canonical shape below.
 
-## What to build
+If `tasks.md` already exists:
 
-A concise description of this vertical slice. Describe the end-to-end behavior, not layer-by-layer implementation.
+- read the current task file and current source context
+- propose a reconciliation summary before writing
+- preserve statuses and checked acceptance criteria when task intent still maps cleanly
+- keep stable IDs for unchanged task intent
+- assign new IDs to new tasks
+- do not reuse invalidated task IDs
+- mark obsolete tasks as `invalid` instead of deleting them
+- remove invalid tasks from the active task index
+- list invalid tasks in a separate `## Invalid Tasks` section with reasons
+- write only after explicit user approval
 
-Avoid specific file paths or code snippets — they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it here and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
+<tasks-template>
+---
+artifact: tasks
+status: draft
+owner: engineering
+created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
+updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
+source: <primary-source>
+---
 
-## Acceptance criteria
+# Tasks: <Change Title>
+
+## Source Context
+
+- PRD: `<path>` when used
+- Architecture: `<path>` when used
+- Sessions: `<path>` when used
+- Codebase: `<summary or path>` when used
+- External references: `<url or issue number>` when used as read-only context
+- Local references: `<path>` when used as source context
+
+## Local Tracking Status
+
+External issue publishing status: not used. This change tracks implementation locally in this file.
+
+## Status Legend
+
+- `todo`: ready to pick up when blockers are done
+- `in_progress`: currently being implemented
+- `blocked`: cannot proceed without the listed blocker or decision
+- `done`: implemented and verified
+- `not_tested`: implementation appears complete, but automated verification could not be completed
+- `invalid`: no longer applies after source context changed
+
+## Active Task Index
+
+| ID | Status | Type | Title | Blocked by |
+| --- | --- | --- | --- | --- |
+| T1 | todo | AFK | <title> | None |
+
+## T1: <Title>
+
+Status: todo
+
+Type: AFK
+
+Blocked by: None - can start immediately
+
+User stories covered: <ids or None>
+
+### What to build
+
+Describe the end-to-end behavior for this vertical slice. Avoid layer-by-layer implementation unless the source material requires it.
+
+### Acceptance Criteria
 
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
 
-## Blocked by
+### Verification
 
-- A reference to the blocking ticket (if any)
+- Automated tests: <command and expectation, or "not available; no usable test base found">
+- Manual/smoke check: <expected check when relevant>
 
-Or "None - can start immediately" if no blockers.
+## Invalid Tasks
 
-</issue-template>
+None.
 
-Do NOT close or modify any parent issue.
+## Verification
 
-### 6. Record lifecycle progress
+Not run yet.
+</tasks-template>
 
-After tasks or external issues are successfully created, run:
+### 6. Record Lifecycle Progress
+
+After local tasks are successfully created or reconciled, run lifecycle progress for the `issues` lane with the existing source IDs that actually informed `tasks.md`.
+
+Supported source IDs are:
+
+```text
+exploration
+prd
+architecture
+discussion
+sessions
+codebase
+```
+
+Examples:
 
 ```bash
 weave change progress issues --source architecture --json
+weave change progress issues --source prd --source codebase --json
+weave change progress issues --source discussion --source sessions --json
 ```
 
-If lifecycle progress fails, do not recreate tasks or issues just to recover. Report the progress failure so the user can rerun the command or inspect `status.yml`.
+Do not use unsupported source IDs such as `external`, `reference`, or `local_path`. Concrete external issue references and local paths belong in the `## Source Context` section of `tasks.md`.
+
+If lifecycle progress fails, do not recreate tasks just to recover. Report the progress failure so the user can rerun the command or inspect `status.yml`.

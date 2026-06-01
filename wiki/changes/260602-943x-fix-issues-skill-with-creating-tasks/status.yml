@@ -1,0 +1,29 @@
+version: 1
+id: 260602-943x-fix-issues-skill-with-creating-tasks
+slug: fix-issues-skill-with-creating-tasks
+title: Fix issues skill with creating tasks.md locally
+type: feat
+stage: issues
+branch: change/260602-943x-fix-issues-skill-with-creating-tasks
+created_at: 2026-06-01T19:03:35.384Z
+updated_at: 2026-06-01T20:11:20.679Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+      - sessions
+    updated_at: 2026-06-01T19:55:23.833Z
+  prd:
+    sources:
+      - exploration
+      - sessions
+    updated_at: 2026-06-01T19:59:01.232Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-06-01T20:04:22.773Z
+  issues:
+    sources:
+      - architecture
+    updated_at: 2026-06-01T20:11:20.679Z
