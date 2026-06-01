@@ -1,0 +1,9 @@
+version: 1
+id: 260602-p1a6-create-and-update-knowledge-base
+slug: create-and-update-knowledge-base
+title: create-and-update-knowledge-base
+type: feat
+stage: exploration
+branch: change/260602-p1a6-create-and-update-knowledge-base
+created_at: 2026-06-01T20:22:32.761Z
+updated_at: 2026-06-01T20:22:32.761Z
