@@ -2,8 +2,10 @@ import { Command, InvalidArgumentError } from "commander";
 import {
   ChangeCommandError,
   changeStages,
+  knowledgeStatuses,
   changeTypes,
   type ChangeStage,
+  type KnowledgeStatus,
   createChange,
   currentChange,
   listChanges,
@@ -12,6 +14,8 @@ import {
   type ChangeType,
   progressChange,
   type ProgressChangeResult,
+  knowledgeChange,
+  type KnowledgeChangeResult,
   propagateChange,
   statusChange,
   switchChange,
@@ -19,6 +23,7 @@ import {
   type StatusChangeResult,
   type SwitchChangeResult,
   isChangeStage,
+  isKnowledgeStatus,
 } from "../lib/changes.js";
 
 interface ChangeNewOptions {
@@ -45,6 +50,15 @@ interface ChangeStatusOptions {
 
 interface ChangeProgressOptions extends ChangeStatusOptions {
   source?: string[];
+}
+
+interface ChangeKnowledgeOptions extends ChangeStatusOptions {
+  domain?: string[];
+  shared?: string[];
+  file?: string[];
+  delta?: string;
+  reason?: string;
+  invalidatedBy?: string;
 }
 
 export function changeCommand(): Command {
@@ -138,6 +152,35 @@ export function changeCommand(): Command {
     });
 
   command
+    .command("knowledge")
+    .description("Record knowledge freshness for the active change.")
+    .argument("<status>", "knowledge status: pending, stale, updated, or none", parseKnowledgeStatus)
+    .option("--target <target>", "target folder path or session folder id")
+    .option("--domain <domain>", "affected knowledge domain", collectValues)
+    .option("--shared <shared>", "affected shared behavior area", collectValues)
+    .option("--file <file>", "touched or authoritative knowledge file", collectValues)
+    .option("--delta <delta>", "change-local knowledge delta file")
+    .option("--reason <reason>", "reason for the knowledge status")
+    .option("--invalidated-by <source>", "source that invalidated knowledge freshness")
+    .option("--json", "print machine-readable JSON")
+    .action(async (status: KnowledgeStatus, options: ChangeKnowledgeOptions) => {
+      await runAction(options.json ?? false, async () => {
+        const result = await knowledgeChange({
+          cwd: process.cwd(),
+          status,
+          target: options.target,
+          domains: options.domain,
+          shared: options.shared,
+          files: options.file,
+          delta: options.delta,
+          reason: options.reason,
+          invalidatedBy: options.invalidatedBy,
+        });
+        writeResult(result, options.json ?? false);
+      });
+    });
+
+  command
     .command("switch")
     .description("Switch to an existing change.")
     .argument("<change>", "change id, token, slug, or title substring")
@@ -174,6 +217,14 @@ export function changeCommand(): Command {
   return command;
 }
 
+function parseKnowledgeStatus(value: string): KnowledgeStatus {
+  if (isKnowledgeStatus(value)) {
+    return value;
+  }
+
+  throw new InvalidArgumentError(`Unsupported knowledge status: ${value}. Expected ${knowledgeStatuses.join(", ")}`);
+}
+
 function parseChangeStage(value: string): ChangeStage {
   if (isChangeStage(value)) {
     return value;
@@ -190,12 +241,19 @@ function parseChangeType(value: string): ChangeType {
   throw new InvalidArgumentError(`Unsupported change type: ${value}`);
 }
 
-function collectValues(value: string, previous: string[]): string[] {
+function collectValues(value: string, previous: string[] = []): string[] {
   return [...previous, value];
 }
 
 function writeResult(
-  result: ChangeOperationResult | ChangeListResult | CurrentChangeResult | StatusChangeResult | SwitchChangeResult | ProgressChangeResult,
+  result:
+    | ChangeOperationResult
+    | ChangeListResult
+    | CurrentChangeResult
+    | StatusChangeResult
+    | SwitchChangeResult
+    | ProgressChangeResult
+    | KnowledgeChangeResult,
   json: boolean,
 ): void {
   if (json) {

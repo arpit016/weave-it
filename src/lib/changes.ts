@@ -30,12 +30,15 @@ export type BranchMatch = "match" | "mismatch" | "not_git" | "unknown";
 export type CurrentSource = "session" | "inferred_saved" | "none";
 export type ChangeStage = (typeof changeStages)[number];
 export type ArtifactSourceId = (typeof artifactSourceIds)[number];
+export type KnowledgeStatus = (typeof knowledgeStatuses)[number];
+export type KnowledgeInvalidationSource = ChangeStage | ArtifactSourceId;
 export type StaleChangeLanes = Partial<Record<ChangeStage, StaleChangeLaneMetadata>>;
 export type ChangeArtifactsMetadata = Partial<Record<ChangeStage, ChangeArtifactMetadata>>;
 
 export const changeTypes: ChangeType[] = ["feat", "fix", "refactor", "docs", "test", "ci", "chore"];
 export const changeStages = ["exploration", "prd", "architecture", "issues"] as const;
 export const artifactSourceIds = ["exploration", "prd", "architecture", "discussion", "sessions", "codebase"] as const;
+export const knowledgeStatuses = ["pending", "stale", "updated", "none"] as const;
 
 export interface StaleChangeLaneMetadata {
   invalidated_by: ChangeStage;
@@ -45,6 +48,18 @@ export interface StaleChangeLaneMetadata {
 export interface ChangeArtifactMetadata {
   sources: ArtifactSourceId[];
   updated_at: string;
+}
+
+export interface KnowledgeMetadata {
+  status: KnowledgeStatus;
+  updated_at: string;
+  domains: string[];
+  shared: string[];
+  files: string[];
+  delta?: string;
+  reason?: string;
+  invalidated_by?: KnowledgeInvalidationSource;
+  invalidated_at?: string;
 }
 
 export class ChangeCommandError extends Error {
@@ -84,6 +99,7 @@ export interface ChangeSummary {
   stage: ChangeStage;
   stale: StaleChangeLanes;
   artifacts: ChangeArtifactsMetadata;
+  knowledge?: KnowledgeMetadata;
   branch: string;
   path: string;
   changePath: string;
@@ -209,6 +225,20 @@ export interface ProgressChangeOptions {
   sessionPath?: string;
 }
 
+export interface KnowledgeChangeOptions {
+  cwd: string;
+  status: KnowledgeStatus;
+  target?: string;
+  domains?: readonly string[];
+  shared?: readonly string[];
+  files?: readonly string[];
+  delta?: string;
+  reason?: string;
+  invalidatedBy?: string;
+  now?: Date;
+  sessionPath?: string;
+}
+
 export interface ProgressChangeResult {
   status: "ok";
   target: {
@@ -220,6 +250,18 @@ export interface ProgressChangeResult {
   progressed: ChangeStage;
   sources: ArtifactSourceId[];
   note?: string;
+  message: string;
+}
+
+export interface KnowledgeChangeResult {
+  status: "ok";
+  target: {
+    id?: string;
+    name?: string;
+    path: string;
+  };
+  change: ChangeSummary;
+  knowledge: KnowledgeMetadata;
   message: string;
 }
 
@@ -248,6 +290,7 @@ interface ChangeStatusMetadata extends ExistingChangeMetadata {
   stage: ChangeStage;
   stale: StaleChangeLanes;
   artifacts: ChangeArtifactsMetadata;
+  knowledge?: KnowledgeMetadata;
   created_at?: string;
   updated_at?: string;
 }
@@ -529,6 +572,10 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
   } else {
     delete (nextStatus as { stale?: StaleChangeLanes }).stale;
   }
+  const knowledge = staleKnowledgeFromProgress(raw.knowledge, existing.knowledge, options.stage, invalidatedAt);
+  if (knowledge) {
+    Object.assign(nextStatus, { knowledge });
+  }
 
   await writeFile(statusPath, YAML.stringify(nextStatus));
   const updated = await readChangeMetadata(context.current.changePath, context.current.id);
@@ -547,6 +594,67 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
     sources: sourceResolution.sources,
     note: sourceResolution.note,
     message: formatProgressMessage({ id: target.id, name: target.name, path: target.path }, change, options.stage, sourceResolution.note),
+  };
+}
+
+export async function knowledgeChange(options: KnowledgeChangeOptions): Promise<KnowledgeChangeResult> {
+  const now = options.now ?? new Date();
+  const sessionPath = options.sessionPath ?? defaultSessionPath();
+  const session = await loadOrCreateSession(sessionPath, now);
+  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
+
+  if (targets.length !== 1) {
+    throw new ChangeCommandError("ambiguous_target", "Update knowledge status for one change target at a time");
+  }
+
+  const target = targets[0];
+  const context = await currentContextForTarget(session, target, now, { saveInferred: true });
+  if (context.saved) {
+    await saveCurrentSession(session, sessionPath);
+  }
+  if (!context.current) {
+    throw new ChangeCommandError("no_current_change", "No active Weave change found. Run `weave change new` or `weave change switch` first.");
+  }
+
+  const invalidatedBy = options.invalidatedBy ? normalizeKnowledgeInvalidationSource(options.invalidatedBy) : undefined;
+  const statusPath = path.join(context.current.changePath, "status.yml");
+  const raw = await readStatusFile(statusPath);
+  const existing = await readChangeMetadata(context.current.changePath, context.current.id);
+  const knowledge = mergeKnowledgeMetadata(raw.knowledge, existing.knowledge, {
+    status: options.status,
+    updatedAt: now.toISOString(),
+    domains: options.domains,
+    shared: options.shared,
+    files: options.files,
+    delta: options.delta,
+    reason: options.reason,
+    invalidatedBy,
+  });
+
+  const nextStatus = {
+    ...raw,
+    knowledge,
+    updated_at: now.toISOString(),
+  };
+  await writeFile(statusPath, YAML.stringify(nextStatus));
+  const updated = await readChangeMetadata(context.current.changePath, context.current.id);
+  const change: ChangeSummary = {
+    ...updated,
+    path: context.current.path,
+    changePath: context.current.changePath,
+    active: true,
+  };
+
+  if (!change.knowledge) {
+    throw new ChangeCommandError("invalid_knowledge_status", "Knowledge status could not be recorded");
+  }
+
+  return {
+    status: "ok",
+    target: { id: target.id, name: target.name, path: target.path },
+    change,
+    knowledge: change.knowledge,
+    message: formatKnowledgeMessage({ id: target.id, name: target.name, path: target.path }, change),
   };
 }
 
@@ -689,6 +797,7 @@ async function readChangeMetadata(changePath: string, fallbackId: string): Promi
     stage,
     stale: parseStaleLanes(parsed?.stale),
     artifacts: parseArtifactsMetadata(parsed?.artifacts),
+    knowledge: parseKnowledgeMetadata(parsed?.knowledge),
     branch,
     created_at: typeof parsed?.created_at === "string" ? parsed.created_at : undefined,
     updated_at: typeof parsed?.updated_at === "string" ? parsed.updated_at : undefined,
@@ -751,6 +860,125 @@ function parseArtifactSources(value: unknown): ArtifactSourceId[] {
   }
 
   return dedupeSources(value.filter(isArtifactSourceId));
+}
+
+function parseKnowledgeMetadata(value: unknown): KnowledgeMetadata | undefined {
+  if (!isRecord(value) || !isKnowledgeStatus(value.status) || typeof value.updated_at !== "string") {
+    return undefined;
+  }
+
+  const invalidatedBy = value.invalidated_by;
+  const invalidatedAt = value.invalidated_at;
+  const knowledge: KnowledgeMetadata = {
+    status: value.status,
+    updated_at: value.updated_at,
+    domains: parseStringList(value.domains),
+    shared: parseStringList(value.shared),
+    files: parseStringList(value.files),
+  };
+
+  if (typeof value.delta === "string") {
+    knowledge.delta = value.delta;
+  }
+  if (typeof value.reason === "string") {
+    knowledge.reason = value.reason;
+  }
+  if (isKnowledgeInvalidationSource(invalidatedBy) && typeof invalidatedAt === "string") {
+    knowledge.invalidated_by = invalidatedBy;
+    knowledge.invalidated_at = invalidatedAt;
+  }
+
+  return knowledge;
+}
+
+function parseStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return dedupeStrings(value.filter((item): item is string => typeof item === "string" && item.trim().length > 0));
+}
+
+function dedupeStrings(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function mergeKnowledgeMetadata(
+  rawKnowledge: unknown,
+  existing: KnowledgeMetadata | undefined,
+  update: {
+    status: KnowledgeStatus;
+    updatedAt: string;
+    domains?: readonly string[];
+    shared?: readonly string[];
+    files?: readonly string[];
+    delta?: string;
+    reason?: string;
+    invalidatedBy?: KnowledgeInvalidationSource;
+  },
+): KnowledgeMetadata {
+  const base = isRecord(rawKnowledge) ? { ...rawKnowledge } : {};
+  const currentDomains = existing?.domains ?? parseStringList(base.domains);
+  const currentShared = existing?.shared ?? parseStringList(base.shared);
+  const currentFiles = existing?.files ?? parseStringList(base.files);
+  const next = {
+    ...base,
+    status: update.status,
+    updated_at: update.updatedAt,
+    domains: update.domains ? dedupeStrings(update.domains) : currentDomains,
+    shared: update.shared ? dedupeStrings(update.shared) : currentShared,
+    files: update.files ? dedupeStrings(update.files) : currentFiles,
+  };
+
+  if (update.delta !== undefined) {
+    Object.assign(next, { delta: update.delta });
+  } else if (existing?.delta) {
+    Object.assign(next, { delta: existing.delta });
+  }
+
+  if (update.reason !== undefined) {
+    Object.assign(next, { reason: update.reason });
+  } else if (existing?.reason) {
+    Object.assign(next, { reason: existing.reason });
+  }
+
+  if (update.status === "stale") {
+    Object.assign(next, { invalidated_at: update.updatedAt });
+    if (update.invalidatedBy) {
+      Object.assign(next, { invalidated_by: update.invalidatedBy });
+    } else if (existing?.invalidated_by) {
+      Object.assign(next, { invalidated_by: existing.invalidated_by });
+    }
+  } else {
+    delete (next as { invalidated_by?: KnowledgeInvalidationSource }).invalidated_by;
+    delete (next as { invalidated_at?: string }).invalidated_at;
+  }
+
+  return parseKnowledgeMetadata(next) ?? {
+    status: update.status,
+    updated_at: update.updatedAt,
+    domains: update.domains ? dedupeStrings(update.domains) : currentDomains,
+    shared: update.shared ? dedupeStrings(update.shared) : currentShared,
+    files: update.files ? dedupeStrings(update.files) : currentFiles,
+  };
+}
+
+function staleKnowledgeFromProgress(
+  rawKnowledge: unknown,
+  existing: KnowledgeMetadata | undefined,
+  invalidatedBy: ChangeStage,
+  invalidatedAt: string,
+): KnowledgeMetadata | undefined {
+  if (!existing || (existing.status !== "updated" && existing.status !== "none")) {
+    return existing;
+  }
+
+  return mergeKnowledgeMetadata(rawKnowledge, existing, {
+    status: "stale",
+    updatedAt: invalidatedAt,
+    invalidatedBy,
+    reason: `${invalidatedBy} changed after knowledge was marked ${existing.status}.`,
+  });
 }
 
 async function resolveProgressSources(
@@ -1209,6 +1437,7 @@ function formatCurrentTarget(target: CurrentChangeTargetResult): string {
     `Type: ${target.current.type}`,
     `Stage: ${target.current.stage}`,
     ...formatStaleLines(target.current.stale),
+    ...formatKnowledgeLines(target.current.knowledge),
     `Branch: ${target.current.branch}`,
     `Path: ${target.current.path}`,
     `Source: ${formatCurrentSource(target.source)}`,
@@ -1244,6 +1473,7 @@ function formatStatusTarget(target: StatusChangeTargetResult): string {
     `Type: ${target.change.type}`,
     `Stage: ${target.change.stage}`,
     ...formatStaleLines(target.change.stale),
+    ...formatKnowledgeLines(target.change.knowledge),
     `Branch: ${target.change.branch}`,
     `Path: ${target.change.path}`,
     `Active: ${target.active ? "yes" : "no"}`,
@@ -1259,7 +1489,18 @@ function formatProgressMessage(target: ChangeTarget, change: ChangeSummary, prog
     `Progressed lane: ${progressed}`,
     `Stage: ${change.stage}`,
     ...formatStaleLines(change.stale),
+    ...formatKnowledgeLines(change.knowledge),
     ...(note ? [`Note: ${note}`] : []),
+    `Path: ${change.path}`,
+  ].join("\n");
+}
+
+function formatKnowledgeMessage(target: ChangeTarget, change: ChangeSummary): string {
+  const heading = target.name ? `${target.name} (${target.path})` : target.path;
+  return [
+    `Updated knowledge status in ${heading}: ${change.id}`,
+    ...formatKnowledgeLines(change.knowledge),
+    `Stage: ${change.stage}`,
     `Path: ${change.path}`,
   ].join("\n");
 }
@@ -1272,6 +1513,18 @@ function formatStaleLines(stale: StaleChangeLanes): string[] {
       return `${stage} (invalidated by ${metadata.invalidated_by})`;
     });
   return entries.length > 0 ? [`Stale: ${entries.join(", ")}`] : [];
+}
+
+function formatKnowledgeLines(knowledge: KnowledgeMetadata | undefined): string[] {
+  if (!knowledge) {
+    return [];
+  }
+
+  const suffix =
+    knowledge.status === "stale" && knowledge.invalidated_by
+      ? ` (invalidated by ${knowledge.invalidated_by})`
+      : "";
+  return [`Knowledge: ${knowledge.status}${suffix}`];
 }
 
 function formatCurrentSource(source: CurrentSource | "explicit"): string {
@@ -1310,6 +1563,27 @@ export function isChangeStage(value: unknown): value is ChangeStage {
 
 export function isArtifactSourceId(value: unknown): value is ArtifactSourceId {
   return typeof value === "string" && (artifactSourceIds as readonly string[]).includes(value);
+}
+
+export function isKnowledgeStatus(value: unknown): value is KnowledgeStatus {
+  return typeof value === "string" && (knowledgeStatuses as readonly string[]).includes(value);
+}
+
+export function isKnowledgeInvalidationSource(value: unknown): value is KnowledgeInvalidationSource {
+  return isChangeStage(value) || isArtifactSourceId(value);
+}
+
+function normalizeKnowledgeInvalidationSource(value: string): KnowledgeInvalidationSource {
+  if (isKnowledgeInvalidationSource(value)) {
+    return value;
+  }
+
+  const supported = dedupeStrings([...changeStages, ...artifactSourceIds]);
+  throw new ChangeCommandError(
+    "unsupported_knowledge_invalidation_source",
+    `Unsupported knowledge invalidation source: ${value}. Expected ${supported.join(", ")}`,
+    { source: value, supported },
+  );
 }
 
 function maxStage(stages: ChangeStage[]): ChangeStage {

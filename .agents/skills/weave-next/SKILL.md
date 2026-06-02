@@ -15,7 +15,7 @@ Use this skill when the user wants to know what command to run next for an activ
 - Do not write repo-tracked artifacts.
 - Do not create, revise, capture, approve, or advance artifacts.
 - Do not set or clear artifact context.
-- Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-issues`, `weave-capture`, or `weave-clarify`.
+- Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-issues`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.
 - Do not document or rely on formal target arguments such as `weave-next prd` in v1.
 - Use live artifacts as canonical current truth.
 - Use session notes only for resume points, rationale, unresolved context, and newer explicit user decisions.
@@ -118,6 +118,13 @@ Source-aware stale-first recommendation:
 - Explain which upstream lane invalidated the recommendation when `invalidated_by` is present.
 - Treat stale entries as source-aware dependency invalidation from `status.yml.artifacts`, not proof that every earlier pipeline lane was completed.
 
+Knowledge freshness recommendation:
+
+- If `status.yml.knowledge.status` is `pending`, recommend `weave-knowledge` after any stale artifact lanes are resolved.
+- If `status.yml.knowledge.status` is `stale`, recommend `weave-knowledge` after the invalidating upstream context is resolved.
+- If knowledge was previously `updated` or `none` and artifact stale lanes exist afterward, report knowledge as effectively stale without writing `status.yml`.
+- Explain that `weave-next` is read-only and does not mutate knowledge status.
+
 Type-aware forward recommendation:
 
 - missing, scaffold-only, or not-ready `exploration.md` -> run `weave-explore`
@@ -157,6 +164,8 @@ Omit empty sections when they would add noise.
 In `Current Change`, include change id, title when available, target repo or repos, and branch health.
 
 In `Artifact State`, summarize `exploration.md`, `prd.md`, `architecture.md`, and issue/task evidence.
+
+In `Artifact State`, also summarize knowledge status when `status.yml.knowledge` is present.
 
 In `Resume Context`, include current artifact context and the latest relevant `Next Resume Point` when present.
 

@@ -32,17 +32,31 @@ describe("current session workflow", () => {
     expect(result.wikiDir).toBe(path.join(resolvedCwd, "wiki"));
     expect(result.metadataDir).toBe(path.join(resolvedCwd, ".weave"));
     await expect(stat(path.join(cwd, "wiki", "changes"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, "wiki", "knowledge", "domains"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, "wiki", "knowledge", "shared"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".weave", "sync.yml"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, "weave"))).rejects.toThrow();
     await expect(stat(path.join(cwd, ".weave", "local.yml"))).rejects.toThrow();
 
     const sync = YAML.parse(await readFile(path.join(cwd, ".weave", "sync.yml"), "utf8"));
     const knowledge = await readFile(path.join(cwd, "wiki", "knowledge", "index.md"), "utf8");
+    const knowledgeReadme = await readFile(path.join(cwd, "wiki", "knowledge", "README.md"), "utf8");
+    const domainsReadme = await readFile(path.join(cwd, "wiki", "knowledge", "domains", "README.md"), "utf8");
+    const sharedReadme = await readFile(path.join(cwd, "wiki", "knowledge", "shared", "README.md"), "utf8");
     const session = await loadCurrentSession(sessionPath);
 
     expect(sync.documents["knowledge.index"].path).toBe("wiki/knowledge/index.md");
     expect(sync.documents["knowledge.index"].status).toBe("synced");
+    expect(Object.keys(sync.documents)).toEqual(["knowledge.index"]);
     expect(knowledge).toContain("# Product Knowledge");
+    expect(knowledgeReadme).toContain("domains/");
+    expect(knowledgeReadme).toContain("features/");
+    expect(knowledgeReadme).toContain("domain-wide/");
+    expect(knowledgeReadme).toContain("shared/");
+    expect(knowledgeReadme).toContain("behavior.md");
+    expect(knowledgeReadme).toContain("knowledge-delta.md");
+    expect(domainsReadme).toContain("# Domains");
+    expect(sharedReadme).toContain("# Shared Behavior");
     expect(session?.folders.frontend).toMatchObject({
       path: resolvedCwd,
       name: "Frontend",
@@ -56,16 +70,26 @@ describe("current session workflow", () => {
     const wikiDir = path.join(cwd, "wiki", "knowledge");
     const metadataDir = path.join(cwd, ".weave");
     const knowledgeFile = path.join(wikiDir, "index.md");
+    const knowledgeReadme = path.join(wikiDir, "README.md");
+    const domainsReadme = path.join(wikiDir, "domains", "README.md");
+    const sharedReadme = path.join(wikiDir, "shared", "README.md");
     const syncFile = path.join(metadataDir, "sync.yml");
-    await mkdir(wikiDir, { recursive: true });
+    await mkdir(path.join(wikiDir, "domains"), { recursive: true });
+    await mkdir(path.join(wikiDir, "shared"), { recursive: true });
     await mkdir(metadataDir, { recursive: true });
     await writeFile(knowledgeFile, "existing wiki\n");
+    await writeFile(knowledgeReadme, "existing knowledge readme\n");
+    await writeFile(domainsReadme, "existing domains readme\n");
+    await writeFile(sharedReadme, "existing shared readme\n");
     await writeFile(syncFile, "existing: true\n");
 
     const result = await initWorkspace({ cwd, interactive: false, yes: true, sessionPath });
 
     expect(result.status).toBe("initialized");
     await expect(readFile(knowledgeFile, "utf8")).resolves.toBe("existing wiki\n");
+    await expect(readFile(knowledgeReadme, "utf8")).resolves.toBe("existing knowledge readme\n");
+    await expect(readFile(domainsReadme, "utf8")).resolves.toBe("existing domains readme\n");
+    await expect(readFile(sharedReadme, "utf8")).resolves.toBe("existing shared readme\n");
     await expect(readFile(syncFile, "utf8")).resolves.toBe("existing: true\n");
   });
 

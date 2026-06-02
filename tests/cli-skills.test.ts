@@ -2,6 +2,7 @@ import { mkdtemp, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import YAML from "yaml";
 import { createProgram } from "../src/cli.js";
 import { createChange } from "../src/lib/changes.js";
 
@@ -54,6 +55,7 @@ describe("skills CLI", () => {
     await createProgram().parseAsync(["skill", "show", "weave-clarify"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-issues"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-next"], { from: "user" });
+    await createProgram().parseAsync(["skill", "show", "weave-knowledge"], { from: "user" });
 
     const output = write.mock.calls.map((call) => String(call[0])).join("");
     expect(output).toContain("weave-explore");
@@ -62,12 +64,14 @@ describe("skills CLI", () => {
     expect(output).toContain("weave-clarify");
     expect(output).toContain("weave-issues");
     expect(output).toContain("weave-next");
+    expect(output).toContain("weave-knowledge");
     expect(output).toContain("weave workspace --json");
     expect(output).toContain("Treat `prd.md` as a living product artifact");
     expect(output).toContain("Treat `prd.md` as the preferred product contract when it exists and is useful");
     expect(output).toContain("Treat the selected target artifact as the only write target");
     expect(output).toContain("tracer-bullet");
     expect(output).toContain("`weave-next` is read-only advisory");
+    expect(output).toContain("Knowledge is current-state behavior");
   });
 
   it("prints JSON where supported", async () => {
@@ -114,18 +118,21 @@ describe("skills CLI", () => {
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-clarify", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-next", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".agents", "skills", "weave-knowledge", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-explore.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-prd.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-architect.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-clarify.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-issues.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-next.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".opencode", "commands", "weave-knowledge.md"))).resolves.toMatchObject({});
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-explore command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-architect command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-clarify command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-issues command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-next command for opencode"));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-knowledge command for opencode"));
   });
 
   it("creates change explorations through weave change new", async () => {
@@ -143,6 +150,51 @@ describe("skills CLI", () => {
     const changeId = output.match(/Created change: ([^\n]+)/)?.[1];
     expect(changeId).toBeDefined();
     await expect(stat(path.join(cwd, "wiki", "changes", changeId ?? "", "exploration.md"))).resolves.toMatchObject({});
+  });
+
+  it("records knowledge status through weave change knowledge", async () => {
+    const cwd = await tempDir();
+    const sessionPath = path.join(cwd, ".session.yml");
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    process.chdir(cwd);
+    process.env.WEAVE_SESSION_PATH = sessionPath;
+    const created = await createChange({ cwd, title: "Knowledge command", randomId: () => "kcmd", sessionPath });
+
+    await createProgram().parseAsync(
+      [
+        "change",
+        "knowledge",
+        "updated",
+        "--domain",
+        "performance-reviews",
+        "--shared",
+        "approvals",
+        "--file",
+        "wiki/knowledge/domains/performance-reviews/index.md",
+        "--delta",
+        path.join("wiki", "changes", created.id, "knowledge-delta.md"),
+        "--reason",
+        "Knowledge updated.",
+        "--json",
+      ],
+      { from: "user" },
+    );
+
+    const output = write.mock.calls.map((call) => String(call[0])).join("");
+    const status = YAML.parse(await readFile(path.join(cwd, "wiki", "changes", created.id, "status.yml"), "utf8"));
+    expect(JSON.parse(output)).toMatchObject({
+      status: "ok",
+      knowledge: {
+        status: "updated",
+        domains: ["performance-reviews"],
+        shared: ["approvals"],
+      },
+    });
+    expect(status.knowledge).toMatchObject({
+      status: "updated",
+      files: ["wiki/knowledge/domains/performance-reviews/index.md"],
+      reason: "Knowledge updated.",
+    });
   });
 
   it("prints JSON errors for change command failures", async () => {

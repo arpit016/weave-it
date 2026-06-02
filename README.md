@@ -361,6 +361,7 @@ weave-architect  generate or revise engineering architecture from the active PRD
 weave-next       answer what to do next for the active change
 weave-clarify    clarify an existing exploration, PRD, or architecture artifact
 weave-issues     create or reconcile local tasks.md implementation tasks
+weave-knowledge  update current-state knowledge specs for an active change
 weave-propagate  copy an existing change exploration to another repo
 ```
 
@@ -410,6 +411,7 @@ Then start Claude Code in the repo and ask:
 /weave-next
 /weave-clarify prd
 /weave-issues "Create local tasks.md from the active PRD"
+/weave-knowledge
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -434,6 +436,7 @@ Then ask Cursor Agent from the repo:
 /weave-next
 /weave-clarify prd
 /weave-issues "Create local tasks.md from the active PRD"
+/weave-knowledge
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -458,6 +461,7 @@ $weave-architect
 $weave-next
 $weave-clarify prd
 $weave-issues "Create local tasks.md from the active PRD"
+$weave-knowledge
 $weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -482,6 +486,7 @@ Then invoke the slash command in opencode:
 /weave-next
 /weave-clarify prd
 /weave-issues "Create local tasks.md from the active PRD"
+/weave-knowledge
 /weave-propagate 260522-f3q9-review-analytics to api
 ```
 
@@ -494,6 +499,7 @@ Use the weave-prd skill to generate the PRD.
 Use the weave-architect skill to generate the engineering design.
 Use the weave-next skill to decide what to run next.
 Use the weave-clarify skill to revise the active PRD after scope changes.
+Use the weave-knowledge skill to update current-state knowledge after the change.
 ```
 
 Bare `weave-capture` writes a structured session note, promotes pending lane session context, and merges durable content into the current live artifact. If the live artifact is missing, bare capture considers all matching lane session notes; if the artifact exists, it considers matching session notes newer than the artifact `updated_at` timestamp. `weave-capture session` writes only a lane-aware session note using the current artifact context, and `weave-capture session prd` or another explicit lane stores the note under that lane without updating live artifacts. Downstream skills keep using live artifacts as canonical context in v1; they do not scan pending session notes before running.
@@ -502,7 +508,40 @@ Bare `weave-capture` writes a structured session note, promotes pending lane ses
 
 `weave-clarify` is for refining an existing change artifact when scope, requirements, assumptions, or decisions change midstream. It updates one selected artifact at a time, such as `exploration.md`, `prd.md`, or `architecture.md`, and reports follow-up artifacts that should be clarified separately. Use `weave-prd` and `weave-architect` for initial generation; use `weave-clarify` when an existing artifact needs a focused amendment.
 
-Claude Code, Cursor, and opencode use slash commands such as `/weave-explore`, `/weave-prd`, `/weave-architect`, `/weave-next`, and `/weave-clarify`. Codex uses `$weave-explore`, `$weave-prd`, `$weave-architect`, `$weave-next`, and `$weave-clarify` to explicitly invoke installed skills. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
+`weave-knowledge` updates current-state behavioral specs under `wiki/knowledge/**` and writes change-local provenance to `wiki/changes/<change-id>/knowledge-delta.md`. It creates missing standard knowledge files when needed, but does not silently reorganize user-authored knowledge.
+
+Knowledge freshness is tracked through the CLI-owned lifecycle command:
+
+```bash
+weave change knowledge pending --reason "Knowledge impact not resolved yet"
+weave change knowledge updated --domain performance-reviews --shared approvals --file wiki/knowledge/domains/performance-reviews/domain-wide/approvals.md --delta wiki/changes/<change-id>/knowledge-delta.md --reason "Updated current approval behavior"
+weave change knowledge none --delta wiki/changes/<change-id>/knowledge-delta.md --reason "No durable behavior impact"
+weave change knowledge stale --invalidated-by prd --reason "PRD changed after knowledge was updated"
+```
+
+`weave change knowledge <status>` supports `pending`, `stale`, `updated`, and `none`, plus repeatable `--domain`, `--shared`, and `--file` flags and optional `--delta`, `--reason`, `--invalidated-by`, `--target`, and `--json`.
+
+The standard knowledge structure is scaffolded progressively:
+
+```text
+wiki/knowledge/
+  index.md
+  README.md
+  domains/
+    README.md
+    <domain>/
+      index.md
+      features/<feature>/behavior.md
+      domain-wide/
+      source-map.md
+  shared/
+    README.md
+    <shared-behavior>/behavior.md
+```
+
+V1 provides scaffold/docs guidance and skill contract tests for this structure. It does not add a CLI validation command for knowledge folders.
+
+Claude Code, Cursor, and opencode use slash commands such as `/weave-explore`, `/weave-prd`, `/weave-architect`, `/weave-next`, `/weave-clarify`, and `/weave-knowledge`. Codex uses `$weave-explore`, `$weave-prd`, `$weave-architect`, `$weave-next`, `$weave-clarify`, and `$weave-knowledge` to explicitly invoke installed skills. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
 
 ## `weave skills` and `weave skill`
 
@@ -517,6 +556,7 @@ weave skill show weave-architect
 weave skill show weave-next
 weave skill show weave-clarify
 weave skill show weave-issues
+weave skill show weave-knowledge
 ```
 
 ## Project Structure

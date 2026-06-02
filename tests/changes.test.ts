@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
 import { clearCurrentArtifact, currentArtifact, setCurrentArtifact } from "../src/lib/artifact-context.js";
-import { createChange, currentChange, listChanges, progressChange, propagateChange, statusChange, switchChange } from "../src/lib/changes.js";
+import { createChange, currentChange, knowledgeChange, listChanges, progressChange, propagateChange, statusChange, switchChange } from "../src/lib/changes.js";
 
 const execFileAsync = promisify(execFile);
 const testNow = new Date(2026, 4, 22, 10, 0, 0);
@@ -684,5 +684,152 @@ describe("changes", () => {
     expect(refreshed.change.stale.issues).toMatchObject({ invalidated_by: "architecture" });
     expect(status.message).toContain("Stage: issues");
     expect(status.message).toContain("Stale: issues (invalidated by architecture)");
+  });
+
+  it("records knowledge lifecycle metadata without changing stage", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Knowledge lifecycle",
+      now: testNow,
+      randomId: () => "k111",
+      sessionPath: session,
+    });
+    await progressChange({ cwd, stage: "architecture", sources: ["prd", "codebase"], sessionPath: session, now: testNow });
+
+    const result = await knowledgeChange({
+      cwd,
+      status: "updated",
+      domains: ["performance-reviews", "performance-reviews"],
+      shared: ["approvals"],
+      files: ["wiki/knowledge/domains/performance-reviews/index.md", "wiki/knowledge/domains/performance-reviews/index.md"],
+      delta: path.join("wiki", "changes", created.id, "knowledge-delta.md"),
+      reason: "Updated performance review behavior.",
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 12, 0, 0),
+    });
+    const status = YAML.parse(await readFile(path.join(cwd, "wiki", "changes", created.id, "status.yml"), "utf8"));
+    const current = await statusChange({ cwd, sessionPath: session });
+
+    expect(result.change.stage).toBe("architecture");
+    expect(result.knowledge).toMatchObject({
+      status: "updated",
+      domains: ["performance-reviews"],
+      shared: ["approvals"],
+      files: ["wiki/knowledge/domains/performance-reviews/index.md"],
+      delta: path.join("wiki", "changes", created.id, "knowledge-delta.md"),
+      reason: "Updated performance review behavior.",
+    });
+    expect(status.stage).toBe("architecture");
+    expect(status.knowledge).toMatchObject({
+      status: "updated",
+      domains: ["performance-reviews"],
+      shared: ["approvals"],
+      files: ["wiki/knowledge/domains/performance-reviews/index.md"],
+    });
+    expect(current.message).toContain("Knowledge: updated");
+  });
+
+  it("records stale knowledge invalidation and clears it when resolved", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Knowledge stale",
+      now: testNow,
+      randomId: () => "k222",
+      sessionPath: session,
+    });
+
+    const stale = await knowledgeChange({
+      cwd,
+      status: "stale",
+      domains: ["performance-reviews"],
+      invalidatedBy: "prd",
+      reason: "PRD changed after knowledge update.",
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 12, 0, 0),
+    });
+    const resolved = await knowledgeChange({
+      cwd,
+      status: "none",
+      reason: "No durable knowledge impact.",
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 12, 30, 0),
+    });
+    const status = YAML.parse(await readFile(path.join(cwd, "wiki", "changes", created.id, "status.yml"), "utf8"));
+
+    expect(stale.knowledge).toMatchObject({
+      status: "stale",
+      invalidated_by: "prd",
+      invalidated_at: new Date(2026, 4, 22, 12, 0, 0).toISOString(),
+    });
+    expect(resolved.knowledge).toMatchObject({
+      status: "none",
+      domains: ["performance-reviews"],
+      reason: "No durable knowledge impact.",
+    });
+    expect(resolved.knowledge.invalidated_by).toBeUndefined();
+    expect(status.knowledge.invalidated_by).toBeUndefined();
+    expect(status.knowledge.invalidated_at).toBeUndefined();
+  });
+
+  it("marks resolved knowledge stale when lifecycle progress changes upstream context", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Knowledge invalidation",
+      now: testNow,
+      randomId: () => "k333",
+      sessionPath: session,
+    });
+    await knowledgeChange({
+      cwd,
+      status: "updated",
+      domains: ["performance-reviews"],
+      files: ["wiki/knowledge/domains/performance-reviews/index.md"],
+      reason: "Knowledge updated.",
+      sessionPath: session,
+      now: testNow,
+    });
+
+    const progressed = await progressChange({
+      cwd,
+      stage: "prd",
+      sources: ["exploration"],
+      sessionPath: session,
+      now: new Date(2026, 4, 22, 13, 0, 0),
+    });
+    const status = YAML.parse(await readFile(path.join(cwd, "wiki", "changes", created.id, "status.yml"), "utf8"));
+
+    expect(progressed.change.knowledge).toMatchObject({
+      status: "stale",
+      domains: ["performance-reviews"],
+      files: ["wiki/knowledge/domains/performance-reviews/index.md"],
+      invalidated_by: "prd",
+      invalidated_at: new Date(2026, 4, 22, 13, 0, 0).toISOString(),
+    });
+    expect(progressed.message).toContain("Knowledge: stale (invalidated by prd)");
+    expect(status.knowledge.reason).toBe("prd changed after knowledge was marked updated.");
+  });
+
+  it("rejects unsupported knowledge invalidation sources before writing status", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Bad knowledge source",
+      now: testNow,
+      randomId: () => "k444",
+      sessionPath: session,
+    });
+
+    await expect(
+      knowledgeChange({ cwd, status: "stale", invalidatedBy: "browser", sessionPath: session, now: testNow }),
+    ).rejects.toMatchObject({ code: "unsupported_knowledge_invalidation_source" });
+    const status = YAML.parse(await readFile(path.join(cwd, "wiki", "changes", created.id, "status.yml"), "utf8"));
+    expect(status.knowledge).toBeUndefined();
   });
 });

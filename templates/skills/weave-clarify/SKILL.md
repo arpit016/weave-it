@@ -172,9 +172,12 @@ Read Weave knowledge files when present:
 
 ```text
 wiki/knowledge/index.md
-wiki/knowledge/context.md
-wiki/knowledge/*/index.md
-wiki/knowledge/*/context.md
+wiki/knowledge/README.md
+wiki/knowledge/domains/**/index.md
+wiki/knowledge/domains/**/features/**/behavior.md
+wiki/knowledge/domains/**/domain-wide/**
+wiki/knowledge/shared/**/behavior.md
+wiki/knowledge/**/source-map.md
 ```
 
 Load only knowledge domains that appear relevant to the clarification.

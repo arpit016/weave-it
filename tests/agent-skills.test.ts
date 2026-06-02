@@ -160,13 +160,15 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Do not require Plan Mode.");
     expect(skill.content).toContain("Do not write repo-tracked artifacts.");
     expect(skill.content).toContain("Do not set or clear artifact context.");
-    expect(skill.content).toContain("Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-issues`, `weave-capture`, or `weave-clarify`.");
+    expect(skill.content).toContain("Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-issues`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.");
     expect(skill.content).toContain("weave change current all --json");
     expect(skill.content).toContain("weave artifact current --json");
     expect(skill.content).toContain("Inspect only workspace targets whose current change matches the active change.");
     expect(skill.content).toContain("read live artifacts first");
     expect(skill.content).toContain("wiki/changes/<change-id>/status.yml");
     expect(skill.content).toContain("Source-aware stale-first recommendation");
+    expect(skill.content).toContain("Knowledge freshness recommendation");
+    expect(skill.content).toContain("recommend `weave-knowledge`");
     expect(skill.content).toContain("source-aware dependency invalidation from `status.yml.artifacts`");
     expect(skill.content).toContain("Prefer the latest relevant `## Next Resume Point`");
     expect(skill.content).toContain("Recommended Next Step");
@@ -177,8 +179,33 @@ describe("agent skills", () => {
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
+  it("ships weave-knowledge as a current-state knowledge update skill", async () => {
+    const skill = await readDefaultSkill("weave-knowledge");
+
+    expect(skill.name).toBe("weave-knowledge");
+    expect(skill.description).toContain("Update current-state Weave knowledge specs");
+    expect(skill.content).toContain("Knowledge is current-state behavior");
+    expect(skill.content).toContain("Do not hand-edit `status.yml`; use `weave change knowledge <status>`.");
+    expect(skill.content).toContain("wiki/changes/<change-id>/knowledge-delta.md");
+    expect(skill.content).toContain("wiki/knowledge/domains/**/features/**/behavior.md");
+    expect(skill.content).toContain("wiki/knowledge/domains/**/domain-wide/**");
+    expect(skill.content).toContain("wiki/knowledge/shared/**/behavior.md");
+    expect(skill.content).toContain("## Purpose");
+    expect(skill.content).toContain("## Current Behavior");
+    expect(skill.content).toContain("## Source Anchors");
+    expect(skill.content).toContain("## Change History");
+    expect(skill.content).toContain("decision-tables.md");
+    expect(skill.content).toContain("source-map.md");
+    expect(skill.content).toContain("No active Weave change found");
+    expect(skill.content).toContain("ask the user to choose before writing");
+    expect(skill.content).toContain("weave change knowledge updated");
+    expect(skill.content).toContain("weave change knowledge none");
+    expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-knowledge", "SKILL.md"));
+    expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+  });
+
   it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
-    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify", "weave-issues"]) {
+    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify", "weave-issues", "weave-knowledge"]) {
       const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
 
       await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
@@ -229,6 +256,11 @@ describe("agent skills", () => {
         expect.objectContaining({
           name: "weave-issues",
           description: expect.stringContaining("local implementation tasks"),
+          hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+        }),
+        expect.objectContaining({
+          name: "weave-knowledge",
+          description: expect.stringContaining("Update current-state Weave knowledge specs"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
         expect.objectContaining({
@@ -316,18 +348,22 @@ describe("agent skills", () => {
     await expect(stat(path.join(claudeCwd, ".claude", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(claudeCwd, ".claude", "skills", "weave-architect", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(claudeCwd, ".claude", "skills", "weave-next", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(claudeCwd, ".claude", "skills", "weave-knowledge", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".agents", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".agents", "skills", "weave-architect", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".agents", "skills", "weave-clarify", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".agents", "skills", "weave-next", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(allCwd, ".agents", "skills", "weave-knowledge", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".claude", "skills", "weave-explore", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".claude", "skills", "weave-architect", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".claude", "skills", "weave-clarify", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".claude", "skills", "weave-next", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(allCwd, ".claude", "skills", "weave-knowledge", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-explore.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-architect.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-clarify.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-next.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(allCwd, ".opencode", "commands", "weave-knowledge.md"))).resolves.toMatchObject({});
     expect(manifest).toMatchObject({
       installed: {
         codex: {
@@ -336,6 +372,7 @@ describe("agent skills", () => {
             "weave-architect": { path: ".agents/skills/weave-architect/SKILL.md" },
             "weave-clarify": { path: ".agents/skills/weave-clarify/SKILL.md" },
             "weave-next": { path: ".agents/skills/weave-next/SKILL.md" },
+            "weave-knowledge": { path: ".agents/skills/weave-knowledge/SKILL.md" },
           },
         },
         cursor: {
@@ -344,6 +381,7 @@ describe("agent skills", () => {
             "weave-architect": { path: ".agents/skills/weave-architect/SKILL.md" },
             "weave-clarify": { path: ".agents/skills/weave-clarify/SKILL.md" },
             "weave-next": { path: ".agents/skills/weave-next/SKILL.md" },
+            "weave-knowledge": { path: ".agents/skills/weave-knowledge/SKILL.md" },
           },
         },
         claude: {
@@ -352,6 +390,7 @@ describe("agent skills", () => {
             "weave-architect": { path: ".claude/skills/weave-architect/SKILL.md" },
             "weave-clarify": { path: ".claude/skills/weave-clarify/SKILL.md" },
             "weave-next": { path: ".claude/skills/weave-next/SKILL.md" },
+            "weave-knowledge": { path: ".claude/skills/weave-knowledge/SKILL.md" },
           },
         },
         opencode: {
@@ -360,12 +399,14 @@ describe("agent skills", () => {
             "weave-architect": { path: ".agents/skills/weave-architect/SKILL.md" },
             "weave-clarify": { path: ".agents/skills/weave-clarify/SKILL.md" },
             "weave-next": { path: ".agents/skills/weave-next/SKILL.md" },
+            "weave-knowledge": { path: ".agents/skills/weave-knowledge/SKILL.md" },
           },
           commands: {
             "weave-explore": { path: ".opencode/commands/weave-explore.md" },
             "weave-architect": { path: ".opencode/commands/weave-architect.md" },
             "weave-clarify": { path: ".opencode/commands/weave-clarify.md" },
             "weave-next": { path: ".opencode/commands/weave-next.md" },
+            "weave-knowledge": { path: ".opencode/commands/weave-knowledge.md" },
           },
         },
       },
@@ -445,6 +486,7 @@ describe("agent skills", () => {
     const newSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-new", "SKILL.md"), "utf8");
     const issuesSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"), "utf8");
     const nextSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-next", "SKILL.md"), "utf8");
+    const knowledgeSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-knowledge", "SKILL.md"), "utf8");
     const exploreCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-explore.md"), "utf8");
     const prdCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
     const architectCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-architect.md"), "utf8");
@@ -453,6 +495,7 @@ describe("agent skills", () => {
     const newCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-new.md"), "utf8");
     const issuesCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-issues.md"), "utf8");
     const nextCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-next.md"), "utf8");
+    const knowledgeCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-knowledge.md"), "utf8");
     const manifest = await readManifest(cwd);
 
     expect(install.results).toEqual(
@@ -465,6 +508,7 @@ describe("agent skills", () => {
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-issues", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-next", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-knowledge", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-explore", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-prd", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-architect", status: "installed" }),
@@ -473,6 +517,7 @@ describe("agent skills", () => {
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-new", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-issues", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-next", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-knowledge", status: "installed" }),
       ]),
     );
     expect(exploreSkill).toContain("name: weave-explore");
@@ -501,6 +546,8 @@ describe("agent skills", () => {
     expect(issuesSkill).toContain("weave change progress issues --source architecture --json");
     expect(issuesSkill).toContain("weave change progress issues --source prd --source codebase --json");
     expect(nextSkill).toContain("name: weave-next");
+    expect(knowledgeSkill).toContain("name: weave-knowledge");
+    expect(knowledgeSkill).toContain("weave change knowledge updated");
     expect(exploreCommand).toContain("Load and follow the `weave-explore` skill.");
     expect(prdCommand).toContain("Load and follow the `weave-prd` skill.");
     expect(prdCommand).toContain("Context: $ARGUMENTS");
@@ -517,6 +564,8 @@ describe("agent skills", () => {
     expect(issuesCommand).toContain("Context: $ARGUMENTS");
     expect(nextCommand).toContain("Load and follow the `weave-next` skill.");
     expect(nextCommand).toContain("Context: $ARGUMENTS");
+    expect(knowledgeCommand).toContain("Load and follow the `weave-knowledge` skill.");
+    expect(knowledgeCommand).toContain("Context: $ARGUMENTS");
     expect(manifest).toMatchObject({
       installed: {
         opencode: {
@@ -545,6 +594,9 @@ describe("agent skills", () => {
             "weave-next": {
               path: ".agents/skills/weave-next/SKILL.md",
             },
+            "weave-knowledge": {
+              path: ".agents/skills/weave-knowledge/SKILL.md",
+            },
           },
           commands: {
             "weave-explore": {
@@ -570,6 +622,9 @@ describe("agent skills", () => {
             },
             "weave-next": {
               path: ".opencode/commands/weave-next.md",
+            },
+            "weave-knowledge": {
+              path: ".opencode/commands/weave-knowledge.md",
             },
           },
         },
