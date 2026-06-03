@@ -5,6 +5,7 @@ import { artifactCommand } from "./commands/artifact.js";
 import { changeCommand } from "./commands/change.js";
 import { initCommand } from "./commands/init.js";
 import { skillCommand, skillsCommand } from "./commands/skills.js";
+import { statusCommand } from "./commands/status.js";
 import { workspaceCommand } from "./commands/workspace.js";
 import { pathToFileURL } from "node:url";
 
@@ -24,6 +25,7 @@ export function createProgram(): Command {
   program.addCommand(agentCommand());
   program.addCommand(skillsCommand());
   program.addCommand(skillCommand());
+  program.addCommand(statusCommand());
 
   return program;
 }

@@ -1,0 +1,53 @@
+version: 1
+id: 260603-piln-npm-and-skill-versioning-and-updates
+slug: npm-and-skill-versioning-and-updates
+title: Npm and skill versioning and updates
+type: feat
+stage: issues
+branch: change/260603-piln-npm-and-skill-versioning-and-updates
+created_at: 2026-06-03T10:03:45.819Z
+updated_at: 2026-06-03T16:39:38.823Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+      - sessions
+    updated_at: 2026-06-03T12:58:01.526Z
+  prd:
+    sources:
+      - sessions
+      - discussion
+    updated_at: 2026-06-03T14:52:10.640Z
+  architecture:
+    sources:
+      - prd
+      - discussion
+    updated_at: 2026-06-03T14:58:44.150Z
+  issues:
+    sources:
+      - prd
+      - architecture
+      - codebase
+    updated_at: 2026-06-03T15:08:15.539Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-03T16:39:38.823Z
+  domains:
+    - change-workflow
+    - cli-distribution
+  shared: []
+  files:
+    - wiki/knowledge/index.md
+    - wiki/knowledge/domains/change-workflow/index.md
+    - wiki/knowledge/domains/change-workflow/features/weave-issues/behavior.md
+    - wiki/knowledge/domains/change-workflow/features/weave-capture/behavior.md
+    - wiki/knowledge/domains/change-workflow/domain-wide/lifecycle-progress-and-staleness.md
+    - wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-protocol.md
+    - wiki/knowledge/domains/cli-distribution/index.md
+    - wiki/knowledge/domains/cli-distribution/features/notices/behavior.md
+    - wiki/knowledge/domains/cli-distribution/features/skill-versioning/behavior.md
+    - wiki/knowledge/domains/cli-distribution/features/weave-status/behavior.md
+  delta: wiki/changes/260603-piln-npm-and-skill-versioning-and-updates/knowledge-delta.md
+  reason: Documented notices, skill versioning, weave status, lifecycle staleness
+    levers + agent protocol, plan mode protocol, and weave-capture defensive
+    lane verification.

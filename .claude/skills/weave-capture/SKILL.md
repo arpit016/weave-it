@@ -1,6 +1,7 @@
 ---
 name: weave-capture
 description: Capture the current discussion into a structured session note for a Weave change, optionally updating the active change artifact.
+last_changed_in: 0.1.0
 ---
 
 # Purpose
@@ -85,6 +86,26 @@ If no valid context exists, stop before writing and ask:
 ```text
 Which artifact should I capture this into: exploration, prd, or architecture?
 ```
+
+# Defensive Lane Verification
+
+Before writing any session note or artifact, defensively verify that the resolved lane matches the substance of the conversation being captured.
+
+Compare:
+
+- the resolved lane (from explicit user input, `weave artifact current --json`, or `weave-capture session <lane>`)
+- and the dominant subject of the discussion being captured (exploration: product discovery and stress-tested requirements; prd: user-facing requirements, acceptance criteria, scope, open questions; architecture: engineering design, module boundaries, tradeoffs, technical risks)
+
+If the resolved lane and the dominant subject clearly disagree (for example, the stored artifact context is `prd` but the conversation is heavily architectural; or the user invoked `weave-capture session exploration` after a long architectural discussion), do not write. Stop and ask:
+
+```text
+Stored artifact context is <lane>, but the conversation reads as <observed-lane>.
+Capture this into: <lane> (keep stored context), <observed-lane> (switch), or another lane?
+```
+
+Wait for the user's choice. Use the user's reply as the resolved lane for the rest of this invocation. Do not silently override the stored context.
+
+If the lane and the conversation substance are aligned (or if the conversation is too short or mixed to judge), proceed with the resolved lane without asking.
 
 4. Identify the active change folder:
 
@@ -273,3 +294,74 @@ For session-only capture, report the session and explicitly state that no live a
 Captured session: wiki/changes/<change-id>/sessions/<filename>.md
 Updated artifact: none (session-only capture)
 ```
+
+---
+
+# Surface Weave Notices
+
+Every Weave skill discovery phase calls at least one Tier 1 command
+(`weave workspace`, `weave change current`, `weave change status`,
+`weave change new`, or `weave status`). Tier 1 commands return a stable
+`notices` array in their `--json` output describing outdated packages,
+modified skills, and skills that need updating.
+
+When you run any Tier 1 command (with or without `--json`) and the result
+contains a non-empty `notices` array, surface them to the user verbatim
+near the start of your response. Do not edit notice text. Do not suppress
+notices unless the user explicitly asks. Do not invent notices.
+
+If notices recommend `weave status`, suggest the user run it. If notices
+recommend `weave agent update`, suggest that. Do not run `npm i -g` or
+any package manager command yourself; let the user run it.
+
+If `WEAVE_NO_NOTICES=1` is set in the environment, the notices array will
+be empty by design and you should not warn about it.
+
+---
+
+# Lifecycle Staleness Verification
+
+Before calling `weave change progress`, verify content-sync of every artifact
+that would otherwise be marked stale by the default pessimistic propagation.
+
+The `--source` arguments of `weave change progress` declare causal influence,
+not strict-DAG dependency. Pessimistic staleness propagation is the safe default,
+not the only correct answer. When the clarification this skill just performed is
+narrowly contained (a typo fix, a sentence rewording, an open-question
+resolution), dependents may already be in content sync; flagging them stale
+creates churn the user did not ask for.
+
+Procedure:
+
+1. Identify the set of structural dependents of the lane being progressed. Read
+   `wiki/changes/<change-id>/status.yml` and compute which lanes list this
+   lane in their `artifacts.<lane>.sources`.
+2. For each dependent lane, read both the dependent artifact and the artifact
+   just being progressed. Decide whether the change you just made invalidates
+   the dependent's content. The judgement is binary per lane: invalidates, or
+   does not invalidate.
+3. Select the appropriate progress invocation:
+
+   - Every dependent is invalidated (or there are no dependents):
+     `weave change progress <lane> --source <list> --json` (default, no new flags)
+   - No dependent is invalidated:
+     `weave change progress <lane> --source <list> --no-invalidate --json`
+   - Some dependents are invalidated, some are not:
+     `weave change progress <lane> --source <list> --invalidate=<comma-list> --json`
+
+4. If a previously-stale dependent is now in content sync (because the upstream
+   change has been absorbed but the stale flag still lingers from an earlier
+   pessimistic propagation), clear it explicitly:
+
+   `weave change clear-stale <lane> --reason "<one-sentence verification>" --json`
+
+   Always pass `--reason` so the audit entry in `stale_history` carries the
+   verification rationale. Do not clear flags without reading both artifacts.
+
+5. Never edit `status.yml` by hand to manipulate stale state. Use the CLI.
+
+Failure mode: if you are uncertain whether a dependent is in content sync,
+prefer the pessimistic default (omit `--no-invalidate` and `--invalidate`).
+The user can always run `weave-clarify <lane>` later. A false-positive stale
+flag is recoverable; silently leaving a real downstream artifact mismatched is
+not.

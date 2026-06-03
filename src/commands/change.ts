@@ -6,6 +6,8 @@ import {
   changeTypes,
   type ChangeStage,
   type KnowledgeStatus,
+  clearChangeStaleness,
+  type ClearChangeStalenessResult,
   createChange,
   currentChange,
   listChanges,
@@ -25,6 +27,7 @@ import {
   isChangeStage,
   isKnowledgeStatus,
 } from "../lib/changes.js";
+import { withNotices } from "../lib/with-notices.js";
 
 interface ChangeNewOptions {
   slug?: string;
@@ -50,6 +53,12 @@ interface ChangeStatusOptions {
 
 interface ChangeProgressOptions extends ChangeStatusOptions {
   source?: string[];
+  noInvalidate?: boolean;
+  invalidate?: string;
+}
+
+interface ChangeClearStaleOptions extends ChangeStatusOptions {
+  reason?: string;
 }
 
 interface ChangeKnowledgeOptions extends ChangeStatusOptions {
@@ -73,15 +82,18 @@ export function changeCommand(): Command {
     .option("--target <target...>", "target folder path or session folder id")
     .option("--json", "print machine-readable JSON")
     .action(async (title: string, options: ChangeNewOptions) => {
-      await runAction(options.json ?? false, async () => {
-        const result = await createChange({
-          cwd: process.cwd(),
-          title,
-          type: options.type,
-          slug: options.slug,
-          targets: options.target,
+      const json = options.json ?? false;
+      await runAction(json, async () => {
+        await withNotices({ commandName: "change-new", json }, async () => {
+          const result = await createChange({
+            cwd: process.cwd(),
+            title,
+            type: options.type,
+            slug: options.slug,
+            targets: options.target,
+          });
+          return { json: result, text: result.message };
         });
-        writeResult(result, options.json ?? false);
       });
     });
 
@@ -106,12 +118,12 @@ export function changeCommand(): Command {
     .argument("[target]", "target folder path, session folder id, or all")
     .option("--json", "print machine-readable JSON")
     .action(async (target: string | undefined, options: ChangeTargetOptions) => {
-      await runAction(options.json ?? false, async () => {
-        const result = await currentChange({
-          cwd: process.cwd(),
-          target,
+      const json = options.json ?? false;
+      await runAction(json, async () => {
+        await withNotices({ commandName: "change-current", json }, async () => {
+          const result = await currentChange({ cwd: process.cwd(), target });
+          return { json: result, text: result.message };
         });
-        writeResult(result, options.json ?? false);
       });
     });
 
@@ -122,13 +134,16 @@ export function changeCommand(): Command {
     .option("--target <target>", "target folder path, session folder id, or all")
     .option("--json", "print machine-readable JSON")
     .action(async (change: string | undefined, options: ChangeStatusOptions) => {
-      await runAction(options.json ?? false, async () => {
-        const result = await statusChange({
-          cwd: process.cwd(),
-          change,
-          target: options.target,
+      const json = options.json ?? false;
+      await runAction(json, async () => {
+        await withNotices({ commandName: "change-status", json }, async () => {
+          const result = await statusChange({
+            cwd: process.cwd(),
+            change,
+            target: options.target,
+          });
+          return { json: result, text: result.message };
         });
-        writeResult(result, options.json ?? false);
       });
     });
 
@@ -138,6 +153,11 @@ export function changeCommand(): Command {
     .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
     .option("--target <target>", "target folder path or session folder id")
     .option("--source <source>", "source dependency: exploration, prd, architecture, discussion, sessions, or codebase", collectValues, [])
+    .option("--no-invalidate", "suppress all downstream stale propagation")
+    .option(
+      "--invalidate <lanes>",
+      "mark only this comma-separated subset of dependent lanes stale (e.g. issues,prd)",
+    )
     .option("--json", "print machine-readable JSON")
     .action(async (stage: ChangeStage, options: ChangeProgressOptions) => {
       await runAction(options.json ?? false, async () => {
@@ -146,6 +166,27 @@ export function changeCommand(): Command {
           stage,
           target: options.target,
           sources: options.source,
+          noInvalidate: options.noInvalidate ?? false,
+          invalidateOnly: parseInvalidateList(options.invalidate),
+        });
+        writeResult(result, options.json ?? false);
+      });
+    });
+
+  command
+    .command("clear-stale")
+    .description("Explicitly clear a stale lane flag after content-sync verification.")
+    .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
+    .option("--target <target>", "target folder path or session folder id")
+    .option("--reason <reason>", "one-sentence verification rationale recorded in stale_history")
+    .option("--json", "print machine-readable JSON")
+    .action(async (lane: ChangeStage, options: ChangeClearStaleOptions) => {
+      await runAction(options.json ?? false, async () => {
+        const result = await clearChangeStaleness({
+          cwd: process.cwd(),
+          lane,
+          target: options.target,
+          reason: options.reason,
         });
         writeResult(result, options.json ?? false);
       });
@@ -233,6 +274,21 @@ function parseChangeStage(value: string): ChangeStage {
   throw new InvalidArgumentError(`Unsupported change stage: ${value}. Expected ${changeStages.join(", ")}`);
 }
 
+function parseInvalidateList(raw: string | undefined): ChangeStage[] | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return [];
+  const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean);
+  for (const part of parts) {
+    if (!isChangeStage(part)) {
+      throw new InvalidArgumentError(
+        `Unsupported lane in --invalidate: ${part}. Expected ${changeStages.join(", ")}`,
+      );
+    }
+  }
+  return parts as ChangeStage[];
+}
+
 function parseChangeType(value: string): ChangeType {
   if ((changeTypes as string[]).includes(value)) {
     return value as ChangeType;
@@ -253,7 +309,8 @@ function writeResult(
     | StatusChangeResult
     | SwitchChangeResult
     | ProgressChangeResult
-    | KnowledgeChangeResult,
+    | KnowledgeChangeResult
+    | ClearChangeStalenessResult,
   json: boolean,
 ): void {
   if (json) {

@@ -14,6 +14,7 @@ export type SkillOperationStatus = "installed" | "unchanged" | "modified" | "upd
 export interface DefaultSkill {
   name: string;
   description: string;
+  lastChangedIn: string;
   sourcePath: string;
   content: string;
   hash: string;
@@ -57,19 +58,20 @@ interface DiffAgentSkillOptions extends AgentSkillOptions {
   skill?: string;
 }
 
-interface ManifestEntry {
+export interface ManifestEntry {
   path: string;
   source_hash: string;
   installed_hash: string;
   installed_at: string;
+  installed_from: string | null;
 }
 
-interface AgentManifestEntries {
+export interface AgentManifestEntries {
   skills?: Record<string, ManifestEntry>;
   commands?: Record<string, ManifestEntry>;
 }
 
-interface AgentsManifest {
+export interface AgentsManifest {
   version: 1;
   installed: Partial<Record<AgentName, AgentManifestEntries>>;
 }
@@ -85,6 +87,7 @@ interface ManagedArtifact {
   name: string;
   content: string;
   hash: string;
+  lastChangedIn: string | null;
   destination: string;
 }
 
@@ -126,6 +129,7 @@ export async function readDefaultSkill(
   return {
     name: metadata.name,
     description: metadata.description,
+    lastChangedIn: metadata.lastChangedIn,
     sourcePath,
     content,
     hash: hashContent(content),
@@ -222,6 +226,7 @@ async function defaultArtifactsForTarget(
     name: skill.name,
     content: skill.content,
     hash: skill.hash,
+    lastChangedIn: skill.lastChangedIn,
     destination: installedSkillPath(target.skillsDir, skill.name),
   }));
 
@@ -236,6 +241,7 @@ async function defaultArtifactsForTarget(
         name: command.name,
         content: command.content,
         hash: command.hash,
+        lastChangedIn: null,
         destination: installedOpencodeCommandPath(target.commandsDir, command.name),
       });
     }
@@ -396,6 +402,7 @@ function setManifestEntry(
     source_hash: artifact.hash,
     installed_hash: artifact.hash,
     installed_at: now.toISOString(),
+    installed_from: artifact.lastChangedIn,
   };
 }
 
@@ -439,7 +446,7 @@ function installedOpencodeCommandPath(commandsDir: string, commandName: string):
   return join(commandsDir, `${commandName}.md`);
 }
 
-async function loadAgentsManifest(cwd: string): Promise<AgentsManifest> {
+export async function loadAgentsManifest(cwd: string): Promise<AgentsManifest> {
   const manifestPath = join(cwd, manifestRelativePath);
 
   if (!(await pathExists(manifestPath))) {
@@ -447,10 +454,30 @@ async function loadAgentsManifest(cwd: string): Promise<AgentsManifest> {
   }
 
   const parsed = YAML.parse(await readFile(manifestPath, "utf8")) as Partial<AgentsManifest> | null;
+  const installed = parsed?.installed ?? {};
+
+  for (const agent of Object.keys(installed) as AgentName[]) {
+    const buckets = installed[agent];
+    if (!buckets) continue;
+    for (const bucket of ["skills", "commands"] as const) {
+      const entries = buckets[bucket];
+      if (!entries) continue;
+      for (const name of Object.keys(entries)) {
+        const entry = entries[name] as Partial<ManifestEntry>;
+        entries[name] = {
+          path: entry.path ?? "",
+          source_hash: entry.source_hash ?? "",
+          installed_hash: entry.installed_hash ?? "",
+          installed_at: entry.installed_at ?? "",
+          installed_from: entry.installed_from ?? null,
+        };
+      }
+    }
+  }
 
   return {
     version: 1,
-    installed: parsed?.installed ?? {},
+    installed,
   };
 }
 
@@ -460,20 +487,33 @@ async function saveAgentsManifest(cwd: string, manifest: AgentsManifest): Promis
   await writeFileAtomic(manifestPath, YAML.stringify(manifest));
 }
 
-function parseSkillFrontmatter(content: string, sourcePath: string): { name: string; description: string } {
+function parseSkillFrontmatter(
+  content: string,
+  sourcePath: string,
+): { name: string; description: string; lastChangedIn: string } {
   const match = /^---\n([\s\S]*?)\n---/.exec(content);
   if (!match) {
     throw new Error(`Missing frontmatter in ${sourcePath}`);
   }
 
-  const metadata = YAML.parse(match[1]) as Partial<{ name: string; description: string }>;
+  const metadata = YAML.parse(match[1]) as Partial<{
+    name: string;
+    description: string;
+    last_changed_in: string | number;
+  }>;
   if (!metadata.name || !metadata.description) {
     throw new Error(`Skill frontmatter in ${sourcePath} must include name and description`);
+  }
+  if (metadata.last_changed_in === undefined || metadata.last_changed_in === null || metadata.last_changed_in === "") {
+    throw new Error(
+      `Skill frontmatter in ${sourcePath} must include last_changed_in (the weave-it package version of the last skill change)`,
+    );
   }
 
   return {
     name: metadata.name,
     description: metadata.description,
+    lastChangedIn: String(metadata.last_changed_in),
   };
 }
 

@@ -215,6 +215,7 @@ weave change list [target|all] [options]
 weave change current [target|all] [options]
 weave change status [change] [options]
 weave change progress <lane> [options]
+weave change clear-stale <lane> [options]
 weave change switch <change> [options]
 weave change propagate <change-id> --to <target...> [options]
 ```
@@ -258,6 +259,17 @@ Options for `progress`:
 lane                  exploration, prd, architecture, or issues
 --target <target>     target folder path or current session folder id
 --source <source>     repeatable source dependency: exploration, prd, architecture, discussion, sessions, or codebase
+--no-invalidate       suppress all downstream stale propagation for this call
+--invalidate <list>   mark only this comma-separated subset of dependent lanes stale (e.g. issues,architecture)
+--json                print machine-readable JSON
+```
+
+Options for `clear-stale`:
+
+```text
+lane                  exploration, prd, architecture, or issues
+--target <target>     target folder path or current session folder id
+--reason <reason>     one-sentence verification rationale recorded in stale_history
 --json                print machine-readable JSON
 ```
 
@@ -315,7 +327,119 @@ stale:
 
 Weave-managed artifact-writing skills call `progress` after successful live artifact writes. Existing changes without `artifacts` or `stale` continue to work and are treated as having no recorded dependencies or stale lanes.
 
+Default propagation marks every transitive downstream lane stale. Skills following the **Lifecycle Staleness Verification Protocol** (embedded in `weave-prd`, `weave-architect`, `weave-clarify`, `weave-issues`, and `weave-capture`) first read the dependent artifacts and decide per-lane whether the upstream change actually invalidates them:
+
+```bash
+# default: every downstream lane goes stale
+weave change progress prd --source exploration --json
+
+# narrow clarification, no dependent invalidated
+weave change progress prd --source exploration --no-invalidate --json
+
+# only `issues` is invalidated, not `architecture`
+weave change progress prd --source exploration --invalidate=issues --json
+```
+
+If a previously-stale lane is now in content sync (verified by reading both artifacts), clear the flag with an audit-trail entry:
+
+```bash
+weave change clear-stale architecture --reason "Wording typo in prd; architecture references unchanged" --json
+```
+
+Each clear appends a record to `status.yml.stale_history` with `lane`, `invalidated_by`, `invalidated_at`, `cleared_at`, and `reason`. Never hand-edit `status.yml` to change stale state; use the CLI.
+
 If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` and `propagate` block when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
+
+## `weave status`
+
+Shows the installed weave-it package version, the bundled skill versions, and any notices for the current repo.
+
+```bash
+weave status [options]
+```
+
+Options:
+
+```text
+--json      print machine-readable JSON
+-h, --help  display help for command
+```
+
+`weave status` is the explicit, detailed view of:
+
+- the installed `weave-it` npm package version,
+- the latest cached `weave-it` version from the npm registry (refreshed at most once every 24h),
+- every installed skill, the package version it was installed from, the current bundled package version, and a per-skill state (`current`, `outdated`, `modified`, `missing`),
+- the same `notices` array that Tier 1 commands return in `--json` mode.
+
+Use it whenever a notice points you here:
+
+```bash
+weave status
+weave status --json
+```
+
+## Notices
+
+The five Tier 1 commands surface a stable `notices` array in their `--json` output and, in interactive TTY mode, print a one-line stderr footer that tells the user there are notices and to run `weave status`:
+
+```text
+weave workspace
+weave change current
+weave change status
+weave change new
+weave status
+```
+
+Notice kinds:
+
+```text
+package_outdated   a newer weave-it npm version is cached locally
+skills_modified    one or more installed SKILL.md files differ from the manifest hash
+skills_outdated    one or more installed skills were installed from an older weave-it version than the current bundled skills
+```
+
+Notices are computed in parallel with the command's normal work; missing network, an unwritable `~/.weave/cache`, or a stripped-down npm registry response all degrade gracefully to an empty array.
+
+Suppress notices everywhere with either:
+
+```bash
+NO_UPDATE_NOTIFIER=1 weave change current
+WEAVE_NO_NOTICES=1 weave change current
+```
+
+Non-Tier-1 commands (`agent install`, `agent update`, `change list`, `change progress`, etc.) never include a `notices` field.
+
+## Skill Versioning
+
+Every bundled `SKILL.md` template carries a `last_changed_in` frontmatter field recording the `weave-it` package version of the last substantive change to that skill:
+
+```yaml
+---
+name: weave-prd
+description: Generate or revise prd.md ...
+last_changed_in: 0.1.0
+---
+```
+
+When a skill is installed, the version is stamped into `.weave/agents.yml` as `installed_from`. The `skills_outdated` notice fires when the bundled version is newer than the recorded `installed_from`. Run `weave agent update <agent>` to bring untouched skills up to date, or `weave agent reset <agent> <skill>` to overwrite a locally-modified copy.
+
+Maintainers bump `last_changed_in` for every skill that changed since the previous git tag with:
+
+```bash
+npm run release:bump-skills
+```
+
+The script reads `package.json`'s `version`, diffs each `templates/skills/<name>/SKILL.md` against the most recent reachable git tag, and only updates skills with real changes. It never commits or tags on its own.
+
+## Plan Mode Protocol (design-discussion skills)
+
+`weave-explore`, `weave-prd`, `weave-architect`, and `weave-clarify` ship with an embedded **Plan Mode Protocol** because every supported agent harness (Claude, Cursor, Codex, opencode) blocks filesystem writes in plan mode / ask mode. The protocol defers `weave artifact current set <lane>` until the user accepts the plan and the harness allows mutations:
+
+- In plan/ask mode the skill declares `Lane: <lane>` at the top of the plan output and ends with `On plan acceptance, the first action will be: weave artifact current set <lane> --json`.
+- The first agent-mode action after acceptance runs the deferred `weave artifact current set <lane> --json` call before continuing the skill's discovery and work.
+
+The protocol text is enforced byte-identically across all four skills by a test against the canonical constant in `src/lib/skill-template-checks.ts`.
 
 ## `weave agent`
 
@@ -364,6 +488,8 @@ weave-issues     create or reconcile local tasks.md implementation tasks (T#), Q
 weave-knowledge  update current-state knowledge specs for an active change
 weave-propagate  copy an existing change exploration to another repo
 ```
+
+Every bundled skill carries a `# Surface Weave Notices` section telling the agent to forward any non-empty `notices` array from Tier 1 commands to the user verbatim, near the top of its response. The notice-surfacing block is byte-identical across all skills.
 
 Install them for one agent:
 

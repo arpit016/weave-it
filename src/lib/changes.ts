@@ -45,6 +45,14 @@ export interface StaleChangeLaneMetadata {
   invalidated_at: string;
 }
 
+export interface StaleHistoryEntry {
+  lane: ChangeStage;
+  invalidated_by: ChangeStage | null;
+  invalidated_at: string | null;
+  cleared_at: string;
+  reason: string | null;
+}
+
 export interface ChangeArtifactMetadata {
   sources: ArtifactSourceId[];
   updated_at: string;
@@ -98,6 +106,7 @@ export interface ChangeSummary {
   type: ChangeType;
   stage: ChangeStage;
   stale: StaleChangeLanes;
+  stale_history: StaleHistoryEntry[];
   artifacts: ChangeArtifactsMetadata;
   knowledge?: KnowledgeMetadata;
   branch: string;
@@ -223,6 +232,8 @@ export interface ProgressChangeOptions {
   target?: string;
   now?: Date;
   sessionPath?: string;
+  noInvalidate?: boolean;
+  invalidateOnly?: readonly ChangeStage[];
 }
 
 export interface KnowledgeChangeOptions {
@@ -289,6 +300,7 @@ interface ExistingChangeMetadata {
 interface ChangeStatusMetadata extends ExistingChangeMetadata {
   stage: ChangeStage;
   stale: StaleChangeLanes;
+  stale_history: StaleHistoryEntry[];
   artifacts: ChangeArtifactsMetadata;
   knowledge?: KnowledgeMetadata;
   created_at?: string;
@@ -554,7 +566,13 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
   delete stale[options.stage];
 
   const invalidatedAt = now.toISOString();
-  for (const stage of transitiveDependents(options.stage, artifacts)) {
+  const computedDependents = transitiveDependents(options.stage, artifacts);
+  const propagationTargets = resolveStalePropagationTargets({
+    computed: computedDependents,
+    noInvalidate: options.noInvalidate ?? false,
+    invalidateOnly: options.invalidateOnly,
+  });
+  for (const stage of propagationTargets) {
     stale[stage] = {
       invalidated_by: options.stage,
       invalidated_at: invalidatedAt,
@@ -594,6 +612,109 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
     sources: sourceResolution.sources,
     note: sourceResolution.note,
     message: formatProgressMessage({ id: target.id, name: target.name, path: target.path }, change, options.stage, sourceResolution.note),
+  };
+}
+
+export interface ClearChangeStalenessOptions {
+  cwd: string;
+  lane: ChangeStage;
+  reason?: string;
+  target?: string;
+  now?: Date;
+  sessionPath?: string;
+}
+
+export interface ClearChangeStalenessResult {
+  status: "ok";
+  target: {
+    id?: string;
+    name?: string;
+    path: string;
+  };
+  change: ChangeSummary;
+  cleared: ChangeStage;
+  history_entry: StaleHistoryEntry;
+  message: string;
+}
+
+export async function clearChangeStaleness(
+  options: ClearChangeStalenessOptions,
+): Promise<ClearChangeStalenessResult> {
+  const now = options.now ?? new Date();
+  const session = await loadOrCreateSession(
+    options.sessionPath ?? defaultSessionPath(),
+    now,
+  );
+  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
+
+  if (targets.length !== 1) {
+    throw new ChangeCommandError("ambiguous_target", "Clear staleness for one change target at a time");
+  }
+
+  const target = targets[0];
+  const context = await currentContextForTarget(session, target, now, { saveInferred: true });
+  if (context.saved) {
+    await saveCurrentSession(session, options.sessionPath ?? defaultSessionPath());
+  }
+  if (!context.current) {
+    throw new ChangeCommandError(
+      "no_current_change",
+      "No active Weave change found. Run `weave change new` or `weave change switch` first.",
+    );
+  }
+
+  const statusPath = path.join(context.current.changePath, "status.yml");
+  const raw = await readStatusFile(statusPath);
+  const existing = await readChangeMetadata(context.current.changePath, context.current.id);
+
+  const currentStale = existing.stale[options.lane];
+  if (!currentStale) {
+    throw new ChangeCommandError(
+      "lane_not_stale",
+      `Lane "${options.lane}" is not currently marked stale; nothing to clear.`,
+      { lane: options.lane },
+    );
+  }
+
+  const nextStale: StaleChangeLanes = { ...existing.stale };
+  delete nextStale[options.lane];
+
+  const historyEntry: StaleHistoryEntry = {
+    lane: options.lane,
+    invalidated_by: currentStale.invalidated_by,
+    invalidated_at: currentStale.invalidated_at,
+    cleared_at: now.toISOString(),
+    reason: options.reason && options.reason.trim().length > 0 ? options.reason.trim() : null,
+  };
+  const nextHistory: StaleHistoryEntry[] = [...existing.stale_history, historyEntry];
+
+  const nextStatus = {
+    ...raw,
+    updated_at: now.toISOString(),
+    stale_history: nextHistory,
+  } as Record<string, unknown>;
+  if (Object.keys(nextStale).length > 0) {
+    nextStatus.stale = nextStale;
+  } else {
+    delete (nextStatus as { stale?: StaleChangeLanes }).stale;
+  }
+
+  await writeFile(statusPath, YAML.stringify(nextStatus));
+  const updated = await readChangeMetadata(context.current.changePath, context.current.id);
+  const change: ChangeSummary = {
+    ...updated,
+    path: context.current.path,
+    changePath: context.current.changePath,
+    active: true,
+  };
+
+  return {
+    status: "ok",
+    target: { id: target.id, name: target.name, path: target.path },
+    change,
+    cleared: options.lane,
+    history_entry: historyEntry,
+    message: `Cleared stale flag for ${options.lane} (was invalidated by ${currentStale.invalidated_by}).${historyEntry.reason ? ` Reason: ${historyEntry.reason}` : ""}`,
   };
 }
 
@@ -796,6 +917,7 @@ async function readChangeMetadata(changePath: string, fallbackId: string): Promi
     type,
     stage,
     stale: parseStaleLanes(parsed?.stale),
+    stale_history: parseStaleHistory(parsed?.stale_history),
     artifacts: parseArtifactsMetadata(parsed?.artifacts),
     knowledge: parseKnowledgeMetadata(parsed?.knowledge),
     branch,
@@ -807,6 +929,25 @@ async function readChangeMetadata(changePath: string, fallbackId: string): Promi
 async function readStatusFile(statusPath: string): Promise<Record<string, unknown>> {
   const parsed = YAML.parse(await readFile(statusPath, "utf8"));
   return isRecord(parsed) ? parsed : {};
+}
+
+function parseStaleHistory(value: unknown): StaleHistoryEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: StaleHistoryEntry[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const lane = entry.lane;
+    const clearedAt = entry.cleared_at;
+    if (!isChangeStage(lane) || typeof clearedAt !== "string") continue;
+    out.push({
+      lane,
+      invalidated_by: isChangeStage(entry.invalidated_by) ? entry.invalidated_by : null,
+      invalidated_at: typeof entry.invalidated_at === "string" ? entry.invalidated_at : null,
+      cleared_at: clearedAt,
+      reason: typeof entry.reason === "string" ? entry.reason : null,
+    });
+  }
+  return out;
 }
 
 function parseStaleLanes(value: unknown): StaleChangeLanes {
@@ -1015,6 +1156,43 @@ function normalizeArtifactSourceId(value: string): ArtifactSourceId {
 
 function dedupeSources(sources: ArtifactSourceId[]): ArtifactSourceId[] {
   return [...new Set(sources)];
+}
+
+function resolveStalePropagationTargets(input: {
+  computed: ChangeStage[];
+  noInvalidate: boolean;
+  invalidateOnly?: readonly ChangeStage[];
+}): ChangeStage[] {
+  if (input.noInvalidate && input.invalidateOnly && input.invalidateOnly.length > 0) {
+    throw new ChangeCommandError(
+      "conflicting_stale_flags",
+      "Use either --no-invalidate or --invalidate=<list>, not both.",
+    );
+  }
+  if (input.noInvalidate) {
+    return [];
+  }
+  if (input.invalidateOnly && input.invalidateOnly.length > 0) {
+    const computed = new Set(input.computed);
+    const intersection: ChangeStage[] = [];
+    const unknown: ChangeStage[] = [];
+    for (const candidate of input.invalidateOnly) {
+      if (computed.has(candidate)) {
+        intersection.push(candidate);
+      } else {
+        unknown.push(candidate);
+      }
+    }
+    if (unknown.length > 0) {
+      throw new ChangeCommandError(
+        "invalid_invalidate_target",
+        `Cannot invalidate lanes that are not transitive dependents of the progressed lane: ${unknown.join(", ")}`,
+        { unknown, computedDependents: input.computed },
+      );
+    }
+    return intersection;
+  }
+  return input.computed;
 }
 
 function transitiveDependents(source: ChangeStage, artifacts: ChangeArtifactsMetadata): ChangeStage[] {

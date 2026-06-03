@@ -1,6 +1,7 @@
 ---
 name: weave-explore
 description: Stress-test product requirements against the current system, workflows, and domain language. Use when refining PRDs, validating workflows, uncovering edge cases, clarifying ownership, or aligning new changes with existing product behavior.
+last_changed_in: 0.1.0
 ---
 
 # Weave Awareness
@@ -319,3 +320,56 @@ Example:
 > "You mentioned partial approvals are allowed, but the current workflow finalizes the entire review together. Which behavior should be authoritative?"
 
 Treat the current product behavior as an important input - but not necessarily the correct future behavior.
+
+---
+
+# Surface Weave Notices
+
+Every Weave skill discovery phase calls at least one Tier 1 command
+(`weave workspace`, `weave change current`, `weave change status`,
+`weave change new`, or `weave status`). Tier 1 commands return a stable
+`notices` array in their `--json` output describing outdated packages,
+modified skills, and skills that need updating.
+
+When you run any Tier 1 command (with or without `--json`) and the result
+contains a non-empty `notices` array, surface them to the user verbatim
+near the start of your response. Do not edit notice text. Do not suppress
+notices unless the user explicitly asks. Do not invent notices.
+
+If notices recommend `weave status`, suggest the user run it. If notices
+recommend `weave agent update`, suggest that. Do not run `npm i -g` or
+any package manager command yourself; let the user run it.
+
+If `WEAVE_NO_NOTICES=1` is set in the environment, the notices array will
+be empty by design and you should not warn about it.
+
+---
+
+# Plan Mode Protocol
+
+This skill sets local Weave session state for the exploration artifact lane via:
+
+```bash
+weave artifact current set exploration --json
+```
+
+Every supported agent harness (Claude, Cursor, Codex, OpenCode) blocks
+filesystem-write tool calls in Plan Mode, ask mode, and any read-only
+collaboration mode. Run the call only when the harness allows mutations.
+
+When the host harness blocks mutations (Plan Mode, ask mode, read-only):
+
+1. Do NOT attempt `weave artifact current set exploration --json`.
+2. Declare the target lane at the top of the plan output: `Lane: exploration`.
+3. End the plan output with this exact directive:
+
+   `On plan acceptance, the first action will be: weave artifact current set exploration --json`
+
+When the host harness allows mutations (Agent Mode resumes after plan
+acceptance, or the skill was invoked directly in Agent Mode):
+
+1. The FIRST tool call MUST be:
+
+   `weave artifact current set exploration --json`
+
+2. Then proceed with the rest of the skill's discovery and work.

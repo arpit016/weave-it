@@ -11,6 +11,51 @@ import {
   resetAgentSkills,
   updateAgentSkills,
 } from "../src/lib/agent-skills.js";
+import {
+  EXPECTED_LIFECYCLE_SYNC_PROTOCOL,
+  EXPECTED_NOTICE_BOILERPLATE,
+  EXPECTED_PLAN_MODE_PROTOCOL,
+} from "../src/lib/skill-template-checks.js";
+
+const bundledSkillNames = [
+  "weave-architect",
+  "weave-capture",
+  "weave-clarify",
+  "weave-explore",
+  "weave-issues",
+  "weave-knowledge",
+  "weave-new",
+  "weave-next",
+  "weave-prd",
+  "weave-propagate",
+] as const;
+
+const installedAgentDestinations = [
+  { dir: ".claude/skills" },
+  { dir: ".agents/skills" },
+] as const;
+
+async function assertSkillBlockPresence(
+  skill: string,
+  expectedBlock: string,
+  options: { requiredFor: "all" | "design-discussion" | "progress-callers" } = { requiredFor: "all" },
+): Promise<void> {
+  void options;
+  const templatePath = path.join(process.cwd(), "templates", "skills", skill, "SKILL.md");
+  const templateContents = await readFile(templatePath, "utf8");
+  expect(templateContents, `template missing block: ${templatePath}`).toContain(expectedBlock);
+
+  for (const dest of installedAgentDestinations) {
+    const installedPath = path.join(process.cwd(), dest.dir, skill, "SKILL.md");
+    try {
+      const installedContents = await readFile(installedPath, "utf8");
+      expect(installedContents, `installed missing block: ${installedPath}`).toContain(expectedBlock);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+  }
+}
 
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "weave-it-skills-"));
@@ -105,8 +150,18 @@ describe("agent skills", () => {
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
-  it("ships weave-capture as a structured artifact capture skill", async () => {
+  it("ships weave-capture as a structured artifact capture skill with a defensive lane-mismatch check", async () => {
     const skill = await readDefaultSkill("weave-capture");
+
+    expect(skill.content).toContain("# Defensive Lane Verification");
+    expect(skill.content).toContain(
+      "Before writing any session note or artifact, defensively verify that the resolved lane matches the substance of the conversation being captured.",
+    );
+    expect(skill.content).toContain(
+      "Stored artifact context is <lane>, but the conversation reads as <observed-lane>.",
+    );
+    expect(skill.content).toContain("Capture this into: <lane> (keep stored context), <observed-lane> (switch), or another lane?");
+    expect(skill.content).toContain("Wait for the user's choice. Use the user's reply as the resolved lane for the rest of this invocation. Do not silently override the stored context.");
 
     expect(skill.name).toBe("weave-capture");
     expect(skill.description).toContain("structured session note");
@@ -211,6 +266,114 @@ describe("agent skills", () => {
       await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
       await expect(readFile(path.join(process.cwd(), ".claude", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
     }
+  });
+
+  it("ships every bundled SKILL.md template with a last_changed_in frontmatter field", async () => {
+    const skills = await listDefaultSkills();
+    expect(skills.length).toBeGreaterThanOrEqual(10);
+    for (const skill of skills) {
+      expect(skill.lastChangedIn).toMatch(/^\d+\.\d+\.\d+/);
+    }
+  });
+
+  it("throws a descriptive error when a bundled template is missing last_changed_in", async () => {
+    const templatesDir = await tempDir();
+    const skillDir = path.join(templatesDir, "broken-skill");
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+      path.join(skillDir, "SKILL.md"),
+      "---\nname: broken-skill\ndescription: Missing field\n---\n\nNothing\n",
+    );
+
+    await expect(readDefaultSkill("broken-skill", { templatesDir })).rejects.toThrow(/last_changed_in/);
+  });
+
+  it("stamps installed_from in the manifest on install, defaulting to bundled last_changed_in", async () => {
+    const cwd = await tempDir();
+    await installAgentSkills({ cwd, agent: "claude" });
+    const manifest = (await readManifest(cwd)) as {
+      installed: { claude: { skills: Record<string, { installed_from: string }> } };
+    };
+
+    expect(Object.keys(manifest.installed.claude.skills).length).toBeGreaterThan(0);
+    for (const [, entry] of Object.entries(manifest.installed.claude.skills)) {
+      expect(entry.installed_from).toMatch(/^\d+\.\d+\.\d+/);
+    }
+  });
+
+  it("ships every bundled SKILL.md template with the byte-identical Surface Weave Notices block", async () => {
+    for (const skill of bundledSkillNames) {
+      await assertSkillBlockPresence(skill, EXPECTED_NOTICE_BOILERPLATE);
+    }
+  });
+
+  it("embeds the Plan Mode Protocol verbatim in every design-discussion skill", async () => {
+    const designDiscussion = [
+      { skill: "weave-explore", lane: "exploration" },
+      { skill: "weave-prd", lane: "prd" },
+      { skill: "weave-architect", lane: "architecture" },
+      { skill: "weave-clarify", lane: "<target>" },
+    ] as const;
+    for (const { skill, lane } of designDiscussion) {
+      const expected = EXPECTED_PLAN_MODE_PROTOCOL.replaceAll("<lane>", lane);
+      await assertSkillBlockPresence(skill, expected, { requiredFor: "design-discussion" });
+    }
+  });
+
+  it("embeds the Lifecycle Staleness Verification Protocol verbatim in every progress-calling skill", async () => {
+    const progressCallers = [
+      "weave-prd",
+      "weave-architect",
+      "weave-clarify",
+      "weave-issues",
+      "weave-capture",
+    ] as const;
+    for (const skill of progressCallers) {
+      await assertSkillBlockPresence(skill, EXPECTED_LIFECYCLE_SYNC_PROTOCOL, {
+        requiredFor: "progress-callers",
+      });
+    }
+  });
+
+  it("does not embed the Plan Mode Protocol in non-design-discussion skills", async () => {
+    const nonDesignDiscussion = [
+      "weave-new",
+      "weave-next",
+      "weave-issues",
+      "weave-knowledge",
+      "weave-propagate",
+      "weave-capture",
+    ] as const;
+    for (const skill of nonDesignDiscussion) {
+      const templatePath = path.join(process.cwd(), "templates", "skills", skill, "SKILL.md");
+      const contents = await readFile(templatePath, "utf8");
+      expect(contents, `${skill} unexpectedly contains Plan Mode Protocol`).not.toContain("# Plan Mode Protocol");
+    }
+  });
+
+  it("tolerates legacy manifest entries missing installed_from by defaulting to null", async () => {
+    const cwd = await tempDir();
+    const manifestPath = path.join(cwd, ".weave", "agents.yml");
+    await mkdir(path.dirname(manifestPath), { recursive: true });
+    await writeFile(
+      manifestPath,
+      [
+        "version: 1",
+        "installed:",
+        "  claude:",
+        "    skills:",
+        "      weave-explore:",
+        "        path: .claude/skills/weave-explore/SKILL.md",
+        "        source_hash: sha256:dead",
+        "        installed_hash: sha256:dead",
+        "        installed_at: 2026-01-01T00:00:00.000Z",
+        "",
+      ].join("\n"),
+    );
+
+    const { loadAgentsManifest } = await import("../src/lib/agent-skills.js");
+    const loaded = await loadAgentsManifest(cwd);
+    expect(loaded.installed.claude?.skills?.["weave-explore"]?.installed_from).toBeNull();
   });
 
   it("ships weave-clarify as a canonical clarification skill", async () => {
@@ -433,10 +596,16 @@ describe("agent skills", () => {
     const templatesDir = path.join(cwd, "templates", "skills");
     const skillDir = path.join(templatesDir, "weave-explore");
     await mkdir(skillDir, { recursive: true });
-    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-explore\ndescription: Original\n---\n\nOriginal\n");
+    await writeFile(
+      skillDir + "/SKILL.md",
+      "---\nname: weave-explore\ndescription: Original\nlast_changed_in: 0.1.0\n---\n\nOriginal\n",
+    );
 
     await installAgentSkills({ cwd, agent: "codex", templatesDir });
-    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-explore\ndescription: Updated\n---\n\nUpdated\n");
+    await writeFile(
+      skillDir + "/SKILL.md",
+      "---\nname: weave-explore\ndescription: Updated\nlast_changed_in: 0.2.0\n---\n\nUpdated\n",
+    );
 
     const update = await updateAgentSkills({ cwd, agent: "codex", templatesDir });
     const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"), "utf8");
@@ -686,7 +855,10 @@ describe("agent skills", () => {
     const skillDir = path.join(templatesDir, "weave-explore");
     await mkdir(skillDir, { recursive: true });
     await mkdir(commandTemplatesDir, { recursive: true });
-    await writeFile(skillDir + "/SKILL.md", "---\nname: weave-explore\ndescription: Original\n---\n\nOriginal\n");
+    await writeFile(
+      skillDir + "/SKILL.md",
+      "---\nname: weave-explore\ndescription: Original\nlast_changed_in: 0.1.0\n---\n\nOriginal\n",
+    );
     await writeFile(commandTemplatesDir + "/weave-explore.md", "---\ndescription: Original command\n---\n\nOriginal command\n");
 
     await installAgentSkills({ cwd, agent: "opencode", templatesDir, commandTemplatesDir });

@@ -1,17 +1,22 @@
 import { Command } from "commander";
 import { showWorkspace } from "../lib/show-workspace.js";
+import { withNotices } from "../lib/with-notices.js";
 
 export function workspaceCommand(): Command {
   return new Command("workspace")
     .description("Show the current Weave session folders.")
     .option("--json", "print machine-readable JSON")
     .action(async (options: { json?: boolean }) => {
-      const result = await showWorkspace({ json: options.json ?? false });
-
-      process.stdout.write(`${result.message}\n`);
-
-      if (result.status === "no_session") {
-        process.exitCode = 1;
-      }
+      await withNotices(
+        { commandName: "workspace", json: options.json ?? false },
+        async () => {
+          const result = await showWorkspace();
+          return {
+            json: result.json,
+            text: result.text,
+            exitCode: result.status === "no_session" ? 1 : 0,
+          };
+        },
+      );
     });
 }

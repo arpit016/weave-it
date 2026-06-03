@@ -1,5 +1,6 @@
 import { constants } from "node:fs";
-import { access, mkdir, rename, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 export async function pathExists(path: string): Promise<boolean> {
   try {
@@ -38,5 +39,24 @@ export async function ensureDirectory(path: string): Promise<void> {
 
   if (!value.isDirectory()) {
     throw new Error(`Expected a directory: ${path}`);
+  }
+}
+
+export async function readJsonCache<T>(path: string): Promise<T | null> {
+  try {
+    const contents = await readFile(path, "utf8");
+    return JSON.parse(contents) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeJsonCache<T>(path: string, data: T): Promise<boolean> {
+  try {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFileAtomic(path, JSON.stringify(data, null, 2));
+    return true;
+  } catch {
+    return false;
   }
 }
