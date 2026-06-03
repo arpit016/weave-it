@@ -34,21 +34,29 @@ External issue publishing status: not used. This change tracks implementation lo
 
 | ID | Status | Type | Title | Blocked by |
 | --- | --- | --- | --- | --- |
-| T1 | todo | AFK | Add MIT license | None (needs copyright-holder string) |
-| T2 | todo | AFK | Expand package.json metadata | None (needs author string + keyword confirmation) |
-| T3 | todo | AFK | Bare-number version tags via .npmrc | None |
-| T4 | todo | AFK | Wire prepublish gate + version lifecycle hook | None |
-| T5 | todo | AFK | README install + release docs | None |
-| T6 | todo | AFK | Verify tarball contents | T1, T2, T3, T4, T5 |
+| T1 | done | AFK | Add MIT license | None |
+| T2 | done | AFK | Expand package.json metadata | None |
+| T3 | done | AFK | Bare-number version tags via .npmrc | None |
+| T4 | done | AFK | Wire prepublish gate + version lifecycle hook | None |
+| T5 | done | AFK | README install + release docs | None |
+| T6 | done | AFK | Verify tarball contents | T1, T2, T3, T4, T5 |
 | T7 | blocked | HITL | Execute first publish (1.0.0) | T6 + maintainer npm/GitHub credentials |
+
+## Decisions Captured During Execution
+
+- Copyright holder (LICENSE): `Arpit Agarwal`.
+- `author` (package.json): `Arpit Agarwal <agarwalarpit22@gmail.com>`.
+- Keywords: proposed list plus `sdd` and `spec-driven-development`.
+- README Releasing section includes the optional `weave agent update --all` hygiene step.
+- Version handling: `package.json` `version` stays at `0.1.0` in the committed prep. The `1.0.0` value is produced by T7's `npm version 1.0.0` step, which bumps the version, runs the skill-stamping `version` hook, commits, and creates the bare git tag in one operation. (T2's "version is 1.0.0" acceptance is satisfied at release time, not in the prep commit, so `npm version 1.0.0` runs cleanly instead of erroring with "Version not changed".)
 
 ## T1: Add MIT license
 
-Status: todo
+Status: done
 
 Type: AFK
 
-Blocked by: None - needs the copyright-holder string from the maintainer (see Open Questions in PRD)
+Blocked by: None - resolved (copyright holder: `Arpit Agarwal`)
 
 User stories covered: 2, 3
 
@@ -66,10 +74,10 @@ Add an MIT `LICENSE` file at the repo root and reflect the license in package me
 
 ### Acceptance Criteria
 
-- [ ] `LICENSE` exists at repo root with MIT text and the chosen copyright holder.
-- [ ] `package.json` has `"license": "MIT"`.
-- [ ] `README.md` has a `## License` section referencing `LICENSE`.
-- [ ] After commit/push, the GitHub repo About sidebar detects `License: MIT`.
+- [x] `LICENSE` exists at repo root with MIT text and the chosen copyright holder.
+- [x] `package.json` has `"license": "MIT"`.
+- [x] `README.md` has a `## License` section referencing `LICENSE`.
+- [ ] After commit/push, the GitHub repo About sidebar detects `License: MIT`. (Verifies post-push during T7.)
 
 ### Verification
 
@@ -78,11 +86,11 @@ Add an MIT `LICENSE` file at the repo root and reflect the license in package me
 
 ## T2: Expand package.json metadata
 
-Status: todo
+Status: done
 
 Type: AFK
 
-Blocked by: None - needs the `author` string (name + email) and keyword-list confirmation from the maintainer
+Blocked by: None - resolved (author + keywords confirmed)
 
 User stories covered: 1, 3
 
@@ -104,9 +112,9 @@ Populate the standard npm metadata fields and set the initial published version,
 
 ### Acceptance Criteria
 
-- [ ] `package.json` `version` is `1.0.0`.
-- [ ] `author`, `homepage`, `bugs.url`, `repository`, `keywords`, and `publishConfig.access` are present and correct.
-- [ ] `package.json` remains valid JSON and existing fields (`bin`, `files`, `scripts`, `engines`, deps) are preserved.
+- [~] `package.json` `version` is `1.0.0`. (Prep commit stays at `0.1.0`; `1.0.0` is set by T7's `npm version 1.0.0` — see Decisions Captured During Execution.)
+- [x] `author`, `homepage`, `bugs.url`, `repository`, `keywords`, and `publishConfig.access` are present and correct.
+- [x] `package.json` remains valid JSON and existing fields (`bin`, `files`, `scripts`, `engines`, deps) are preserved.
 
 ### Verification
 
@@ -115,7 +123,7 @@ Populate the standard npm metadata fields and set the initial published version,
 
 ## T3: Bare-number version tags via .npmrc
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -135,9 +143,9 @@ Add a committed project `.npmrc` so `npm version` creates bare-number git tags (
 
 ### Acceptance Criteria
 
-- [ ] `.npmrc` exists at repo root with `tag-version-prefix=""`.
-- [ ] In-repo, `npm config get tag-version-prefix` resolves to an empty string.
-- [ ] `.npmrc` does not appear in `npm pack --dry-run` output (npm auto-excludes it).
+- [x] `.npmrc` exists at repo root with `tag-version-prefix=""`.
+- [x] In-repo, `npm config get tag-version-prefix` resolves to an empty string.
+- [x] `.npmrc` does not appear in `npm pack --dry-run` output (npm auto-excludes it).
 
 ### Verification
 
@@ -146,7 +154,7 @@ Add a committed project `.npmrc` so `npm version` creates bare-number git tags (
 
 ## T4: Wire prepublish gate + version lifecycle hook
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -168,9 +176,9 @@ Add the two npm lifecycle scripts that guarantee a fresh, tested build on publis
 
 ### Acceptance Criteria
 
-- [ ] `prepublishOnly` runs typecheck, tests, and build, and aborts on any failure.
-- [ ] `version` runs the skill bumper and stages `templates/skills` changes.
-- [ ] Running the version flow stamps all 10 skills from `last_changed_in: 0.1.0` to `last_changed_in: 1.0.0` on the first release (no prior tag).
+- [x] `prepublishOnly` runs typecheck, tests, and build, and aborts on any failure.
+- [x] `version` runs the skill bumper and stages `templates/skills` changes.
+- [x] Running the version flow stamps all 10 skills from `last_changed_in: 0.1.0` to `last_changed_in: 1.0.0` on the first release (no prior tag). (Smoke-tested standalone bumper, verified all 10 updated, then reverted.)
 
 ### Verification
 
@@ -179,7 +187,7 @@ Add the two npm lifecycle scripts that guarantee a fresh, tested build on publis
 
 ## T5: README install + release docs
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -200,9 +208,9 @@ Document how end users install the package and how maintainers cut releases.
 
 ### Acceptance Criteria
 
-- [ ] `README.md` has an `## Installation` section with the global install command.
-- [ ] `README.md` has a `## Releasing` section with the full runbook.
-- [ ] Runbook reflects bare-number tags and the `release: %s` commit message.
+- [x] `README.md` has an `## Installation` section with the global install command.
+- [x] `README.md` has a `## Releasing` section with the full runbook.
+- [x] Runbook reflects bare-number tags and the `release: %s` commit message.
 
 ### Verification
 
@@ -211,7 +219,7 @@ Document how end users install the package and how maintainers cut releases.
 
 ## T6: Verify tarball contents
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -231,9 +239,9 @@ Confirm the published tarball ships only intended files before any real publish.
 
 ### Acceptance Criteria
 
-- [ ] Dry-run lists only `dist/cli.js`, `dist/cli.js.map`, `dist/cli.d.ts`, `templates/**`, `LICENSE`, `README.md`, `package.json`.
-- [ ] No sources (`src/`), tests (`tests/`), `wiki/`, `.weave/`, `.npmrc`, or other stray files appear.
-- [ ] If stray files appear, tighten the `files` allowlist (or add `.npmignore`) and re-run until clean.
+- [x] Dry-run lists only `dist/cli.js`, `dist/cli.js.map`, `dist/cli.d.ts`, `templates/**`, `LICENSE`, `README.md`, `package.json`. (26 files: the 6 above plus `templates/skills/**` and `templates/opencode/commands/**`.)
+- [x] No sources (`src/`), tests (`tests/`), `wiki/`, `.weave/`, `.npmrc`, or other stray files appear.
+- [x] If stray files appear, tighten the `files` allowlist (or add `.npmignore`) and re-run until clean. (No stray files; allowlist untouched.)
 
 ### Verification
 
@@ -341,4 +349,12 @@ None.
 
 ## Verification
 
-Not run yet.
+AFK tasks T1-T6 implemented and verified on 2026-06-04:
+
+- `node -e "require('./package.json')"` parses; `npm pkg get license` -> `"MIT"`; `npm pkg get version repository.url publishConfig.access bugs.url homepage` returns the expected values.
+- `npm config get tag-version-prefix` (in repo) resolves to an empty string.
+- Publish gate components all pass: `npm run typecheck` (clean), `npm run test` (11 files, 124 tests passed), `npm run build` (tsup build success, `dist/` produced).
+- `npm run release:bump-skills` standalone smoke test stamped all 10 skills `0.1.0` -> `1.0.0`, then reverted with `git checkout -- templates/skills` (skills back to `0.1.0`).
+- `npm pack --dry-run` lists 26 intended files only (`LICENSE`, `README.md`, `package.json`, `dist/cli.{js,js.map,d.ts}`, `templates/**`); no `src/`, `tests/`, `wiki/`, `.weave/`, or `.npmrc`.
+
+T7 (first publish) is HITL and not executed by the agent: it requires maintainer npm authentication (`npm login`) and GitHub push access. The repo is fully prepared for the maintainer to run the T7 runbook.

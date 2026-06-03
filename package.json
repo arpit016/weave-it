@@ -3,6 +3,31 @@
   "version": "0.1.0",
   "description": "Repo-local LLM wiki and temporary multi-folder AI session tooling.",
   "type": "module",
+  "license": "MIT",
+  "author": "Arpit Agarwal <agarwalarpit22@gmail.com>",
+  "homepage": "https://github.com/arpit016/weave-it#readme",
+  "bugs": {
+    "url": "https://github.com/arpit016/weave-it/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arpit016/weave-it.git"
+  },
+  "keywords": [
+    "weave",
+    "cli",
+    "ai",
+    "agent",
+    "claude",
+    "cursor",
+    "codex",
+    "opencode",
+    "sdlc",
+    "sdd",
+    "spec-driven-development",
+    "wiki",
+    "knowledge-base"
+  ],
   "bin": {
     "weave": "./dist/cli.js"
   },
@@ -10,12 +35,17 @@
     "dist",
     "templates"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "release:bump-skills": "node scripts/bump-skill-versions.mjs"
+    "release:bump-skills": "node scripts/bump-skill-versions.mjs",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build",
+    "version": "npm run release:bump-skills && git add -A templates/skills"
   },
   "engines": {
     "node": ">=22.12"
