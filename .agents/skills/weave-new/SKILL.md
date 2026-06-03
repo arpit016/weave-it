@@ -40,8 +40,9 @@ Use `--slug <slug>` only when the user requested a specific folder or branch slu
 - The CLI owns change id generation, folder creation, status metadata, and git branch creation.
 - The created branch is `change/{change-id}`.
 - Do not create `prd.md`.
-- Treat `exploration.md` as the first artifact.
-- After creation, suggest user to go in plan mode and use the skill weave-explore to explore the discussion, do not do ny product discovery yourself using this skill.
+- For `feat` changes, the CLI scaffolds `exploration.md` and starts at `stage: exploration`; treat `exploration.md` as the first artifact.
+- For non-feature changes (`fix`, `refactor`, `docs`, `test`, `ci`, `chore`), the CLI does not scaffold `exploration.md` and starts at `stage: started`. The first real artifact is created later by the fitting skill: `weave-architect` for diagnosis or RCA, `weave-issues` when the work is already clear, or `weave-prd`/`weave-explore` only when expected behavior is unclear.
+- After creating a `feat` change, suggest the user go into plan mode and use `weave-explore` to explore the discussion; do not do any product discovery yourself using this skill. After creating a non-feature change, recommend the fitting next skill instead of `weave-explore`.
 
 ---
 

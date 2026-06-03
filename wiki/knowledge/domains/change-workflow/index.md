@@ -2,7 +2,7 @@
 
 This domain captures the current behavior of Weave's change lifecycle and the agent skills that participate in it: exploration, PRD, architecture, issues/tasks, knowledge, capture, clarify, next, new, and propagate.
 
-A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture`, `issues`, `knowledge`) tracked in `wiki/changes/<change-id>/status.yml`. Each lane has an owning skill that creates or revises a single durable artifact and records lifecycle progress via `weave change progress <lane>`.
+A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture`, `issues`, `knowledge`) tracked in `wiki/changes/<change-id>/status.yml`. Each lane has an owning skill that creates or revises a single durable artifact and records lifecycle progress via `weave change progress <lane>`. Feature changes start at `stage: exploration` with a scaffolded `exploration.md`; non-feature changes start at the non-lane `stage: started` with no scaffolded artifact.
 
 ## Features
 
@@ -11,6 +11,7 @@ A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture
 
 ## Domain-Wide Behavior
 
+- [change-creation-and-stages](domain-wide/change-creation-and-stages.md): `weave change new` scaffolding (feature vs non-feature), the `stage` vocabulary, and the non-lane `started` stage used by non-feature changes.
 - [lifecycle-progress-and-staleness](domain-wide/lifecycle-progress-and-staleness.md): `weave change progress` semantics, the default pessimistic stale propagation, CLI levers (`--no-invalidate`, `--invalidate`), explicit `weave change clear-stale`, the `stale_history` audit trail, and the agent-side verification protocol embedded in five skills.
 - [plan-mode-guard](domain-wide/plan-mode-guard.md): the byte-identical Plan Mode Guard embedded in the two plan-mode-required design-discussion skills (`weave-explore`, `weave-architect`). Refuses non-Plan-Mode entry and explicitly authorizes `weave artifact current set <lane>` as a Plan-Mode-safe lane-commit (it writes local session state only). Other design-discussion skills (`weave-prd`, `weave-clarify`) run in Agent Mode and do not carry the guard.
 

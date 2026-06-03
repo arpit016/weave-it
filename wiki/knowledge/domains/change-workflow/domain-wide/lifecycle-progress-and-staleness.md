@@ -8,7 +8,7 @@ Define the current behavior of `weave change progress` (recording lane progress 
 
 `weave change progress <lane> --source <source>...` records lifecycle progress for the active change:
 
-- Advances `status.yml.stage` to the maximum of the existing stage and the progressed lane.
+- Advances `status.yml.stage` to the maximum of the existing stage and the progressed lane. A change still at the non-lane `started` stage advances directly to the progressed lane (see [change-creation-and-stages](change-creation-and-stages.md)).
 - Replaces `status.yml.artifacts.<lane>.sources` with the supplied source IDs.
 - Updates `status.yml.artifacts.<lane>.updated_at` to the call's `now`.
 - Clears any existing `status.yml.stale.<lane>` entry for the progressed lane.
@@ -62,7 +62,7 @@ stale_history:                           # append-only audit trail
 - `--no-invalidate`: skip stale propagation entirely. No dependent lanes are flagged.
 - `--invalidate <comma-separated-lanes>`: only the named subset of transitive dependents is flagged. Lanes that are not transitive dependents are rejected with code `invalid_invalidate_target`.
 
-Combining the two raises `conflicting_stale_flags`.
+Combining the two raises `conflicting_stale_flags` at the library level (`progressChange`). At the CLI level both flags share a single Commander option (`--no-invalidate` is the negation of `--invalidate`), so a later flag overrides an earlier one rather than reaching the conflict check; the `change progress` action derives `noInvalidate` from `--no-invalidate` and `invalidateOnly` from `--invalidate <lanes>` off that single option. Passing no invalidate flag uses the pessimistic default.
 
 ### Explicit clear
 
@@ -105,11 +105,12 @@ The five participating skills: `weave-prd`, `weave-architect`, `weave-clarify`, 
 - CLI: `src/commands/change.ts` (`progress` subcommand flags `--no-invalidate`/`--invalidate`, `clear-stale` subcommand)
 - Skill contract source: `EXPECTED_LIFECYCLE_SYNC_PROTOCOL` in `src/lib/skill-template-checks.ts`
 - Templates embedding the protocol: `templates/skills/weave-prd/SKILL.md`, `templates/skills/weave-architect/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`, `templates/skills/weave-issues/SKILL.md`, `templates/skills/weave-capture/SKILL.md`
-- Tests: `tests/cli-change-staleness.test.ts`, `tests/agent-skills.test.ts` (byte-identity), `tests/changes.test.ts` (default propagation regression baseline)
+- Tests: `tests/cli-change-staleness.test.ts` (lib-level lever behavior), `tests/cli-change-progress.test.ts` (CLI flag wiring), `tests/agent-skills.test.ts` (byte-identity), `tests/changes.test.ts` (default propagation regression baseline)
 
 ## Change History
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): `--no-invalidate` and `--invalidate=<lanes>` flags added to `weave change progress`; `weave change clear-stale <lane> --reason` introduced; `status.yml.stale_history` audit field introduced; agent-side `# Lifecycle Staleness Verification` byte-identical block embedded in five progress-calling skills.
+- 2026-06-04 (change `260604-68e6-fix-change-progress-qf-bug`): fixed a CLI flag-wiring defect where `--no-invalidate` and `--invalidate <lanes>` collided on one Commander option and made every `weave change progress` invocation crash with `raw.trim is not a function`. The `change progress` action now derives both levers from that single option; the documented lever behavior is reachable from the CLI again. Added `tests/cli-change-progress.test.ts`. `maxStage`/`stageIndex` now tolerate the `started` stored stage.
 
 ## Open Questions
 

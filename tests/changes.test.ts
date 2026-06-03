@@ -41,13 +41,13 @@ describe("changes", () => {
     await expect(createChange({ cwd, title: "   ", sessionPath: sessionPath(cwd) })).rejects.toThrow("Change title is required");
   });
 
-  it("creates a change exploration and skips branch creation outside git", async () => {
+  it("creates a feature change exploration and skips branch creation outside git", async () => {
     const cwd = await tempDir();
 
     const result = await createChange({
       cwd,
       title: "Analytics of reviews",
-      type: "fix",
+      type: "feat",
       now: testNow,
       randomId: () => "f3q9",
       sessionPath: sessionPath(cwd),
@@ -58,7 +58,7 @@ describe("changes", () => {
     const explorationFrontmatter = YAML.parse(exploration.split("---")[1]);
 
     expect(result.id).toBe("260522-f3q9-analytics-of-reviews");
-    expect(result.type).toBe("fix");
+    expect(result.type).toBe("feat");
     expect(result.branch).toBe("change/260522-f3q9-analytics-of-reviews");
     expect(result.targets).toContainEqual(expect.objectContaining({ branchStatus: "skipped_not_git" }));
     expect(result.targets).toContainEqual(expect.objectContaining({ current: true }));
@@ -66,7 +66,7 @@ describe("changes", () => {
       id: "260522-f3q9-analytics-of-reviews",
       slug: "analytics-of-reviews",
       title: "Analytics of reviews",
-      type: "fix",
+      type: "feat",
       stage: "exploration",
       branch: "change/260522-f3q9-analytics-of-reviews",
     });
@@ -84,6 +84,54 @@ describe("changes", () => {
       source: "discussion",
     });
     await expect(stat(path.join(changePath, "sessions"))).resolves.toMatchObject({});
+  });
+
+  it("starts non-feature changes at stage `started` with no exploration.md", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+
+    const result = await createChange({
+      cwd,
+      title: "Analytics of reviews",
+      type: "fix",
+      now: testNow,
+      randomId: () => "f3q9",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", "260522-f3q9-analytics-of-reviews");
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+
+    expect(result.type).toBe("fix");
+    expect(status).toMatchObject({
+      type: "fix",
+      stage: "started",
+    });
+    // Non-feature changes do not scaffold exploration.md but still get sessions/.
+    await expect(stat(path.join(changePath, "exploration.md"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(path.join(changePath, "sessions"))).resolves.toMatchObject({});
+
+    // ...and no current artifact context is recorded until the first real artifact exists.
+    const parsed = YAML.parse(await readFile(session, "utf8"));
+    expect(Object.values(parsed.folders)[0]).toMatchObject({
+      current_change: { id: result.id },
+    });
+    expect((Object.values(parsed.folders)[0] as { current_artifact?: unknown }).current_artifact).toBeUndefined();
+  });
+
+  it("reads back the `started` stage instead of coercing it to exploration", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    await createChange({
+      cwd,
+      title: "Late bug",
+      type: "fix",
+      now: testNow,
+      randomId: () => "zz12",
+      sessionPath: session,
+    });
+
+    const current = await currentChange({ cwd, sessionPath: session });
+    expect(current.targets[0].current?.stage).toBe("started");
   });
 
   it("defaults change type to feat", async () => {

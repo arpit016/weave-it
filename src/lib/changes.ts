@@ -29,6 +29,7 @@ export type ChangeType = "feat" | "fix" | "refactor" | "docs" | "test" | "ci" | 
 export type BranchMatch = "match" | "mismatch" | "not_git" | "unknown";
 export type CurrentSource = "session" | "inferred_saved" | "none";
 export type ChangeStage = (typeof changeStages)[number];
+export type StoredChangeStage = (typeof storedStages)[number];
 export type ArtifactSourceId = (typeof artifactSourceIds)[number];
 export type KnowledgeStatus = (typeof knowledgeStatuses)[number];
 export type KnowledgeInvalidationSource = ChangeStage | ArtifactSourceId;
@@ -37,6 +38,10 @@ export type ChangeArtifactsMetadata = Partial<Record<ChangeStage, ChangeArtifact
 
 export const changeTypes: ChangeType[] = ["feat", "fix", "refactor", "docs", "test", "ci", "chore"];
 export const changeStages = ["exploration", "prd", "architecture", "issues"] as const;
+// `started` is a stored stage but NOT an artifact lane: non-feature changes begin at
+// `started` before any durable artifact lane has been reached. It never appears in
+// `changeStages`, so staleness/dependency logic operates only on the four real lanes.
+export const storedStages = ["started", ...changeStages] as const;
 export const artifactSourceIds = ["exploration", "prd", "architecture", "discussion", "sessions", "codebase"] as const;
 export const knowledgeStatuses = ["pending", "stale", "updated", "none"] as const;
 
@@ -104,7 +109,7 @@ export interface ChangeSummary {
   slug: string;
   title: string;
   type: ChangeType;
-  stage: ChangeStage;
+  stage: StoredChangeStage;
   stale: StaleChangeLanes;
   stale_history: StaleHistoryEntry[];
   artifacts: ChangeArtifactsMetadata;
@@ -298,7 +303,7 @@ interface ExistingChangeMetadata {
 }
 
 interface ChangeStatusMetadata extends ExistingChangeMetadata {
-  stage: ChangeStage;
+  stage: StoredChangeStage;
   stale: StaleChangeLanes;
   stale_history: StaleHistoryEntry[];
   artifacts: ChangeArtifactsMetadata;
@@ -330,7 +335,12 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
     await mkdir(changePath, { recursive: false });
     await mkdir(path.join(changePath, "sessions"));
     await writeFile(path.join(changePath, "status.yml"), statusTemplate({ id, slug, title, type, branch, now }));
-    await writeFile(path.join(changePath, "exploration.md"), explorationTemplate(title, title, now));
+    // Feature changes scaffold exploration.md and start at `stage: exploration`. Non-feature
+    // changes start at `stage: started` with no exploration artifact; their first real artifact
+    // is created later by the fitting skill (weave-architect, weave-issues, or weave-prd).
+    if (type === "feat") {
+      await writeFile(path.join(changePath, "exploration.md"), explorationTemplate(title, title, now));
+    }
     results.push({ path: target.path, changePath, branch, branchStatus, current: true });
   }
 
@@ -341,6 +351,7 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
       changeId: id,
       changePath: target.changePath,
       branch,
+      artifact: type === "feat" ? "exploration" : undefined,
     })),
     now,
   );
@@ -377,6 +388,7 @@ export async function propagateChange(options: PropagateChangeOptions): Promise<
       changeId: metadata.id,
       changePath: target.changePath,
       branch: metadata.branch,
+      artifact: metadata.type === "feat" ? "exploration" : undefined,
     })),
     now,
   );
@@ -909,7 +921,7 @@ async function readChangeMetadata(changePath: string, fallbackId: string): Promi
   const title = typeof parsed?.title === "string" ? parsed.title : titleFromSlug(slug);
   const type = isChangeType(parsed?.type) ? parsed.type : "feat";
   const branch = typeof parsed?.branch === "string" ? parsed.branch : changeBranch(id);
-  const stage = isChangeStage(parsed?.stage) ? parsed.stage : "exploration";
+  const stage = isStoredChangeStage(parsed?.stage) ? parsed.stage : "exploration";
   return {
     id,
     slug,
@@ -1372,7 +1384,7 @@ function inferChangeFromBranch(changes: ChangeSummary[], branch: string): Change
 
 async function saveCurrentForTargets(
   sessionPath: string | undefined,
-  updates: Array<{ root: string; changeId: string; changePath: string; branch: string }>,
+  updates: Array<{ root: string; changeId: string; changePath: string; branch: string; artifact?: ArtifactName }>,
   now: Date,
 ): Promise<void> {
   const pathToSession = sessionPath ?? defaultSessionPath();
@@ -1389,16 +1401,21 @@ async function saveCurrentForTargets(
       },
       now,
     );
-    setCurrentArtifactForPath(
-      session,
-      update.root,
-      {
-        artifact: "exploration",
-        change_id: update.changeId,
-        path: artifactPath(changeRelativePath, "exploration"),
-      },
-      now,
-    );
+    // Non-feature changes start at `stage: started` with no scaffolded artifact, so they
+    // begin with no current artifact context; the fitting skill sets it when it creates the
+    // first real artifact.
+    if (update.artifact) {
+      setCurrentArtifactForPath(
+        session,
+        update.root,
+        {
+          artifact: update.artifact,
+          change_id: update.changeId,
+          path: artifactPath(changeRelativePath, update.artifact),
+        },
+        now,
+      );
+    }
   }
   await saveCurrentSession(session, pathToSession);
 }
@@ -1424,7 +1441,7 @@ function statusTemplate(input: { id: string; slug: string; title: string; type: 
     slug: input.slug,
     title: input.title,
     type: input.type,
-    stage: "exploration",
+    stage: input.type === "feat" ? "exploration" : "started",
     branch: input.branch,
     created_at: input.now.toISOString(),
     updated_at: input.now.toISOString(),
@@ -1739,6 +1756,10 @@ export function isChangeStage(value: unknown): value is ChangeStage {
   return typeof value === "string" && (changeStages as readonly string[]).includes(value);
 }
 
+export function isStoredChangeStage(value: unknown): value is StoredChangeStage {
+  return typeof value === "string" && (storedStages as readonly string[]).includes(value);
+}
+
 export function isArtifactSourceId(value: unknown): value is ArtifactSourceId {
   return typeof value === "string" && (artifactSourceIds as readonly string[]).includes(value);
 }
@@ -1764,12 +1785,18 @@ function normalizeKnowledgeInvalidationSource(value: string): KnowledgeInvalidat
   );
 }
 
-function maxStage(stages: ChangeStage[]): ChangeStage {
-  return stages.reduce((highest, stage) => (stageIndex(stage) > stageIndex(highest) ? stage : highest), "exploration" as ChangeStage);
+function maxStage(stages: StoredChangeStage[]): ChangeStage {
+  // `started` has index -1 (not a real lane), so any progressed lane wins and the
+  // "exploration" seed keeps the result at the highest reached artifact lane.
+  const highest = stages.reduce<StoredChangeStage>(
+    (acc, stage) => (stageIndex(stage) > stageIndex(acc) ? stage : acc),
+    "exploration",
+  );
+  return isChangeStage(highest) ? highest : "exploration";
 }
 
-function stageIndex(stage: ChangeStage): number {
-  return changeStages.indexOf(stage);
+function stageIndex(stage: StoredChangeStage): number {
+  return (changeStages as readonly string[]).indexOf(stage);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

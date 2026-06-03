@@ -135,7 +135,24 @@ describe("skills CLI", () => {
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-knowledge command for opencode"));
   });
 
-  it("creates change explorations through weave change new", async () => {
+  it("creates a feature change exploration through weave change new", async () => {
+    const cwd = await tempDir();
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    process.chdir(cwd);
+    process.env.WEAVE_SESSION_PATH = path.join(cwd, ".session.yml");
+
+    await createProgram().parseAsync(["change", "new", "Analytics of reviews", "--type", "feat", "--slug", "review-analytics"], { from: "user" });
+
+    const output = write.mock.calls.map((call) => String(call[0])).join("");
+    const match = /Created change: \d{6}-[a-z0-9]{4}-review-analytics/.exec(output);
+    expect(match).not.toBeNull();
+    expect(output).toContain("Type: feat");
+    const changeId = output.match(/Created change: ([^\n]+)/)?.[1];
+    expect(changeId).toBeDefined();
+    await expect(stat(path.join(cwd, "wiki", "changes", changeId ?? "", "exploration.md"))).resolves.toMatchObject({});
+  });
+
+  it("starts a non-feature change at stage `started` with no exploration.md", async () => {
     const cwd = await tempDir();
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     process.chdir(cwd);
@@ -144,12 +161,12 @@ describe("skills CLI", () => {
     await createProgram().parseAsync(["change", "new", "Analytics of reviews", "--type", "fix", "--slug", "review-analytics"], { from: "user" });
 
     const output = write.mock.calls.map((call) => String(call[0])).join("");
-    const match = /Created change: \d{6}-[a-z0-9]{4}-review-analytics/.exec(output);
-    expect(match).not.toBeNull();
-    expect(output).toContain("Type: fix");
     const changeId = output.match(/Created change: ([^\n]+)/)?.[1];
     expect(changeId).toBeDefined();
-    await expect(stat(path.join(cwd, "wiki", "changes", changeId ?? "", "exploration.md"))).resolves.toMatchObject({});
+    expect(output).toContain("Type: fix");
+    await expect(stat(path.join(cwd, "wiki", "changes", changeId ?? "", "exploration.md"))).rejects.toMatchObject({ code: "ENOENT" });
+    const status = YAML.parse(await readFile(path.join(cwd, "wiki", "changes", changeId ?? "", "status.yml"), "utf8"));
+    expect(status.stage).toBe("started");
   });
 
   it("records knowledge status through weave change knowledge", async () => {

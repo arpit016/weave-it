@@ -53,8 +53,10 @@ interface ChangeStatusOptions {
 
 interface ChangeProgressOptions extends ChangeStatusOptions {
   source?: string[];
-  noInvalidate?: boolean;
-  invalidate?: string;
+  // Commander merges the negatable `--no-invalidate` and the value `--invalidate <lanes>`
+  // onto this single attribute: `true` by default, `false` for `--no-invalidate`, or the
+  // comma-separated lane string for `--invalidate <lanes>`.
+  invalidate?: string | boolean;
 }
 
 interface ChangeClearStaleOptions extends ChangeStatusOptions {
@@ -161,13 +163,14 @@ export function changeCommand(): Command {
     .option("--json", "print machine-readable JSON")
     .action(async (stage: ChangeStage, options: ChangeProgressOptions) => {
       await runAction(options.json ?? false, async () => {
+        const invalidate = options.invalidate;
         const result = await progressChange({
           cwd: process.cwd(),
           stage,
           target: options.target,
           sources: options.source,
-          noInvalidate: options.noInvalidate ?? false,
-          invalidateOnly: parseInvalidateList(options.invalidate),
+          noInvalidate: invalidate === false,
+          invalidateOnly: typeof invalidate === "string" ? parseInvalidateList(invalidate) : undefined,
         });
         writeResult(result, options.json ?? false);
       });

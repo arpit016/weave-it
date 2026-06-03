@@ -1,0 +1,112 @@
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import YAML from "yaml";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { changeCommand } from "../src/commands/change.js";
+import { createChange, progressChange } from "../src/lib/changes.js";
+
+const testNow = new Date(2026, 4, 22, 10, 0, 0);
+
+const originalCwd = process.cwd();
+const originalSessionEnv = process.env.WEAVE_SESSION_PATH;
+
+afterEach(() => {
+  process.chdir(originalCwd);
+  if (originalSessionEnv === undefined) {
+    delete process.env.WEAVE_SESSION_PATH;
+  } else {
+    process.env.WEAVE_SESSION_PATH = originalSessionEnv;
+  }
+  process.exitCode = undefined;
+});
+
+async function setup(): Promise<{ cwd: string; session: string; changePath: string }> {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-cli-progress-"));
+  const session = path.join(cwd, ".session.yml");
+  const created = await createChange({
+    cwd,
+    title: "Cli progress",
+    now: testNow,
+    randomId: () => "cp01",
+    sessionPath: session,
+  });
+  const changePath = path.join(cwd, "wiki", "changes", created.id);
+  // The CLI `progress` action reads cwd from process.cwd() and the session from
+  // WEAVE_SESSION_PATH, so point both at this temp fixture.
+  process.env.WEAVE_SESSION_PATH = session;
+  process.chdir(cwd);
+  return { cwd, session, changePath };
+}
+
+async function setupWithDownstream(): Promise<{ cwd: string; session: string; changePath: string }> {
+  const fixture = await setup();
+  await writeFile(path.join(fixture.changePath, "prd.md"), "# PRD\n\nFirst draft.\n");
+  await writeFile(path.join(fixture.changePath, "architecture.md"), "# Architecture\n\nFirst draft.\n");
+  await writeFile(path.join(fixture.changePath, "tasks.md"), "# Tasks\n\n- [ ] One.\n");
+  await progressChange({ cwd: fixture.cwd, stage: "architecture", sources: ["prd"], sessionPath: fixture.session, now: testNow });
+  await progressChange({
+    cwd: fixture.cwd,
+    stage: "issues",
+    sources: ["architecture"],
+    sessionPath: fixture.session,
+    now: new Date(2026, 4, 22, 10, 30, 0),
+  });
+  return fixture;
+}
+
+async function runChange(args: string[]): Promise<Record<string, unknown>> {
+  const chunks: string[] = [];
+  const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
+    chunks.push(typeof chunk === "string" ? chunk : String(chunk));
+    return true;
+  });
+  try {
+    const command = changeCommand();
+    command.exitOverride();
+    await command.parseAsync(args, { from: "user" });
+  } finally {
+    spy.mockRestore();
+  }
+  return YAML.parse(chunks.join("")) as Record<string, unknown>;
+}
+
+async function readStatus(changePath: string): Promise<Record<string, unknown>> {
+  return YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8")) as Record<string, unknown>;
+}
+
+describe("change progress CLI flag wiring", () => {
+  it("default path advances the lane without the `raw.trim` crash", async () => {
+    const { changePath } = await setup();
+
+    const result = await runChange(["progress", "architecture", "--source", "prd", "--json"]);
+
+    expect(result.status).toBe("ok");
+    expect(result).not.toMatchObject({ message: "raw.trim is not a function" });
+    expect((result.change as Record<string, unknown>).stage).toBe("architecture");
+
+    const status = await readStatus(changePath);
+    expect(status.stage).toBe("architecture");
+  });
+
+  it("--no-invalidate suppresses downstream stale propagation", async () => {
+    const { changePath } = await setupWithDownstream();
+
+    const result = await runChange(["progress", "prd", "--source", "exploration", "--no-invalidate", "--json"]);
+
+    expect(result.status).toBe("ok");
+    const status = await readStatus(changePath);
+    expect(status.stale ?? {}).toEqual({});
+  });
+
+  it("--invalidate marks only the named subset stale", async () => {
+    const { changePath } = await setupWithDownstream();
+
+    const result = await runChange(["progress", "prd", "--source", "exploration", "--invalidate", "issues", "--json"]);
+
+    expect(result.status).toBe("ok");
+    const status = await readStatus(changePath);
+    expect(status.stale as Record<string, unknown>).toMatchObject({ issues: { invalidated_by: "prd" } });
+    expect((status.stale as Record<string, unknown>).architecture).toBeUndefined();
+  });
+});
