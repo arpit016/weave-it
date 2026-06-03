@@ -1,0 +1,14 @@
+version: 1
+id: 260603-znx2-fix-architecture-skill-to-handle-deep
+slug: fix-architecture-skill-to-handle-deep
+title: Fix architecture skill to handle deep architecture
+type: feat
+stage: exploration
+branch: change/260603-znx2-fix-architecture-skill-to-handle-deep
+created_at: 2026-06-03T17:27:32.022Z
+updated_at: 2026-06-03T18:26:51.913Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+    updated_at: 2026-06-03T18:26:51.913Z
