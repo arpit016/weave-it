@@ -16,6 +16,20 @@ The goal is to give AI tools durable project context across the full software li
 
 Each repo can contain a committed `wiki/` folder that acts like an LLM-friendly wiki for that repo. Weave also maintains committed metadata in `.weave/` and a temporary local session so agents can understand which folders/repos should be considered together for the current task.
 
+## Installation
+
+Install the CLI globally from npm:
+
+```bash
+npm install -g weave-it
+```
+
+Then verify it works:
+
+```bash
+weave --help
+```
+
 ## Requirements
 
 - Node.js `>=22.12`
@@ -739,3 +753,45 @@ weave-it/
 - Do not commit `node_modules/`, `dist/`, coverage output, or local machine state.
 - Source files use ESM imports with `.js` specifiers because TypeScript is configured with `NodeNext` module resolution.
 - Use `apply_patch` or normal editor changes for source edits, then run typecheck, tests, and build.
+
+## Releasing
+
+Releases are cut manually by a maintainer with npm publish access and push access to the repo. Each release is a single `npm version` bump that also stamps skill versions, followed by a push and publish.
+
+1. Ensure the working tree is clean and all prep is committed.
+2. Choose the bump level and create the version commit and tag in one step. The committed `.npmrc` (`tag-version-prefix=""`) produces bare-number tags such as `1.0.0`, not `v1.0.0`:
+
+```bash
+npm version <patch|minor|major> --message "release: %s"
+```
+
+   This bumps `version` in `package.json`, runs the `version` lifecycle hook (which stamps `last_changed_in` on every skill changed since the previous tag and stages `templates/skills`), creates one commit `release: <version>`, and creates the matching bare git tag.
+
+3. Push the commit and the tag:
+
+```bash
+git push --follow-tags
+```
+
+4. Publish to npm. The `prepublishOnly` hook runs typecheck, tests, and build before anything is uploaded, so a failing gate aborts the publish:
+
+```bash
+npm publish
+```
+
+5. Verify the release:
+
+```bash
+npm view weave-it
+npm install -g weave-it && weave --help
+```
+
+6. Optionally refresh this clone's own installed skill copies so local dogfooding matches what shipped:
+
+```bash
+weave agent update --all
+```
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for the full text.
