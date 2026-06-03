@@ -20,6 +20,7 @@ Add weave-next skill
 
 `weave-next` should be a read-only advisory skill that helps users understand what to do next in an active Weave change.
 
+Weave's model is artifact-first rather than pipeline-runner-first. Users should resume work by invoking the artifact lane skill directly:
 
 - `weave-explore` for exploration
 - `weave-prd` for PRD work
