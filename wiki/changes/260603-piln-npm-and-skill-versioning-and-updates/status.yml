@@ -6,7 +6,7 @@ type: feat
 stage: issues
 branch: change/260603-piln-npm-and-skill-versioning-and-updates
 created_at: 2026-06-03T10:03:45.819Z
-updated_at: 2026-06-03T16:39:38.823Z
+updated_at: 2026-06-03T17:10:38.669Z
 artifacts:
   exploration:
     sources:
@@ -31,7 +31,7 @@ artifacts:
     updated_at: 2026-06-03T15:08:15.539Z
 knowledge:
   status: updated
-  updated_at: 2026-06-03T16:39:38.823Z
+  updated_at: 2026-06-03T17:10:38.669Z
   domains:
     - change-workflow
     - cli-distribution
@@ -42,12 +42,12 @@ knowledge:
     - wiki/knowledge/domains/change-workflow/features/weave-issues/behavior.md
     - wiki/knowledge/domains/change-workflow/features/weave-capture/behavior.md
     - wiki/knowledge/domains/change-workflow/domain-wide/lifecycle-progress-and-staleness.md
-    - wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-protocol.md
+    - wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-guard.md
     - wiki/knowledge/domains/cli-distribution/index.md
     - wiki/knowledge/domains/cli-distribution/features/notices/behavior.md
     - wiki/knowledge/domains/cli-distribution/features/skill-versioning/behavior.md
     - wiki/knowledge/domains/cli-distribution/features/weave-status/behavior.md
   delta: wiki/changes/260603-piln-npm-and-skill-versioning-and-updates/knowledge-delta.md
-  reason: Documented notices, skill versioning, weave status, lifecycle staleness
-    levers + agent protocol, plan mode protocol, and weave-capture defensive
-    lane verification.
+  reason: "QF1/T12: strengthened Plan Mode Guard in 2 plan-mode-required skills;
+    removed misdesigned Plan Mode Protocol from all 4 design-discussion skills;
+    renamed knowledge doc plan-mode-protocol.md \\u2192 plan-mode-guard.md."

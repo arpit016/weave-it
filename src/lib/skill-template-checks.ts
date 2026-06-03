@@ -19,34 +19,27 @@ If \`WEAVE_NO_NOTICES=1\` is set in the environment, the notices array will
 be empty by design and you should not warn about it.
 ` as const;
 
-export const EXPECTED_PLAN_MODE_PROTOCOL = `# Plan Mode Protocol
+export const EXPECTED_PLAN_MODE_GUARD = `# Plan Mode Guard
 
-This skill sets local Weave session state for the <lane> artifact lane via:
+This skill must run in Plan Mode.
+
+If the current environment exposes collaboration mode and it is not Plan Mode, stop immediately and say:
+
+\`This skill must run in Plan Mode. Switch to Plan Mode, then invoke <skill-name> again.\`
+
+Do not inspect deeply, ask discovery questions, update artifacts, or continue work before this guard passes.
+
+Static Weave skill content cannot automatically switch collaboration mode. The host, user, or developer layer must switch modes before this skill continues.
+
+In Plan Mode, this skill commits the active artifact lane to local Weave session state via:
 
 \`\`\`bash
 weave artifact current set <lane> --json
 \`\`\`
 
-Every supported agent harness (Claude, Cursor, Codex, OpenCode) blocks
-filesystem-write tool calls in Plan Mode, ask mode, and any read-only
-collaboration mode. Run the call only when the harness allows mutations.
+This writes local Weave session state only. It does not write repo-tracked artifacts and IS allowed in Plan Mode. Call it after resolving the active Weave change and before any other discovery work.
 
-When the host harness blocks mutations (Plan Mode, ask mode, read-only):
-
-1. Do NOT attempt \`weave artifact current set <lane> --json\`.
-2. Declare the target lane at the top of the plan output: \`Lane: <lane>\`.
-3. End the plan output with this exact directive:
-
-   \`On plan acceptance, the first action will be: weave artifact current set <lane> --json\`
-
-When the host harness allows mutations (Agent Mode resumes after plan
-acceptance, or the skill was invoked directly in Agent Mode):
-
-1. The FIRST tool call MUST be:
-
-   \`weave artifact current set <lane> --json\`
-
-2. Then proceed with the rest of the skill's discovery and work.
+Do not write repo-tracked artifacts directly. Produce the plan, decisions, questions, or proposed artifact changes needed for the user to approve. Actual artifact writes happen only after the user exits Plan Mode and asks to implement the plan.
 ` as const;
 
 export const EXPECTED_LIFECYCLE_SYNC_PROTOCOL = `# Lifecycle Staleness Verification

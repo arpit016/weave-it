@@ -38,7 +38,7 @@ Capture this into: <lane> (keep stored context), <observed-lane> (switch), or an
 
 The user's reply becomes the resolved lane for the rest of the invocation. The skill never silently overrides the stored context. When the lane and the conversation are aligned, or when the conversation is too short or mixed to judge, the skill proceeds with the resolved lane without asking.
 
-This step is a defensive recovery for the [Plan Mode Protocol](../../domain-wide/plan-mode-protocol.md) failing earlier: if a design-discussion skill (e.g. `weave-prd`) never executed its post-plan-acceptance `weave artifact current set prd` call, the stored context drifts. The next `weave-capture` catches the drift here.
+This step is a defensive recovery for a missed lane-commit upstream: if a plan-mode-required skill (`weave-explore`, `weave-architect` — see [Plan Mode Guard](../../domain-wide/plan-mode-guard.md)) was invoked outside Plan Mode and skipped its `weave artifact current set <lane>` call, or if any other design-discussion skill failed to commit the lane, the stored context drifts. The next `weave-capture` catches the drift here.
 
 ## Behavioral Rules
 

@@ -547,37 +547,6 @@ be empty by design and you should not warn about it.
 
 ---
 
-# Plan Mode Protocol
-
-This skill sets local Weave session state for the prd artifact lane via:
-
-```bash
-weave artifact current set prd --json
-```
-
-Every supported agent harness (Claude, Cursor, Codex, OpenCode) blocks
-filesystem-write tool calls in Plan Mode, ask mode, and any read-only
-collaboration mode. Run the call only when the harness allows mutations.
-
-When the host harness blocks mutations (Plan Mode, ask mode, read-only):
-
-1. Do NOT attempt `weave artifact current set prd --json`.
-2. Declare the target lane at the top of the plan output: `Lane: prd`.
-3. End the plan output with this exact directive:
-
-   `On plan acceptance, the first action will be: weave artifact current set prd --json`
-
-When the host harness allows mutations (Agent Mode resumes after plan
-acceptance, or the skill was invoked directly in Agent Mode):
-
-1. The FIRST tool call MUST be:
-
-   `weave artifact current set prd --json`
-
-2. Then proceed with the rest of the skill's discovery and work.
-
----
-
 # Lifecycle Staleness Verification
 
 Before calling `weave change progress`, verify content-sync of every artifact

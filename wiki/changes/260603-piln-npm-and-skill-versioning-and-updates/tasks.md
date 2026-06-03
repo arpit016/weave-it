@@ -44,6 +44,7 @@ External issue publishing status: not used. This change tracks implementation lo
 | T9 | todo | AFK | `weave change clear-stale <lane>` + `stale_history` audit trail | T8 |
 | T10 | todo | AFK | Lifecycle Staleness Verification Protocol embedded in 5 SKILLs | T4, T8, T9 |
 | T11 | todo | AFK | README.md update covering full feature surface | T1, T2, T3, T4, T5, T6, T7, T8, T9, T10 |
+| T12 | done | AFK | Strengthen Plan Mode Guard in 2 plan-mode-required skills; remove Plan Mode Protocol from all 4 | T6 |
 
 ## T1: Skill version metadata + local-drift notice + `weave status` command
 
@@ -508,6 +509,60 @@ Concretely, add or expand:
 - Typecheck: not applicable
 - Manual/smoke check: have a teammate (or fresh agent session) read the README and successfully (a) install the package, (b) run `weave status`, (c) interpret a notice, (d) opt out via env var, (e) understand when an agent should pass `--no-invalidate`
 
+## T12: Strengthen Plan Mode Guard in 2 plan-mode-required skills; remove Plan Mode Protocol from all 4
+
+Status: done
+
+Type: AFK
+
+Blocked by: T6 (whose design this supersedes)
+
+User stories covered: US15, US16
+
+Origin: qa_finding
+
+Related finding: QF1
+
+### What to build
+
+Replace the two-phase `# Plan Mode Protocol` with a single canonical `# Plan Mode Guard` byte-identical across the four design-discussion skills. The guard refuses non-Plan-Mode entry and explicitly authorizes the `weave artifact current set <lane> --json` call as the lane-commit step in Plan Mode (because it writes local session state only, not a repo-tracked artifact).
+
+Concretely:
+
+- Replace `EXPECTED_PLAN_MODE_PROTOCOL` with `EXPECTED_PLAN_MODE_GUARD` in `src/lib/skill-template-checks.ts`. The guard text substitutes `<lane>` and `<skill-name>` per skill.
+- In each of `templates/skills/weave-{explore,architect,prd,clarify}/SKILL.md`:
+  - Replace the existing Plan Mode Guard (where present) with the canonical block; add the canonical block where missing.
+  - Delete the `# Plan Mode Protocol` section appended in T6.
+  - Delete the now-redundant "Setting local artifact context with `weave artifact current set <lane> --json` is allowed because ..." sentences in the body (the rationale is consolidated in the guard).
+- For `weave-clarify`, add the missing body call `weave artifact current set <target> --json` to its `# Resolve Context` section after change resolution (currently absent — a pre-existing gap surfaced by this fix).
+- Re-sync agent skills with `npm run dev -- agent reset all` so installed copies pick up the changes.
+- Update `tests/agent-skills.test.ts`:
+  - Remove `EXPECTED_PLAN_MODE_PROTOCOL` import and the byte-identity assertion that referenced it.
+  - Remove the non-presence assertion for `# Plan Mode Protocol`.
+  - Add a byte-identity assertion for `EXPECTED_PLAN_MODE_GUARD` across the four design-discussion skill templates and installed copies (with `<lane>` and `<skill-name>` substitutions normalised before comparison).
+  - Add a non-presence assertion for `# Plan Mode Guard` in the six non-design-discussion skills (`weave-new`, `weave-next`, `weave-issues`, `weave-knowledge`, `weave-propagate`, `weave-capture`).
+- Rename `wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-protocol.md` → `plan-mode-guard.md` and rewrite to describe the corrected unified Plan Mode Guard. Update the cross-reference in `wiki/knowledge/domains/change-workflow/index.md` and the capture feature doc.
+- Update `wiki/changes/<change-id>/knowledge-delta.md` Durable Behavior Changes section and re-run `weave change knowledge updated` with the renamed file.
+
+### Acceptance Criteria
+
+- [ ] `EXPECTED_PLAN_MODE_GUARD` exported from `src/lib/skill-template-checks.ts`; `EXPECTED_PLAN_MODE_PROTOCOL` removed.
+- [ ] All 4 design-discussion skill templates contain the byte-identical Plan Mode Guard (with documented `<lane>`/`<skill-name>` substitution).
+- [ ] All installed copies (`.claude/`, `.agents/`) of each design-discussion skill contain the byte-identical block.
+- [ ] No `templates/skills/<name>/SKILL.md` contains `# Plan Mode Protocol`.
+- [ ] `templates/skills/weave-{explore,architect,prd}/SKILL.md` no longer contain the redundant "Setting local artifact context ... is allowed" sentences in their bodies.
+- [ ] `templates/skills/weave-clarify/SKILL.md` body Resolve Context section calls `weave artifact current set <target> --json` after change resolution.
+- [ ] `tests/agent-skills.test.ts` byte-identity and non-presence assertions are aligned with the new constant.
+- [ ] `npm run typecheck` passes; `npm test` passes.
+- [ ] `wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-guard.md` documents the corrected behavior; `plan-mode-protocol.md` is removed.
+- [ ] `weave change knowledge updated` recorded with the renamed knowledge file.
+
+### Verification
+
+- Automated tests: `npm test -- agent-skills`
+- Typecheck: `npm run typecheck`
+- Manual/smoke check: invoke `/weave-prd` in Plan Mode; confirm the LLM commits the active lane via `weave artifact current set prd --json` after change resolution (no deferred-mutation directive). Invoke the same skill in Agent Mode; confirm it refuses with the guard's stop message.
+
 ## QA Findings
 
 Finding Status Legend:
@@ -523,8 +578,46 @@ Finding Status Legend:
 
 | ID | Status | Severity | Source | Related Task | Summary |
 | --- | --- | --- | --- | --- | --- |
+| QF1 | fixed | high | user | T6, T12 | Plan Mode Guard and the newly-added Plan Mode Protocol collide in design-discussion skills |
 
-None.
+## QF1: Plan Mode Guard and Plan Mode Protocol collide
+
+Status: accepted
+
+Severity: high
+
+Source: user
+
+Related Task: T6 (introduced the protocol), T12 (remediation)
+
+### Observed behavior
+
+Across the four design-discussion skills (`weave-explore`, `weave-architect`, `weave-prd`, `weave-clarify`):
+
+- `weave-explore` and `weave-architect` already carry a `# Plan Mode Guard` section at the top that requires Plan Mode and rejects non-Plan-Mode entry. `weave-prd` and `weave-clarify` do not carry the guard at all.
+- The skill bodies (where present) call `weave artifact current set <lane> --json` as part of the discovery step, with an accompanying rationale sentence stating "Setting local artifact context ... is allowed because it updates local session state, not repo-tracked change artifacts."
+- T6 added a `# Plan Mode Protocol` section at the bottom of every design-discussion skill instructing the agent NOT to call `weave artifact current set <lane>` while in Plan Mode and instead defer it until Agent Mode (Phase 2).
+
+The Protocol's "Do NOT attempt ... in plan mode" directive directly contradicts the body's "do this in discovery" instruction and the body's "allowed in plan mode" rationale. The Protocol's Phase 2 ("invoked directly in Agent Mode" branch) also contradicts the Guard's "stop immediately if not in Plan Mode" rule on `weave-explore` and `weave-architect`. The Guard is missing entirely from `weave-prd` and `weave-clarify`, undermining the cross-agent consistency promise.
+
+### Expected behavior
+
+Design-discussion skills MUST refuse non-Plan-Mode entry. When run in Plan Mode they MUST commit the active artifact lane to local Weave session state via `weave artifact current set <lane> --json`. Local session state writes are not repo-tracked artifact writes and are allowed in Plan Mode.
+
+### Reproduction
+
+Read `templates/skills/weave-explore/SKILL.md`: line 13 (Guard), line 36 (body set call), line 41 ("allowed" rationale), line 348 (Protocol's "Do NOT attempt"). All four blocks are simultaneously present and contradict each other.
+
+### Artifact impact
+
+- All 4 design-discussion skill templates (`templates/skills/weave-{explore,architect,prd,clarify}/SKILL.md`) and their installed copies.
+- `src/lib/skill-template-checks.ts` (`EXPECTED_PLAN_MODE_PROTOCOL` constant).
+- `tests/agent-skills.test.ts` (byte-identity assertions on the protocol; non-presence assertions).
+- `wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-protocol.md` (knowledge doc).
+
+### Related tasks
+
+T6 introduced the bad design; T12 implements the corrected unified Plan Mode Guard.
 
 ## Refactors
 

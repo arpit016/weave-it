@@ -18,15 +18,21 @@ This skill must run in Plan Mode.
 
 If the current environment exposes collaboration mode and it is not Plan Mode, stop immediately and say:
 
-```text
-This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-architect again.
-```
+`This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-architect again.`
 
-Do not inspect deeply, ask architecture questions, update artifacts, or continue technical design before this guard passes.
+Do not inspect deeply, ask discovery questions, update artifacts, or continue work before this guard passes.
 
 Static Weave skill content cannot automatically switch collaboration mode. The host, user, or developer layer must switch modes before this skill continues.
 
-In Plan Mode, do not write repo-tracked artifacts directly. Produce the architecture plan, technical decisions, questions, or proposed artifact changes needed for the user to approve. Actual `architecture.md` writes should happen only after the user exits Plan Mode and asks to implement the plan.
+In Plan Mode, this skill commits the active artifact lane to local Weave session state via:
+
+```bash
+weave artifact current set architecture --json
+```
+
+This writes local Weave session state only. It does not write repo-tracked artifacts and IS allowed in Plan Mode. Call it after resolving the active Weave change and before any other discovery work.
+
+Do not write repo-tracked artifacts directly. Produce the plan, decisions, questions, or proposed artifact changes needed for the user to approve. Actual artifact writes happen only after the user exits Plan Mode and asks to implement the plan.
 
 ---
 
@@ -105,8 +111,6 @@ After resolving the active change, set local artifact context:
 ```bash
 weave artifact current set architecture --json
 ```
-
-This writes local Weave session state only. It does not write repo-tracked artifacts and is allowed before technical discussion begins.
 
 Identify the relevant change folder for each relevant workspace folder:
 
@@ -351,7 +355,6 @@ wiki/changes/<change-id>/architecture.md
 Use Markdown.
 
 Do not write any other files.
-Setting local artifact context with `weave artifact current set architecture --json` is allowed because it updates local session state, not repo-tracked change artifacts.
 
 ---
 
@@ -591,37 +594,6 @@ any package manager command yourself; let the user run it.
 
 If `WEAVE_NO_NOTICES=1` is set in the environment, the notices array will
 be empty by design and you should not warn about it.
-
----
-
-# Plan Mode Protocol
-
-This skill sets local Weave session state for the architecture artifact lane via:
-
-```bash
-weave artifact current set architecture --json
-```
-
-Every supported agent harness (Claude, Cursor, Codex, OpenCode) blocks
-filesystem-write tool calls in Plan Mode, ask mode, and any read-only
-collaboration mode. Run the call only when the harness allows mutations.
-
-When the host harness blocks mutations (Plan Mode, ask mode, read-only):
-
-1. Do NOT attempt `weave artifact current set architecture --json`.
-2. Declare the target lane at the top of the plan output: `Lane: architecture`.
-3. End the plan output with this exact directive:
-
-   `On plan acceptance, the first action will be: weave artifact current set architecture --json`
-
-When the host harness allows mutations (Agent Mode resumes after plan
-acceptance, or the skill was invoked directly in Agent Mode):
-
-1. The FIRST tool call MUST be:
-
-   `weave artifact current set architecture --json`
-
-2. Then proceed with the rest of the skill's discovery and work.
 
 ---
 

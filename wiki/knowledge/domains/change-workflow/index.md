@@ -12,7 +12,7 @@ A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture
 ## Domain-Wide Behavior
 
 - [lifecycle-progress-and-staleness](domain-wide/lifecycle-progress-and-staleness.md): `weave change progress` semantics, the default pessimistic stale propagation, CLI levers (`--no-invalidate`, `--invalidate`), explicit `weave change clear-stale`, the `stale_history` audit trail, and the agent-side verification protocol embedded in five skills.
-- [plan-mode-protocol](domain-wide/plan-mode-protocol.md): the byte-identical two-phase protocol that lets design-discussion skills (`weave-explore`, `weave-prd`, `weave-architect`, `weave-clarify`) reliably set artifact context across every supported agent harness, including plan/ask/read-only modes.
+- [plan-mode-guard](domain-wide/plan-mode-guard.md): the byte-identical Plan Mode Guard embedded in the two plan-mode-required design-discussion skills (`weave-explore`, `weave-architect`). Refuses non-Plan-Mode entry and explicitly authorizes `weave artifact current set <lane>` as a Plan-Mode-safe lane-commit (it writes local session state only). Other design-discussion skills (`weave-prd`, `weave-clarify`) run in Agent Mode and do not carry the guard.
 
 ## Glossary Cross-References
 
