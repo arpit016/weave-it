@@ -6,7 +6,7 @@ type: feat
 stage: issues
 branch: change/260602-of9s-add-ability-to-bug-fix
 created_at: 2026-06-02T13:06:26.980Z
-updated_at: 2026-06-03T09:45:13.327Z
+updated_at: 2026-06-03T10:01:52.166Z
 artifacts:
   exploration:
     sources:
@@ -29,3 +29,14 @@ artifacts:
       - prd
       - codebase
     updated_at: 2026-06-03T09:45:13.327Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-03T10:01:52.166Z
+  domains:
+    - change-workflow
+  shared: []
+  files:
+    - wiki/knowledge/domains/change-workflow/features/weave-issues/behavior.md
+  delta: wiki/changes/260602-of9s-add-ability-to-bug-fix/knowledge-delta.md
+  reason: Recorded current-state behavior for weave-issues with categorized
+    tasks.md sections (T#/QF#/R#) under the new change-workflow domain.
