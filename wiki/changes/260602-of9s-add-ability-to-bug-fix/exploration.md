@@ -3,7 +3,7 @@ artifact: exploration
 status: draft
 owner: product
 created_at: 2026-06-02T13:06:26.980Z
-updated_at: 2026-06-02T15:21:08.000Z
+updated_at: 2026-06-03T08:29:55.000Z
 reviewed_at: null
 approved_at: null
 approved_by: null
@@ -36,7 +36,6 @@ For `type: fix`, Weave should not create a scaffold-only `exploration.md` by def
 ## Open Questions
 
 - Should `stage: started` apply only to `fix`, or also to `refactor`, `docs`, `test`, `ci`, and `chore`?
-- What exact sections should the `tasks.md` `QA Findings` area use?
 - What exact sections should fix-oriented `architecture.md` use?
 - Should documentation include separate examples for CS-reported, PM-reported, and QA-reported old bugs?
 
@@ -47,6 +46,28 @@ For `type: fix`, Weave should not create a scaffold-only `exploration.md` by def
 - `tasks.md` should include a dedicated `QA Findings` section with stable `QF#` IDs.
 - Implementation tasks remain normal `T#` tasks and can link back to related `QF#` findings.
 - QA findings should be append-first. Agents should not casually rewrite earlier tasks, checked acceptance criteria, or QA finding details.
+
+### Categorized `tasks.md` Sections For Discovered Work
+
+- Within an active change, `tasks.md` section selection is driven by the category of each discovered work item, not by the change's declared `status.yml.type`. `T#` implementation tasks remain the backbone.
+- For v1, `tasks.md` supports two dedicated observation sections: `QA Findings` (`QF#`) and `Refactors` (`R#`). All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task, optionally tagged.
+- Refactors are modeled observation-style, mirroring QA findings: an `R#` entry records why/what and links to the `T#` task(s) that carry it out, and can be logged-but-deferred without a task yet.
+- `tasks.md` uses a flat sibling layout: `Active Task Index` (+ `T#` details), then `QA Findings`, then `Refactors`. No umbrella heading and no combined top index table.
+- No special refactor routing or escalation guidance in v1; `weave-issues` records the `R#` and the user decides whether to escalate or split it out into its own change.
+- Refactor status vocabulary is distinct from task and finding statuses: `proposed`, `accepted`, `deferred`, `done`, `out_of_scope`, `invalid`.
+- `T#` tasks gain optional `Origin:` (`qa_finding` | `refactor`) and `Related finding:` (`QF#`/`R#`) fields so backbone tasks link back to their source observation.
+- Append-first, preview-before-write, and stable-ID reconciliation rules apply to `QF#` and `R#` the same way they apply to `T#`.
+
+### Finalized `QA Findings` Section Shape
+
+- `QA Findings` finding statuses: `new`, `accepted`, `fixed`, `verified`, `duplicate`, `not_reproducible`, `out_of_scope`, `invalid`.
+- `QA Findings` index columns: ID, Status, Severity, Source, Related Task, Summary.
+- `QF#` detail fields: Observed behavior, Expected behavior, Reproduction, Severity, Source, Artifact impact, Related tasks.
+
+### `Refactors` Section Shape
+
+- `Refactors` index columns: ID, Status, Scope, Related Tasks, Summary.
+- `R#` detail fields: Motivation, Scope / affected modules, Behavior preservation, Risk / blast radius, Regression verification, Related tasks.
 - If an active QA bug changes product behavior, scope, requirements, or acceptance criteria, the user should run `weave-clarify prd` or `weave-explore`.
 - If an active QA bug changes technical approach, affected systems, rollout, risk, testing, or architecture, the user should run `weave-clarify architecture` or `weave-architect`.
 - Bugs reported after time has passed should become new standalone changes with `type: fix`.
@@ -71,6 +92,14 @@ QA finds a bug while a feature is still being developed.
 The user asks `weave-issues` to add the bug as a QA finding. `tasks.md` records a `QF#` entry with observed behavior, expected behavior, reproduction, severity, source, artifact impact, and related task links. If implementation work is needed, `weave-issues` creates or links a normal `T#` implementation task.
 
 The bug does not create a new change by default.
+
+### Scenario: Refactor Discovered During An In-Flight Change
+
+While implementing a feature, an engineer realizes a module needs restructuring before the feature can land safely.
+
+The user asks `weave-issues` to record it. `tasks.md` gets an `R#` entry in the `Refactors` section capturing motivation, scope, behavior-preservation requirement, risk, and regression verification. If work is done now, a normal `T#` task is created and links back to the `R#`. If it is deferred, the `R#` is logged with status `deferred` and no task yet.
+
+The refactor stays distinct from planned `T#` feature tasks instead of being silently blended in, and the change type stays whatever it already was.
 
 ### Scenario: Active QA Bug Changes Product Behavior
 

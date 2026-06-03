@@ -360,7 +360,7 @@ weave-prd        generate or revise a PRD from the active exploration
 weave-architect  generate or revise engineering architecture from the active PRD
 weave-next       answer what to do next for the active change
 weave-clarify    clarify an existing exploration, PRD, or architecture artifact
-weave-issues     create or reconcile local tasks.md implementation tasks
+weave-issues     create or reconcile local tasks.md implementation tasks (T#), QA findings (QF#), and refactors (R#)
 weave-knowledge  update current-state knowledge specs for an active change
 weave-propagate  copy an existing change exploration to another repo
 ```

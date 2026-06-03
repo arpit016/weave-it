@@ -3,18 +3,29 @@ id: 260602-of9s-add-ability-to-bug-fix
 slug: add-ability-to-bug-fix
 title: Add ability to bug fix
 type: feat
-stage: prd
+stage: issues
 branch: change/260602-of9s-add-ability-to-bug-fix
 created_at: 2026-06-02T13:06:26.980Z
-updated_at: 2026-06-02T15:37:45.076Z
+updated_at: 2026-06-03T09:45:13.327Z
 artifacts:
   exploration:
     sources:
       - discussion
       - sessions
-    updated_at: 2026-06-02T15:22:35.601Z
+    updated_at: 2026-06-03T08:34:29.964Z
   prd:
     sources:
       - exploration
       - sessions
-    updated_at: 2026-06-02T15:37:45.076Z
+    updated_at: 2026-06-03T08:39:08.137Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-06-03T09:19:23.523Z
+  issues:
+    sources:
+      - architecture
+      - prd
+      - codebase
+    updated_at: 2026-06-03T09:45:13.327Z

@@ -48,7 +48,17 @@ If a usable automated test base exists, code-affecting tasks should include rele
 
 Do not require strict test-first TDD wording. Preserve vertical-slice completeness by making each task verifiable in the way that fits the repo.
 
-### 3. Draft Vertical-Slice Tasks
+### 3. Classify Discovered Work
+
+Within an active change, `tasks.md` section selection is driven by the category of each discovered work item, not by the change's declared `status.yml.type`. `T#` implementation tasks remain the backbone. Classify each work item before drafting it:
+
+- A defect observed during the change becomes a `QF#` entry in the `## QA Findings` section.
+- Structural cleanup with no observable behavior change becomes an `R#` entry in the `## Refactors` section.
+- Everything else (planned work, chore, perf, docs, tech-debt, etc.) becomes a `T#` task, optionally tagged via `Origin`.
+
+`QF#` and `R#` are observation-style records: they capture why and what, and link to the `T#` task(s) that carry the work out. An `R#` may be logged-but-deferred without a `T#` yet. `weave-issues` does not impose special refactor routing or escalation; the user decides whether to escalate a refactor or split it into its own change.
+
+### 4. Draft Vertical-Slice Tasks
 
 Break the plan into **tracer bullet** tasks. Each task is a thin vertical slice that cuts through all relevant integration layers end-to-end, not a horizontal slice of one layer.
 
@@ -64,7 +74,7 @@ Slices may be `HITL` or `AFK`. HITL slices require human interaction, such as an
 
 Generated tasks start as `todo` unless a real blocker is already known. Do not assign `not_tested` during task generation; implementers apply `not_tested` later if implementation appears complete but automated verification could not be completed.
 
-### 4. Quiz The User
+### 5. Quiz The User
 
 Present the proposed breakdown as a numbered list before writing `tasks.md`. For each slice, show:
 
@@ -82,7 +92,7 @@ Ask the user:
 
 Iterate until the user approves the breakdown.
 
-### 5. Write Or Reconcile Local `tasks.md`
+### 6. Write Or Reconcile Local `tasks.md`
 
 After the user approves, create or reconcile:
 
@@ -106,6 +116,8 @@ If `tasks.md` already exists:
 - remove invalid tasks from the active task index
 - list invalid tasks in a separate `## Invalid Tasks` section with reasons
 - write only after explicit user approval
+
+Append-first, preview-before-write, and stable-ID reconciliation apply to `QF#` and `R#` entries the same way they apply to `T#` tasks. `T#`, `QF#`, and `R#` use independent ID namespaces; do not reuse invalidated IDs across any of them. A deferred `R#` may exist without a `T#` task.
 
 <tasks-template>
 ---
@@ -157,6 +169,10 @@ Blocked by: None - can start immediately
 
 User stories covered: <ids or None>
 
+Origin: <none | qa_finding | refactor>
+
+Related finding: <none | QF# | R#>
+
 ### What to build
 
 Describe the end-to-end behavior for this vertical slice. Avoid layer-by-layer implementation unless the source material requires it.
@@ -172,6 +188,40 @@ Describe the end-to-end behavior for this vertical slice. Avoid layer-by-layer i
 - Automated tests: <command and expectation, or "not available; no usable test base found">
 - Manual/smoke check: <expected check when relevant>
 
+## QA Findings
+
+Finding Status Legend:
+
+- `new`: reported but not yet triaged
+- `accepted`: triaged and accepted as a real defect
+- `fixed`: implementation believed to address the defect
+- `verified`: fix confirmed by re-test
+- `duplicate`: already covered by another finding
+- `not_reproducible`: could not be reproduced
+- `out_of_scope`: real but not part of this change
+- `invalid`: no longer applies after source context changed
+
+| ID | Status | Severity | Source | Related Task | Summary |
+| --- | --- | --- | --- | --- | --- |
+
+None.
+
+## Refactors
+
+Refactor Status Legend:
+
+- `proposed`: identified but not yet accepted
+- `accepted`: agreed to do as part of this change
+- `deferred`: logged for later; no `T#` yet
+- `done`: completed and verified behavior-preserving
+- `out_of_scope`: real but not part of this change
+- `invalid`: no longer applies after source context changed
+
+| ID | Status | Scope | Related Tasks | Summary |
+| --- | --- | --- | --- | --- |
+
+None.
+
 ## Invalid Tasks
 
 None.
@@ -181,7 +231,7 @@ None.
 Not run yet.
 </tasks-template>
 
-### 6. Record Lifecycle Progress
+### 7. Record Lifecycle Progress
 
 After local tasks are successfully created or reconciled, run lifecycle progress for the `issues` lane with the existing source IDs that actually informed `tasks.md`.
 

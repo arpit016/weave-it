@@ -3,7 +3,7 @@ artifact: prd
 status: draft
 owner: product
 created_at: 2026-06-02T15:30:00.000Z
-updated_at: 2026-06-02T15:30:00.000Z
+updated_at: 2026-06-03T08:38:58.000Z
 reviewed_at: null
 approved_at: null
 approved_by: null
@@ -87,6 +87,38 @@ For active QA bugs:
 - If the bug changes product behavior, users should update the PRD or exploration.
 - If the bug changes technical design, users should update architecture.
 
+### Categorized `tasks.md` Sections For Discovered Work
+
+Within an active change, `weave-issues` should record discovered in-flight work in the section that matches the kind of work, not blend everything into planned implementation tasks. Section selection is driven by the category of each work item, not by the change's declared `status.yml.type`. `T#` implementation tasks remain the backbone.
+
+For v1, `tasks.md` supports two dedicated observation sections in addition to the task index:
+
+- `QA Findings` with stable `QF#` IDs for defects observed during the change.
+- `Refactors` with stable `R#` IDs for structural cleanup that must not change observable behavior.
+
+All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task, optionally tagged.
+
+Behavior expectations:
+
+- Refactors are observation-style, mirroring QA findings: an `R#` entry records why and what, links to the `T#` task(s) that carry it out, and can be logged-but-deferred without a task yet.
+- `tasks.md` uses a flat sibling layout: `Active Task Index` (and `T#` details), then `QA Findings`, then `Refactors`. No umbrella heading.
+- `weave-issues` classifies intake: a defect becomes a `QF#`, structural cleanup with no behavior change becomes an `R#`, and anything else becomes a `T#` task.
+- `weave-issues` records the `R#` and does not impose special refactor routing or escalation. The user decides whether to escalate a refactor or split it into its own change.
+- Append-first, preview-before-write, and stable-ID reconciliation rules apply to `QF#` and `R#` exactly as they apply to `T#`.
+- `T#` tasks may carry optional `Origin` (`qa_finding` or `refactor`) and `Related finding` (`QF#`/`R#`) fields so backbone tasks link to their source observation.
+
+Finalized `QA Findings` shape:
+
+- Finding statuses: `new`, `accepted`, `fixed`, `verified`, `duplicate`, `not_reproducible`, `out_of_scope`, `invalid`.
+- Index columns: ID, Status, Severity, Source, Related Task, Summary.
+- `QF#` detail fields: Observed behavior, Expected behavior, Reproduction, Severity, Source, Artifact impact, Related tasks.
+
+`Refactors` shape:
+
+- Refactor statuses: `proposed`, `accepted`, `deferred`, `done`, `out_of_scope`, `invalid`.
+- Index columns: ID, Status, Scope, Related Tasks, Summary.
+- `R#` detail fields: Motivation, Scope / affected modules, Behavior preservation, Risk / blast radius, Regression verification, Related tasks.
+
 ## User Workflows
 
 ### Workflow: QA finds a bug in an active change
@@ -97,6 +129,14 @@ For active QA bugs:
 4. If needed, system creates or links a normal implementation task.
 5. If the bug changes expected behavior, user runs `weave-clarify prd` or `weave-explore`.
 6. If the bug changes technical approach, user runs `weave-clarify architecture` or `weave-architect`.
+
+### Workflow: A refactor is discovered during an active change
+
+1. While working an active change, the user identifies structural cleanup that does not change observable behavior.
+2. User runs `weave-issues` with the refactor context.
+3. System records an `R#` entry in the `Refactors` section of `tasks.md` with motivation, scope, behavior-preservation requirement, risk, and regression verification.
+4. If the refactor is done now, the system creates or links a normal `T#` task that references the `R#`. If it is deferred, the `R#` is logged with status `deferred` and no task yet.
+5. The user decides whether to escalate or split a large refactor into its own change; `weave-issues` does not force that routing.
 
 ### Workflow: Support, PM, or QA reports a bug after release
 
@@ -123,11 +163,19 @@ For active QA bugs:
 5. As a user, I want `weave-next` to route me to the right skill for fix work, so that I do not have to guess the workflow.
 6. As a user, I want fix changes to avoid scaffold-only exploration by default, so that bug work starts with the artifact that is actually needed.
 7. As a user, I want durable behavior changes to be reflected in current knowledge after a fix, so that future work uses current truth.
+8. As an engineer, I want a refactor discovered mid-change recorded as a distinct `R#` entry, so that it stays traceable and is not blended into planned feature tasks.
+9. As an engineer, I want to log a refactor now and defer it, so that I can capture the need without committing to immediate work.
 
 ## Functional Requirements
 
 - The system should distinguish active QA bugs from post-release or old-context bugs.
 - The system should allow active QA bugs to be recorded in `tasks.md` as QA findings.
+- The system should select `tasks.md` sections by the category of each discovered work item, not by the change's declared `type`, keeping `T#` as the implementation backbone.
+- The system should support a dedicated `QA Findings` section with stable `QF#` IDs and a dedicated `Refactors` section with stable `R#` IDs, and keep all other in-flight work as optionally tagged `T#` tasks.
+- The system should model refactors as observation-style `R#` entries that link to `T#` tasks and can be logged-but-deferred without a task.
+- The system should apply append-first, preview-before-write, and stable-ID reconciliation rules to `QF#` and `R#` the same way they apply to `T#`.
+- The system should allow `T#` tasks to carry optional `Origin` and `Related finding` links to their source `QF#`/`R#`.
+- The system should not impose special refactor routing or escalation; the user decides whether to escalate or split out a refactor.
 - The system should allow standalone non-feature changes to start without `exploration.md`.
 - The system should set `status.yml.stage` to `started` for non-feature changes that have not reached a durable artifact lane.
 - The system should not treat `started` as an artifact lane.
@@ -194,6 +242,12 @@ Status output should make `started` visible so users understand that a fix chang
 
 - [ ] Active QA bugs can be recorded in `tasks.md` as QA findings.
 - [ ] Active QA bugs can link to normal implementation tasks.
+- [ ] `tasks.md` section selection is driven by work-item category, not the change's declared `type`, with `T#` as the backbone.
+- [ ] `tasks.md` supports a `QA Findings` (`QF#`) section and a `Refactors` (`R#`) section as flat siblings of the task index.
+- [ ] The `QA Findings` section uses the finalized finding statuses, index columns, and `QF#` detail fields.
+- [ ] The `Refactors` section uses refactor statuses, index columns, and `R#` detail fields, and supports logged-but-deferred entries.
+- [ ] Refactors link to `T#` tasks, and `T#` tasks can reference their source `QF#`/`R#` via `Origin`/`Related finding`.
+- [ ] `QF#` and `R#` follow append-first, preview-before-write, and stable-ID reconciliation rules.
 - [ ] Post-release bugs can start as standalone non-feature changes.
 - [ ] Non-feature changes do not scaffold `exploration.md` by default.
 - [ ] Non-feature changes start at `stage: started`.
@@ -229,6 +283,7 @@ Success can be judged qualitatively by:
 
 - 2026-06-02: Initial PRD generated from `exploration.md` and session captures.
 - 2026-06-02: Clarified that `stage: started` applies to all non-feature change types and that `weave-architect` should use a fix-oriented RCA template for `type: fix`.
+- 2026-06-03: Generalized active-change `tasks.md` so `weave-issues` records discovered work by category. Added the `Refactors` (`R#`) section and finalized the `QA Findings` (`QF#`) shape (resolving the prior open question), with category-driven sections, flat layout, and no special refactor routing.
 
 ## Assumptions
 
@@ -240,7 +295,6 @@ Success can be judged qualitatively by:
 
 ## Open Questions
 
-- What exact shape should the `tasks.md` QA Findings section take?
 - What exact shape should fix-oriented `architecture.md` take?
 - Should documentation include separate examples for CS-reported, PM-reported, and QA-reported old bugs?
 
