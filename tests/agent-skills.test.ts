@@ -248,6 +248,7 @@ describe("agent skills", () => {
 
   it("ships weave-knowledge as a current-state knowledge update skill", async () => {
     const skill = await readDefaultSkill("weave-knowledge");
+    const template = await readFile(path.join(process.cwd(), "templates", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8");
 
     expect(skill.name).toBe("weave-knowledge");
     expect(skill.description).toContain("Update current-state Weave knowledge specs");
@@ -257,12 +258,15 @@ describe("agent skills", () => {
     expect(skill.content).toContain("wiki/knowledge/domains/**/features/**/behavior.md");
     expect(skill.content).toContain("wiki/knowledge/domains/**/domain-wide/**");
     expect(skill.content).toContain("wiki/knowledge/shared/**/behavior.md");
-    expect(skill.content).toContain("## Purpose");
-    expect(skill.content).toContain("## Current Behavior");
-    expect(skill.content).toContain("## Source Anchors");
-    expect(skill.content).toContain("## Change History");
-    expect(skill.content).toContain("decision-tables.md");
-    expect(skill.content).toContain("source-map.md");
+    expect(skill.content).toContain("Use the structures defined in `knowledge-templates.md`");
+    expect(skill.content).toContain("<agent-skills-dir>/weave-knowledge/knowledge-templates.md");
+    expect(skill.content).not.toContain("## Purpose");
+    expect(template).toContain("## Purpose");
+    expect(template).toContain("## Current Behavior");
+    expect(template).toContain("## Source Anchors");
+    expect(template).toContain("## Change History");
+    expect(template).toContain("decision-tables.md");
+    expect(template).toContain("source-map.md");
     expect(skill.content).toContain("No active Weave change found");
     expect(skill.content).toContain("ask the user to choose before writing");
     expect(skill.content).toContain("weave change knowledge updated");
@@ -282,6 +286,10 @@ describe("agent skills", () => {
     const prdTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-prd", "prd-template.md"), "utf8");
     await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-prd", "prd-template.md"), "utf8")).resolves.toBe(prdTemplate);
     await expect(readFile(path.join(process.cwd(), ".claude", "skills", "weave-prd", "prd-template.md"), "utf8")).resolves.toBe(prdTemplate);
+
+    const knowledgeTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8");
+    await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8")).resolves.toBe(knowledgeTemplate);
+    await expect(readFile(path.join(process.cwd(), ".claude", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8")).resolves.toBe(knowledgeTemplate);
   });
 
   it("ships every bundled SKILL.md template with a last_changed_in frontmatter field", async () => {
@@ -784,6 +792,7 @@ describe("agent skills", () => {
     const issuesSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"), "utf8");
     const nextSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-next", "SKILL.md"), "utf8");
     const knowledgeSkill = await readFile(path.join(cwd, ".agents", "skills", "weave-knowledge", "SKILL.md"), "utf8");
+    const knowledgeTemplate = await readFile(path.join(cwd, ".agents", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8");
     const exploreCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-explore.md"), "utf8");
     const prdCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-prd.md"), "utf8");
     const architectCommand = await readFile(path.join(cwd, ".opencode", "commands", "weave-architect.md"), "utf8");
@@ -807,6 +816,7 @@ describe("agent skills", () => {
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-issues", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-next", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "skill", skill: "weave-knowledge", status: "installed" }),
+        expect.objectContaining({ agent: "opencode", kind: "resource", skill: "weave-knowledge/knowledge-templates.md", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-explore", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-prd", status: "installed" }),
         expect.objectContaining({ agent: "opencode", kind: "command", skill: "weave-architect", status: "installed" }),
@@ -864,6 +874,7 @@ describe("agent skills", () => {
     expect(nextSkill).toContain("name: weave-next");
     expect(knowledgeSkill).toContain("name: weave-knowledge");
     expect(knowledgeSkill).toContain("weave change knowledge updated");
+    expect(knowledgeTemplate).toContain("# <Feature Or Shared Behavior>");
     expect(exploreCommand).toContain("Load and follow the `weave-explore` skill.");
     expect(prdCommand).toContain("Load and follow the `weave-prd` skill.");
     expect(prdCommand).toContain("Context: $ARGUMENTS");
@@ -917,6 +928,9 @@ describe("agent skills", () => {
           resources: {
             "weave-prd/prd-template.md": {
               path: ".agents/skills/weave-prd/prd-template.md",
+            },
+            "weave-knowledge/knowledge-templates.md": {
+              path: ".agents/skills/weave-knowledge/knowledge-templates.md",
             },
           },
           commands: {
