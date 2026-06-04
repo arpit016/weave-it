@@ -8,6 +8,7 @@ import { findGitRoot, getGitRemote, runGitRequired } from "./git.js";
 import { slugify, titleFromSlug } from "./ids.js";
 import { loadCurrentSession, saveCurrentSession, createCurrentSession, defaultSessionPath } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
+import { registerRepoIntoWorkspace, workspaceGitignoreBaseTemplate } from "./workspace-repos.js";
 
 export type InitStatus = "initialized" | "cancelled";
 export type InitMode = "repo" | "workspace";
@@ -158,7 +159,6 @@ async function initWorkspaceFromGitRepo(
         ...(remote ? { remote } : {}),
       },
     },
-    ignoredRepoDirectories: [repoDirectoryName],
   });
 
   const folder = workspaceFolder(resolvedWorkspacePath, workspaceName, options.folderId);
@@ -218,7 +218,6 @@ async function initWorkspaceWithoutGitRepo(
     workspacePath,
     workspaceName,
     repos: {},
-    ignoredRepoDirectories: [],
   });
 
   const folder = workspaceFolder(await realpath(workspacePath), workspaceName, options.folderId);
@@ -372,7 +371,6 @@ async function scaffoldWorkspace(input: {
   workspacePath: string;
   workspaceName: string;
   repos: Record<string, { path: string; kind: string; remote?: string }>;
-  ignoredRepoDirectories: string[];
 }): Promise<string[]> {
   await runGitRequired(["init"], input.workspacePath);
   const folder = workspaceFolder(input.workspacePath, input.workspaceName);
@@ -385,7 +383,7 @@ async function scaffoldWorkspace(input: {
       workspaceMetadataTemplate({
         mode: "workspace",
         name: input.workspaceName,
-        repos: input.repos,
+        repos: {},
       }),
     )
   ) {
@@ -395,10 +393,20 @@ async function scaffoldWorkspace(input: {
   if (
     await writeFileIfMissing(
       path.join(input.workspacePath, ".gitignore"),
-      gitignoreTemplate(input.ignoredRepoDirectories),
+      workspaceGitignoreBaseTemplate(),
     )
   ) {
     created.push(".gitignore");
+  }
+
+  for (const [id, repo] of Object.entries(input.repos)) {
+    await registerRepoIntoWorkspace({
+      workspacePath: input.workspacePath,
+      id,
+      relativePath: repo.path,
+      kind: repo.kind,
+      remote: repo.remote,
+    });
   }
 
   return created;
@@ -451,12 +459,6 @@ function workspaceMetadataTemplate(input: {
     name: input.name,
     repos: input.repos,
   });
-}
-
-function gitignoreTemplate(repoDirectories: string[]): string {
-  const repoEntries = repoDirectories.map((directory) => `/${directory}/`);
-  const entries = [".DS_Store", "node_modules/", ...repoEntries];
-  return `${entries.join("\n")}\n`;
 }
 
 function cancelledWorkspace(folderPath: string, sessionPath: string): InitWorkspaceResult {

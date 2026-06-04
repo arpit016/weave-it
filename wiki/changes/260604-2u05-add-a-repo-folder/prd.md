@@ -144,21 +144,31 @@ A non-git folder added in workspace mode is treated identically to a git folder,
 
 If the path or URL resolves to a folder already registered in `workspace.yml.repos`, the command exits successfully with a clear "already registered" message and modifies nothing.
 
-### `weave workspace` repo mode (unchanged)
+### `weave workspace` mode dispatch (revised)
 
-- Reads `session.folders` from `~/.cache/weave/current-session.yml` and displays each folder's id, path, and `kind`.
-- Identical to today's behavior for any session folder whose mode resolves to repo (no `.weave/workspace.yml`, or `mode: repo`).
+`weave workspace` dispatches on the **current working directory**, not on `session.folders`. It walks up from `cwd` looking for `.weave/workspace.yml` via the shared `findWorkspaceMode` helper, the same helper `weave add` uses.
 
-### `weave workspace` workspace mode (new behavior)
+### `weave workspace` workspace mode
 
-For each entry in `session.folders` whose mode resolves to workspace (`.weave/workspace.yml` exists at that folder and has `mode: workspace`):
+Triggered when `findWorkspaceMode(cwd)` returns `mode: workspace`:
 
-- Read the workspace's `.weave/workspace.yml`, parse the `repos` field.
-- Include the parsed repos in the output. The text output indents a `Repos:` block under the workspace folder line, listing each `repos.<id>` with its id, relative `path`, `kind`, and `remote` if present. The JSON output gains an additive `repos` field on the workspace folder entry. The schema of each repos entry is `{ id, path, kind, remote? }`.
-- Existing JSON fields on the workspace folder entry are unchanged. The new `repos` field is purely additive, so existing consumers that ignore unknown fields keep working.
-- If `.weave/workspace.yml` is missing or unparseable for a folder that session marks `kind: workspace`, degrade gracefully: show only the folder line, no Repos block, no warning, no crash.
+- Reads `.weave/workspace.yml` directly from the resolved workspace root.
+- Emits a **workspace view**: workspace `name`, root `path`, and the list of repos from `workspace.yml.repos`.
+- Does NOT enumerate `session.folders`. The workspace itself is the source of truth.
+- Does NOT require an active session. A teammate cloning the workspace fresh can run `weave workspace` immediately, before ever running `weave init`. If a session exists it is reported in the `session` JSON field; if not, `session` is `null`.
+- JSON shape: `{ session: ... | null, workspace: { name, path, mode: "workspace" }, repos: [...], folders: [] }`. The `repos` entries have shape `{ id, path, kind, remote? }`.
+- If `.weave/workspace.yml` is malformed, `findWorkspaceMode` returns no mode and the command falls through to repo mode (graceful degradation, no warning, no crash).
 
-The mixed case (a session with both repo-mode folders and workspace-mode folders) is handled per folder using the shared mode-detection rule.
+### `weave workspace` repo mode
+
+Triggered when `findWorkspaceMode(cwd)` returns no result, `mode: repo`, or the yml is malformed:
+
+- Requires an active session. If none exists, returns `status: no_session`, exit 1, with today's "No current Weave session found." message.
+- Reads `~/.cache/weave/current-session.yml` and lists `session.folders` with `id`, `path`, `kind`, `wiki`, `metadata`. Byte-identical to pre-change repo-mode output.
+- Does NOT crawl into each session folder's `workspace.yml`. Users who want the workspace view should `cd` into the workspace.
+- JSON shape: `{ session: ..., workspace: null, repos: [], folders: [...] }`.
+
+The mixed-mode-session question is dissolved by this dispatch model: only one mode is active at a time, determined by where the user is standing.
 
 ## User Workflows
 
@@ -220,18 +230,18 @@ The mixed case (a session with both repo-mode folders and workspace-mode folders
 ### Workflow: User runs `weave workspace` to verify the workspace state
 
 1. User has run `weave add billing`, `weave add audit`, and `weave add shared-notes` from inside `peoplebox-platform/`.
-2. User runs `weave workspace`.
-3. Weave loads the local session and finds the `peoplebox-platform` folder (kind: workspace).
-4. Weave reads `peoplebox-platform/.weave/workspace.yml` and parses `repos`.
-5. Weave prints the workspace folder line, then indents a `Repos:` block listing `billing`, `audit`, and `shared-notes` with their paths, kinds, and remotes (when present).
-6. JSON output includes a `repos` array on the workspace folder entry.
+2. User runs `weave workspace` from anywhere inside `peoplebox-platform/`.
+3. Weave walks up from `cwd`, finds `peoplebox-platform/.weave/workspace.yml`, parses `mode: workspace`.
+4. Weave prints the workspace view: `Weave workspace: peoplebox-platform`, then the workspace path, then a `Repos:` block listing `billing`, `audit`, and `shared-notes` with their paths, kinds, and remotes (when present).
+5. JSON output has `workspace: { name, path, mode }`, `repos: [...]`, and `folders: []`.
 
 ### Workflow: Teammate runs `weave workspace` on a fresh clone
 
-1. Teammate clones `peoplebox-platform` and creates a Weave session in it (for example by running `weave init` against the cloned workspace).
+1. Teammate clones `peoplebox-platform` and `cd`s into it.
 2. Teammate runs `weave workspace`.
 3. Weave reads `peoplebox-platform/.weave/workspace.yml.repos` from the committed file and shows the same repo list the original author saw.
-4. The teammate does not have any of the sub-repos on disk yet, but they can see what the workspace expects and clone each one (or wire up their own workflow on top of the `remote` field).
+4. No `weave init` is required first. No session is required. The workspace is the source of truth and is readable from the committed file alone.
+5. The teammate does not have any of the sub-repos on disk yet, but they can see what the workspace expects and clone each one (or wire up their own workflow on top of the `remote` field).
 
 ## User Stories
 
@@ -269,11 +279,13 @@ The mixed case (a session with both repo-mode folders and workspace-mode folders
 - The system should respect existing `--id` and `--kind` flags. In workspace mode, `--id` controls the `repos.<id>` key and `--kind` controls the `repos.<id>.kind` field. Default `kind` is `app`.
 - The system should produce the same workspace state for `weave add` as `weave init --mode workspace` would for an equivalent input. The "register a repo into a workspace" internals should be shared between the two commands.
 - The system should determine "is the active context workspace mode or repo mode" by walking up from the relevant folder path to find `.weave/workspace.yml`. If found with `mode: workspace`, treat the context as workspace mode. Otherwise treat it as repo mode. The mode-detection rule should be a single shared helper used by both `weave add` and `weave workspace`.
-- The system should, in `weave workspace`, evaluate the mode per session folder, not globally. A session with both repo-mode folders and workspace-mode folders should render each folder in its own mode's output shape.
-- The system should, in `weave workspace` workspace mode, read `<folder>/.weave/workspace.yml` and include the parsed `repos` field in both text and JSON output. The JSON `repos` field is additive on the workspace folder entry. The text output indents a `Repos:` block under the workspace folder line.
-- The system should, in `weave workspace`, degrade gracefully when `.weave/workspace.yml` is missing or unparseable for a folder marked `kind: workspace`. Show the folder line only, no Repos block, no warning, no crash.
+- The system should, in `weave workspace`, evaluate the mode against the **current working directory**, not against `session.folders`. The command dispatches once based on `cwd`, not per session entry.
+- The system should, in `weave workspace` workspace mode, read the workspace `.weave/workspace.yml` directly (no session lookup), and emit `workspace: { name, path, mode }` plus `repos: [...]` from the `repos` map. Text output prints `Weave workspace: <name>`, then `Path:`, then a `Repos:` block.
+- The system should, in `weave workspace` workspace mode, not require an active session. If a session exists it is reported in the `session` JSON field; otherwise `session` is `null` and the command still succeeds.
+- The system should, in `weave workspace`, fall through to repo mode (today's session view) when `findWorkspaceMode(cwd)` returns no result, when `mode: repo` is recorded, or when the workspace.yml is malformed.
+- The system should, in `weave workspace` repo mode, return `status: no_session` (exit 1) when there is no active session, and otherwise list `session.folders` with `id`, `path`, `kind`, `wiki`, `metadata`. Repo-mode JSON does not include a per-folder `repos` field.
 - The system should not write to `session.folders` from `weave workspace`. The command remains read-only.
-- The system should preserve `weave workspace`'s existing JSON shape for repo-mode folders. No existing fields are renamed or removed.
+- The system should always emit the same top-level JSON keys (`session`, `workspace`, `repos`, `folders`) regardless of mode, with mode-appropriate values, so consumers can branch on `workspace != null`.
 
 ## Edge Cases
 
@@ -288,34 +300,36 @@ The mixed case (a session with both repo-mode folders and workspace-mode folders
 - **User runs `weave add` from a subdirectory of the workspace**: the command should walk up to find the workspace root via `.weave/workspace.yml`. The added folder is still placed in (or registered relative to) the workspace root.
 - **The workspace `.gitignore` has been hand-edited and uses a non-leading-slash form**: the idempotency check is a literal match on `/<dirname>/`. Hand-edited variants like `<dirname>/` would not be detected as duplicates and would be appended again, creating a second matching entry. This is acceptable because both entries still gitignore the directory correctly.
 - **Symlinked paths**: paths are resolved via `realpath` before comparison, matching today's `addFolderToSession` behavior.
-- **`weave workspace` with malformed `workspace.yml`**: degrade gracefully. Show only the folder line, no Repos block. Do not print a warning, do not crash, do not exit non-zero.
-- **`weave workspace` with missing `workspace.yml` for a `kind: workspace` session folder**: same as malformed. Show only the folder line.
-- **`weave workspace` for a session folder whose `workspace.yml` exists but has `mode: repo`**: treat as repo mode for display purposes. No Repos block. (This is an unusual state - kind in session disagrees with mode in workspace.yml - and we prefer workspace.yml as committed truth.)
-- **`weave workspace` for a workspace whose `repos` field is empty**: show the workspace folder line followed by an empty Repos section, or omit the Repos block entirely. Either is acceptable; recommended: omit the empty block for cleanliness, but include an empty `repos: []` array in JSON for shape stability.
-- **`weave workspace` with mixed-mode session folders**: each folder renders in its own mode's shape. Workspace-mode folders show a Repos block; repo-mode folders do not.
+- **`weave workspace` with malformed workspace.yml**: `findWorkspaceMode` returns no result, command falls through to repo mode. No warning, no crash. Shows session folders if a session exists, otherwise `status: no_session`.
+- **`weave workspace` from inside a sub-repo of a workspace**: walks up past the sub-repo to find the parent workspace.yml. Output is the workspace view (workspace name, root path, repos) — not "you are in `billing`". Users can `pwd` to know where they stand.
+- **`weave workspace` from inside a workspace with no active session**: still works. Workspace mode is fed by committed truth, not session state. JSON `session` field is `null`.
+- **`weave workspace` outside any workspace with no active session**: returns `status: no_session` (exit 1) with today's message.
+- **`weave workspace` for a workspace whose `repos` field is empty**: text output shows `Repos:` followed by `(no repos registered yet)`. JSON `repos` is `[]`.
+- **`weave workspace` from a directory that contains workspace.yml with `mode: repo`**: falls through to repo mode. Treated as if no workspace.yml were present.
 - **`--target all` and short-ID resolution for sub-repos in workspace mode**: known v1 limitations. `--target all` enumerates only `session.folders`, which holds just the workspace in workspace mode. `--target <short-id>` resolves only against `session.folders`, so a workspace sub-repo's short id will not resolve unless lazy-grown into the session by a prior per-folder command. These are accepted because sub-repos in default workspace mode do not have their own `wiki/changes/`.
 
 ## Acceptance Criteria
 
-- [ ] In repo mode, `weave add <path>` behaves identically to today (session-only write, no committed files touched).
-- [ ] In workspace mode, `weave add <path>` for a path inside the workspace appends `/<dirname>/` to `.gitignore` and writes a `repos.<slug>` entry in `.weave/workspace.yml`.
-- [ ] In workspace mode, `weave add <git-url>` runs `git clone` into the workspace root, then appends `/<dirname>/` to `.gitignore` and writes `repos.<slug>` with `remote: <url>`.
-- [ ] In workspace mode, `weave add <path>` for an outside path moves the folder into the workspace root before registering it.
-- [ ] In workspace mode, `weave add` of a non-git folder still registers and gitignores the folder, with no `remote` field on the `repos.<slug>` entry.
-- [ ] In workspace mode, `weave add` of a path or URL whose resolved destination is already in `workspace.yml.repos` exits successfully with an "already registered" message and modifies no files.
-- [ ] In workspace mode, `weave add` does not write to `session.folders`.
-- [ ] `weave init --mode workspace` and `weave add` produce equivalent `workspace.yml.repos` and `.gitignore` state for equivalent inputs (shared internal helper).
-- [ ] `weave add` works non-interactively without prompts in both modes.
-- [ ] Existing tests for `weave init --mode workspace` and existing repo-mode `weave add` continue to pass without modification.
-- [ ] `weave add` of a URL where the destination already exists refuses with a clear error and does not modify `.gitignore` or `workspace.yml`.
-- [ ] The `--id` flag controls the `repos.<id>` registry key in workspace mode; `--kind` controls the `kind` field.
-- [ ] `weave add` and `weave workspace` use the same mode-detection helper and agree on the active mode for any given folder.
-- [ ] In repo mode, `weave workspace` output is byte-identical to today's output for the same session state.
-- [ ] In workspace mode, `weave workspace` reads `.weave/workspace.yml.repos` and includes the entries in its text output (indented Repos block) and JSON output (additive `repos` array on the workspace folder entry).
-- [ ] In workspace mode, `weave workspace` shows registered repos for a teammate working from a fresh clone, provided their session points at the workspace folder.
-- [ ] `weave workspace` degrades gracefully (no warning, no crash) when `.weave/workspace.yml` is missing or unparseable for a `kind: workspace` session folder.
-- [ ] After init adopts a repo, `weave workspace` shows that adopted repo in its Repos block. (Free byproduct - validates that init's existing behavior is conformant with the new `weave workspace`.)
-- [ ] A session with mixed repo-mode and workspace-mode folders renders each folder in its own mode's shape; repo-mode folders have no Repos block, workspace-mode folders do.
+- [x] In repo mode, `weave add <path>` behaves identically to today (session-only write, no committed files touched).
+- [x] In workspace mode, `weave add <path>` for a path inside the workspace appends `/<dirname>/` to `.gitignore` and writes a `repos.<slug>` entry in `.weave/workspace.yml`.
+- [x] In workspace mode, `weave add <git-url>` runs `git clone` into the workspace root, then appends `/<dirname>/` to `.gitignore` and writes `repos.<slug>` with `remote: <url>`.
+- [x] In workspace mode, `weave add <path>` for an outside path moves the folder into the workspace root before registering it.
+- [x] In workspace mode, `weave add` of a non-git folder still registers and gitignores the folder, with no `remote` field on the `repos.<slug>` entry.
+- [x] In workspace mode, `weave add` of a path or URL whose resolved destination is already in `workspace.yml.repos` exits successfully with an "already registered" message and modifies no files.
+- [x] In workspace mode, `weave add` does not write to `session.folders`.
+- [x] `weave init --mode workspace` and `weave add` produce equivalent `workspace.yml.repos` and `.gitignore` state for equivalent inputs (shared internal helper).
+- [x] `weave add` works non-interactively without prompts in both modes.
+- [x] Existing tests for `weave init --mode workspace` and existing repo-mode `weave add` continue to pass without modification.
+- [x] `weave add` of a URL where the destination already exists refuses with a clear error and does not modify `.gitignore` or `workspace.yml`.
+- [x] The `--id` flag controls the `repos.<id>` registry key in workspace mode; `--kind` controls the `kind` field.
+- [x] `weave add` and `weave workspace` use the same mode-detection helper (`findWorkspaceMode`) and agree on the active mode for any given cwd.
+- [x] In repo mode (cwd not inside a workspace), `weave workspace` lists session folders with id/path/kind/wiki/metadata. No per-folder `repos` field.
+- [x] In workspace mode (cwd inside a workspace), `weave workspace` reads `.weave/workspace.yml.repos` directly from the workspace root and emits `workspace: { name, path, mode }` and `repos: [...]` in JSON, with a `Repos:` block in text output.
+- [x] In workspace mode, `weave workspace` works without an active session — a teammate cloning the workspace fresh can run it immediately.
+- [x] `weave workspace` falls through gracefully to repo mode when `.weave/workspace.yml` is missing or malformed. No warning, no crash.
+- [x] After init adopts a repo, `weave workspace` (run from inside the workspace) shows that adopted repo in its `Repos:` block.
+- [x] In repo mode without an active session, `weave workspace` returns `status: no_session` (exit 1) with today's message.
+- [x] Top-level JSON keys (`session`, `workspace`, `repos`, `folders`) are present in both modes; mode-specific fields are `null`/`[]` when not applicable.
 
 ## Rollout Considerations
 
@@ -329,6 +343,7 @@ The mixed case (a session with both repo-mode folders and workspace-mode folders
 
 - 2026-06-04: Initial PRD generated from `exploration.md` and same-session capture.
 - 2026-06-04: Revised to lock in: (1) shared mode-detection rule by walking up to `.weave/workspace.yml`; (2) `weave workspace` becomes mode-aware and reads `workspace.yml.repos` in workspace mode; (3) graceful degradation when `workspace.yml` is missing/malformed; (4) explicit acceptance of `--target all` and short-ID limitations as known v1 behavior. Confirmed that workspace-mode `weave add` writes only to `workspace.yml.repos` and not to `session.folders`.
+- 2026-06-04 (post-implementation refinement): Reworked `weave workspace` to dispatch on cwd instead of iterating session folders. Workspace-mode output is now a workspace view (workspace + repos + folders:[]) that does not require an active session. Repo-mode output is byte-similar to today but no longer crawls each session folder's workspace.yml. The "mixed-mode session" question is dissolved by single-mode dispatch. JSON gains stable top-level keys (`session`, `workspace`, `repos`, `folders`) present in both modes.
 
 ## Assumptions
 
@@ -342,7 +357,7 @@ The mixed case (a session with both repo-mode folders and workspace-mode folders
 
 - **Nested-path gitignore entry**: for `weave add ./services/audit`, should the `.gitignore` entry be `/services/audit/` (precise) or `/services/` (broader)? Recommended: `/services/audit/` (precise). Open for confirmation during implementation.
 - **`repos.<slug>` key for nested paths**: for `weave add ./services/audit`, should the slug be `audit` (basename) or `services-audit` (path-derived)? Recommended: `audit` to match today's basename-based slugification. Open for confirmation.
-- **Symbol for "this is a URL" detection**: current proposal is scheme-prefix matching (`git@`, `https://`, `http://`, `ssh://`, `git://`). Open question whether additional schemes (e.g., custom enterprise schemes) need explicit support; default is "no, only the listed five".
+- **URL detection schemes**: implementation matches `git@`, `https://`, `http://`, `ssh://`, `git://`, and `file://`. `file://` was added for testability and because it is a legitimate `git clone` source. Additional enterprise schemes are deferred.
 
 ## Out of Scope
 

@@ -6,7 +6,7 @@ type: feat
 stage: issues
 branch: change/260604-2u05-add-a-repo-folder
 created_at: 2026-06-04T14:28:25.706Z
-updated_at: 2026-06-04T16:26:03.516Z
+updated_at: 2026-06-04T17:04:39.245Z
 artifacts:
   exploration:
     sources:
@@ -28,3 +28,15 @@ artifacts:
       - prd
       - codebase
     updated_at: 2026-06-04T16:26:03.516Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-04T17:04:39.245Z
+  domains:
+    - cli-commands
+  shared: []
+  files:
+    - wiki/knowledge/domains/cli-commands/features/core-command-reference/behavior.md
+    - wiki/knowledge/domains/cli-commands/index.md
+  delta: wiki/changes/260604-2u05-add-a-repo-folder/knowledge-delta.md
+  reason: Documented mode-aware weave add/workspace, options, dispatch decision
+    table, sample outputs, and file:// + git clone -- guard.

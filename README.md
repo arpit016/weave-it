@@ -172,41 +172,66 @@ npm run dev -- init --mode workspace --workspace-name peoplebox-platform
 
 ## `weave add <path>`
 
-Adds another folder to the current Weave session.
+Adds a folder to the current Weave context. Behavior depends on whether the active directory is in **repo mode** or **workspace mode** (detected via `.weave/workspace.yml`).
+
+**Repo mode** (default when no workspace or `mode: repo`):
+
+- Adds the folder to the ephemeral session in `~/.cache/weave/current-session.yml` only.
+
+**Workspace mode** (`mode: workspace` in `.weave/workspace.yml`):
+
+- Accepts a filesystem **path** or a **git URL**.
+- URL: runs `git clone` into the workspace root (directory name from the URL basename).
+- Path inside the workspace: registers in place.
+- Path outside the workspace: moves the folder into the workspace root, then registers.
+- Updates `.weave/workspace.yml` `repos` and appends the folder to the workspace `.gitignore`.
+- Records `remote.origin.url` when the folder has a `.git/`.
+- Does not add sub-repos to `session.folders`.
 
 ```bash
-weave add [options] <path>
+weave add [options] <path-or-url>
 ```
 
 Arguments:
 
 ```text
-path           folder path to add
+path-or-url    folder path or git remote URL (workspace mode only for URLs)
 ```
 
 Options:
 
 ```text
---id <id>      folder id
+--id <id>      folder id (workspace: repos.<id> key; repo mode: session folder id)
 --kind <kind>  folder kind, defaults to app
 -h, --help     display help for command
 ```
 
-Example:
+Examples:
 
 ```bash
+# Repo mode: add another repo to the local session
 weave add ../backend --id backend --kind api
+
+# Workspace mode: register a folder already inside the workspace
+weave add ./billing --kind app
+
+# Workspace mode: clone by URL
+weave add git@github.com:org/billing.git
+
+# Workspace mode: adopt a sibling repo into the workspace
+weave add ../external-tooling
 ```
 
 From source:
 
 ```bash
 npm run dev -- add ../backend --id backend --kind api
+npm run dev -- add git@github.com:org/billing.git
 ```
 
 ## `weave workspace`
 
-Shows the current Weave session folders.
+Shows what is around you. Behavior depends on whether the current working directory sits inside a Weave workspace.
 
 ```bash
 weave workspace [options]
@@ -219,12 +244,55 @@ Options:
 -h, --help  display help for command
 ```
 
+`weave workspace` walks up from the current directory looking for `.weave/workspace.yml`:
+
+- **Workspace mode** (a `workspace.yml` with `mode: workspace` is found at or above `cwd`): prints the workspace name, its root path, and the repos registered in `workspace.yml.repos`. An active Weave session is not required.
+- **Repo mode** (no workspace.yml above `cwd`, or its `mode` is not `workspace`, or the file is malformed): prints the current Weave session folders. Requires an active session.
+
 Examples:
 
 ```bash
 weave workspace
 weave workspace --json
 ```
+
+JSON shape in workspace mode:
+
+```json
+{
+  "session": { "status": "active", "updated_at": "..." } | null,
+  "workspace": {
+    "name": "peoplebox-platform",
+    "path": "/path/to/peoplebox-platform",
+    "mode": "workspace"
+  },
+  "repos": [
+    { "id": "billing", "path": "billing", "kind": "app", "remote": "git@github.com:org/billing.git" }
+  ],
+  "folders": []
+}
+```
+
+JSON shape in repo mode:
+
+```json
+{
+  "session": { "status": "active", "updated_at": "..." },
+  "workspace": null,
+  "repos": [],
+  "folders": [
+    {
+      "id": "frontend",
+      "path": "/path/to/frontend",
+      "kind": "app",
+      "wiki": "/path/to/frontend/wiki",
+      "metadata": "/path/to/frontend/.weave"
+    }
+  ]
+}
+```
+
+A teammate cloning the workspace fresh can run `weave workspace` immediately from inside the clone to see the registered repos, without ever running `weave init`.
 
 From source:
 

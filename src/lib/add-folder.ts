@@ -1,6 +1,21 @@
+import path from "node:path";
+import { realpath, stat } from "node:fs/promises";
 import { resolveFolder } from "./folders.js";
+import { cloneRepo, getGitRemote } from "./git.js";
+import { movePath, pathExists } from "./files.js";
 import { addFolderToSession, defaultSessionPath, loadCurrentSession, saveCurrentSession } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
+import { findWorkspaceMode, isWorkspaceMode } from "./workspace-mode.js";
+import {
+  defaultRepoId,
+  findRegisteredRepoByPath,
+  isGitUrl,
+  isInsideWorkspace,
+  readWorkspaceMetadata,
+  registerRepoIntoWorkspace,
+  repoNameFromUrl,
+  relativeRepoPath,
+} from "./workspace-repos.js";
 
 export type AddFolderOptions = {
   cwd?: string;
@@ -31,16 +46,47 @@ export async function addFolder(options: AddFolderOptions): Promise<AddFolderCom
     };
   }
 
-  const folder = await resolveFolder({
+  const modeResult = await findWorkspaceMode(cwd);
+  if (isWorkspaceMode(modeResult)) {
+    return addFolderToWorkspace({
+      cwd,
+      workspacePath: modeResult.workspacePath,
+      targetPath: options.targetPath,
+      folderId: options.folderId,
+      folderKind: options.folderKind ?? "app",
+    });
+  }
+
+  return addFolderToRepoSession({
     cwd,
     targetPath: options.targetPath,
-    id: options.folderId,
-    kind: options.folderKind,
+    folderId: options.folderId,
+    folderKind: options.folderKind,
+    session,
+    sessionPath,
+    now,
+  });
+}
+
+async function addFolderToRepoSession(input: {
+  cwd: string;
+  targetPath: string;
+  folderId?: string;
+  folderKind?: string;
+  session: NonNullable<Awaited<ReturnType<typeof loadCurrentSession>>>;
+  sessionPath: string;
+  now: Date;
+}): Promise<AddFolderCommandResult> {
+  const folder = await resolveFolder({
+    cwd: input.cwd,
+    targetPath: input.targetPath,
+    id: input.folderId,
+    kind: input.folderKind,
   });
   await ensureWeaveScaffold({ folder });
 
-  const result = addFolderToSession(session, folder, now);
-  await saveCurrentSession(result.session, sessionPath);
+  const result = addFolderToSession(input.session, folder, input.now);
+  await saveCurrentSession(result.session, input.sessionPath);
 
   if (!result.added) {
     return {
@@ -53,4 +99,119 @@ export async function addFolder(options: AddFolderOptions): Promise<AddFolderCom
     status: "added",
     message: `Added folder to current Weave session: ${result.id}\n\nPath:\n  ${folder.path}\n\nNext:\n  weave workspace`,
   };
+}
+
+async function addFolderToWorkspace(input: {
+  cwd: string;
+  workspacePath: string;
+  targetPath: string;
+  folderId?: string;
+  folderKind: string;
+}): Promise<AddFolderCommandResult> {
+  const workspacePath = await realpath(input.workspacePath);
+  const metadata = await readWorkspaceMetadata(workspacePath);
+
+  if (!metadata) {
+    throw new Error(`Workspace metadata is missing or invalid: ${path.join(workspacePath, ".weave", "workspace.yml")}`);
+  }
+
+  let repoAbsolutePath: string;
+  let relativePath: string;
+  let remote: string | undefined;
+
+  if (isGitUrl(input.targetPath)) {
+    const url = input.targetPath.trim();
+    const destName = repoNameFromUrl(url);
+    relativePath = destName;
+    repoAbsolutePath = path.join(workspacePath, destName);
+
+    if (await pathExists(repoAbsolutePath)) {
+      throw new Error(`Destination already exists: ${repoAbsolutePath}`);
+    }
+
+    const existingId = findRegisteredRepoByPath(metadata, relativePath);
+    if (existingId) {
+      return workspaceAlreadyRegisteredMessage(existingId, relativePath, workspacePath);
+    }
+
+    try {
+      await cloneRepo(url, destName, workspacePath);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to clone repository: ${detail}`);
+    }
+
+    remote = url;
+  } else {
+    const candidate = path.resolve(input.cwd, input.targetPath);
+    await assertDirectory(candidate);
+
+    if (await isInsideWorkspace(workspacePath, candidate)) {
+      repoAbsolutePath = await realpath(candidate);
+      relativePath = relativeRepoPath(workspacePath, repoAbsolutePath);
+    } else {
+      const sourcePath = await realpath(candidate);
+      const destName = path.basename(sourcePath);
+      relativePath = destName;
+      repoAbsolutePath = path.join(workspacePath, destName);
+
+      if (await pathExists(repoAbsolutePath)) {
+        throw new Error(`Destination already exists in workspace: ${repoAbsolutePath}`);
+      }
+
+      try {
+        await movePath(sourcePath, repoAbsolutePath);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to adopt folder into workspace: ${detail}`);
+      }
+    }
+
+    const existingId = findRegisteredRepoByPath(metadata, relativePath);
+    if (existingId) {
+      return workspaceAlreadyRegisteredMessage(existingId, relativePath, workspacePath);
+    }
+
+    remote = await getGitRemote(repoAbsolutePath);
+  }
+
+  const id = defaultRepoId(relativePath, input.folderId);
+  await registerRepoIntoWorkspace({
+    workspacePath,
+    id,
+    relativePath,
+    kind: input.folderKind,
+    remote,
+  });
+
+  const remoteText = remote ? `\n\nRemote:\n  ${remote}` : "";
+  return {
+    status: "added",
+    message: `Registered repo in workspace: ${id}\n\nPath:\n  ${relativePath}${remoteText}\n\nWorkspace:\n  ${workspacePath}\n\nNext:\n  weave workspace`,
+  };
+}
+
+function workspaceAlreadyRegisteredMessage(
+  id: string,
+  relativePath: string,
+  workspacePath: string,
+): AddFolderCommandResult {
+  return {
+    status: "already_exists",
+    message: `Repo already registered in workspace: ${id}\n\nPath:\n  ${relativePath}\n\nWorkspace:\n  ${workspacePath}`,
+  };
+}
+
+async function assertDirectory(targetPath: string): Promise<void> {
+  try {
+    const value = await stat(targetPath);
+    if (!value.isDirectory()) {
+      throw new Error(`Expected a directory: ${targetPath}`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Expected a directory")) {
+      throw error;
+    }
+    throw new Error(`Expected a directory: ${targetPath}`);
+  }
 }

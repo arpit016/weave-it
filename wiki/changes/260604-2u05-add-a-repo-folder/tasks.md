@@ -3,7 +3,7 @@ artifact: tasks
 status: draft
 owner: engineering
 created_at: 2026-06-04T16:25:40.000Z
-updated_at: 2026-06-04T16:25:40.000Z
+updated_at: 2026-06-04T16:35:00.000Z
 source: architecture.md
 ---
 
@@ -34,17 +34,17 @@ External issue publishing status: not used. This change tracks implementation lo
 
 | ID | Status | Type | Title | Blocked by |
 | --- | --- | --- | --- | --- |
-| T1 | todo | AFK | Register in-workspace path via weave add | None |
-| T2 | todo | AFK | Adopt outside path into workspace via weave add | T1 |
-| T3 | todo | AFK | Clone and register repo by git URL via weave add | T1 |
-| T4 | todo | AFK | Idempotent re-add and repo-mode regression | T1 |
-| T5 | todo | AFK | weave workspace lists repos in workspace mode | T1 |
-| T6 | todo | AFK | Init adoption uses shared registerRepoIntoWorkspace | T1 |
-| T7 | todo | AFK | Update README and core command reference knowledge | T5, T6 |
+| T1 | done | AFK | Register in-workspace path via weave add | None |
+| T2 | done | AFK | Adopt outside path into workspace via weave add | T1 |
+| T3 | done | AFK | Clone and register repo by git URL via weave add | T1 |
+| T4 | done | AFK | Idempotent re-add and repo-mode regression | T1 |
+| T5 | done | AFK | weave workspace lists repos in workspace mode | T1 |
+| T6 | done | AFK | Init adoption uses shared registerRepoIntoWorkspace | T1 |
+| T7 | done | AFK | Update README and core command reference knowledge | T5, T6 |
 
 ## T1: Register in-workspace path via weave add
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -78,7 +78,7 @@ Update `src/lib/add-folder.ts`: when `findWorkspaceMode(cwd)` returns workspace 
 
 ## T2: Adopt outside path into workspace via weave add
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -107,7 +107,7 @@ Extend the workspace branch in `add-folder.ts`: when the resolved path is outsid
 
 ## T3: Clone and register repo by git URL via weave add
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -137,7 +137,7 @@ Extend workspace branch: if argument matches `^(git@|https?:\/\/|ssh:\/\/|git:\/
 
 ## T4: Idempotent re-add and repo-mode regression
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -167,7 +167,7 @@ Path-based duplicate detection before clone/move/register: if `repos.*.path` alr
 
 ## T5: weave workspace lists repos in workspace mode
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -198,7 +198,7 @@ Update `src/lib/show-workspace.ts`: per `session.folders` entry, call `findWorks
 
 ## T6: Init adoption uses shared registerRepoIntoWorkspace
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -227,7 +227,7 @@ Refactor `src/lib/init-workspace.ts` so adopted-repo and pre-seeded `repos` at i
 
 ## T7: Update README and core command reference knowledge
 
-Status: todo
+Status: done
 
 Type: AFK
 
@@ -293,4 +293,5 @@ None.
 
 ## Verification
 
-Not run yet.
+- `npm test`: 143 passed (2026-06-04)
+- `npm run typecheck`: passed (2026-06-04)

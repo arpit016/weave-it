@@ -118,25 +118,39 @@ Extend `AddFolderStatus` with `workspace_registered` or reuse `added` with diffe
 
 ### `src/lib/show-workspace.ts`
 
-For each `session.folders` entry:
+Dispatches on **cwd**, not on `session.folders`, using the same `findWorkspaceMode` helper that `weave add` uses.
 
-1. `modeResult = await findWorkspaceMode(folder.path)`
-2. If `modeResult?.mode === "workspace"`:
+1. `cwd = options.cwd ?? process.cwd()`
+2. `modeResult = await findWorkspaceMode(cwd)`
+3. If `isWorkspaceMode(modeResult)`:
    - `metadata = await readWorkspaceMetadata(modeResult.workspacePath)`
-   - If metadata?.repos: map to `repos: [{ id, path, kind, remote? }]`
-   - Else: omit repos (graceful)
-3. Text output: after folder line, if repos length > 0:
+   - Emit a **workspace view**: `workspace: { name, path, mode: "workspace" }`, `repos: [...]` (empty if metadata missing), `folders: []`.
+   - Session is **not required**. Report it in the `session` JSON field if present, else `null`.
+4. Else (no workspace.yml found, malformed, or `mode: repo`):
+   - Require a session. If missing, return `status: no_session` (exit 1).
+   - Emit a **repo-mode view**: `workspace: null`, `repos: []`, `folders: [...]` from `session.folders`.
+   - Each folder entry contains `id`, `path`, `kind`, `wiki`, `metadata`. No per-folder `repos` field.
+
+JSON top-level keys (`session`, `workspace`, `repos`, `folders`) are present in both modes so consumers can branch on `workspace != null`.
+
+Text output:
 
 ```text
-    Repos:
-      billing  billing  app  git@github.com:foo/billing.git
+Weave workspace: peoplebox-platform
+
+Path:
+  /Users/arpit/work/peoplebox-platform
+
+Repos:
+  billing  billing  app  git@github.com:foo/billing.git
+  audit    audit    app
+
+Next:
+  weave add <path|url>
+  weave change new <title>
 ```
 
-4. JSON: additive `repos` array on folder object
-
-Repo-mode folders: unchanged output.
-
-Update footer hint: keep `weave add <path>` for workspace context.
+Repo-mode text is byte-similar to today (no `Repos:` block, no per-folder workspace.yml crawling).
 
 ### `src/lib/git.ts`
 
@@ -188,17 +202,18 @@ sequenceDiagram
   participant Show as show_workspace
   participant Mode as findWorkspaceMode
   participant Repos as workspace_repos
+  participant Session as current_session_yml
 
   User->>WsCmd: weave workspace
-  WsCmd->>Show: showWorkspace
-  loop each session folder
-    Show->>Mode: findWorkspaceMode folder.path
-    alt workspace mode
-      Show->>Repos: readWorkspaceMetadata
-      Show-->>User: folder plus repos list
-    else repo mode
-      Show-->>User: folder line only
-    end
+  WsCmd->>Show: showWorkspace cwd
+  Show->>Mode: findWorkspaceMode cwd
+  alt workspace mode
+    Show->>Repos: readWorkspaceMetadata workspacePath
+    Show->>Session: load session (optional)
+    Show-->>User: workspace + repos view
+  else repo mode
+    Show->>Session: load session (required)
+    Show-->>User: session.folders view
   end
 ```
 
@@ -207,12 +222,14 @@ sequenceDiagram
 | Decision | Rationale | Consequences |
 |----------|-----------|--------------|
 | Mode detection in dedicated module, walk-up on `workspace.yml` | Survives session reset; teammates see same mode from committed file | Must parse YAML at each command; negligible cost |
+| `weave workspace` dispatches on cwd, not on session.folders | Symmetric with `weave add`; teammates can run from a fresh clone without a session; resolves the "mixed-mode session" question by structure | Workspace view ignores other session folders the user might have active; users wanting both views must `cd` |
 | Workspace add does not touch `session.folders` | Matches init; `workspace.yml` is committed truth | `--target all` does not list sub-repos; accepted v1 limit |
 | Single `registerRepoIntoWorkspace` write path | Init and add produce identical artifacts | Init refactor required; tests must cover both paths |
 | Path-based idempotency | Prevents duplicate clone/move on re-run | Different `--id` for same path still no-ops |
 | Precise gitignore paths (`/services/audit/`) | Matches PRD default; avoids over-broad ignores | Nested paths need correct relative path computation |
 | Basename slug with collision error | Matches init slugify convention | User must pass `--id` when two nested folders share basename |
-| Five URL schemes only | PRD scope; covers common remotes | Odd schemes need manual clone + path add |
+| Six URL schemes (`git@`, `https://`, `http://`, `ssh://`, `git://`, `file://`) | PRD scope plus `file://` for local testability; covers common remotes | Odd enterprise schemes need manual clone + path add |
+| `git clone -- url dest` (explicit `--` separator) | Prevents `--upload-pack` and similar flag-injection vectors when URL begins with `-` | Slightly more verbose argv |
 | `YAML.parse` + `stringify` | Consistent with codebase | User comments in workspace.yml lost on add |
 
 ## Rejected Alternatives
@@ -294,7 +311,8 @@ Resolved for implementation:
 
 1. **Gitignore granularity**: precise path (`/services/audit/`).
 2. **Nested slug**: basename; error on collision with different path.
-3. **URL schemes**: `git@`, `https://`, `http://`, `ssh://`, `git://` only.
+3. **URL schemes**: `git@`, `https://`, `http://`, `ssh://`, `git://`, `file://` (last added for testability and legitimate local clones).
+4. **`weave workspace` dispatch**: cwd-driven via `findWorkspaceMode`, single mode per invocation. Session is optional in workspace mode, required in repo mode.
 
 ## Product Questions Raised by Technical Design
 
@@ -303,3 +321,4 @@ None.
 ## Revision History
 
 - 2026-06-04: Initial architecture generated from `prd.md`, exploration decisions, approved implementation plan, and codebase review (`init-workspace.ts`, `add-folder.ts`, `show-workspace.ts`, `git.ts`).
+- 2026-06-04 (post-code-review refinement): `weave workspace` reworked to dispatch on cwd via `findWorkspaceMode` (symmetric with `weave add`). Workspace-mode output is now a single workspace view backed by committed truth, no longer requires an active session, and emits stable top-level JSON keys (`session`, `workspace`, `repos`, `folders`). Repo-mode output dropped the per-folder workspace.yml crawl. Also added `--` separator to `git clone` invocation to defend against flag-injection via URL; documented `file://` URL scheme.

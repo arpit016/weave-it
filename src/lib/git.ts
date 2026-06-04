@@ -34,3 +34,7 @@ export async function getGitRemote(cwd: string): Promise<string | undefined> {
 export async function runGitRequired(args: string[], cwd: string): Promise<void> {
   await execFileAsync("git", args, { cwd, env: gitEnv() });
 }
+
+export async function cloneRepo(url: string, destinationDir: string, cwd: string): Promise<void> {
+  await runGitRequired(["clone", "--", url, destinationDir], cwd);
+}

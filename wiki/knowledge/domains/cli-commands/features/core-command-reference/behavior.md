@@ -2,9 +2,19 @@
 
 ## Purpose
 
-This document explains the core Weave CLI commands in plain English, with examples for common user setups.
+This document explains the core Weave CLI commands in plain English, with options, behavior, and examples for common user setups.
 
-Use this as current-state product knowledge when deciding how `weave init` and `weave workspace` should behave.
+Use this as current-state product knowledge when deciding how `weave init`, `weave add`, and `weave workspace` should behave.
+
+## Command Surface
+
+| Command | Purpose | Mode-aware? |
+| --- | --- | --- |
+| `weave init` | Initialize Weave for the current context and start a local session. Picks between repo mode and workspace mode. | Sets the mode for the context. |
+| `weave add <path \| url>` | Grow the current context: in repo mode, add a folder to the session; in workspace mode, register a sub-repo (path or git URL) under `workspace.yml`. | Yes — dispatches on `cwd`. |
+| `weave workspace` | Show what is around the current directory: workspace view (workspace mode) or session folders (repo mode). | Yes — dispatches on `cwd`. |
+
+Mode detection for `weave add` and `weave workspace` walks up from the current working directory looking for `.weave/workspace.yml` and reads its `mode` field. If `mode: workspace` is found, the context is workspace mode; otherwise it is repo mode.
 
 ## Current Behavior
 
@@ -20,6 +30,23 @@ When no mode is passed in an interactive terminal, Weave asks the user to choose
 When `--yes` is passed and no mode is provided, Weave defaults to repo mode.
 
 ## Command: `weave init`
+
+Synopsis:
+
+```bash
+weave init [options]
+```
+
+### Options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--mode <mode>` | (prompt; defaults to `repo` with `--yes`) | Init mode: `repo` or `workspace`. |
+| `--workspace-name <name>` | basename of workspace path | Workspace name written to `.weave/workspace.yml` (workspace mode only). |
+| `--workspace-path <path>` | (prompt) | Where the workspace directory lives. Required for workspace mode outside a git repo. |
+| `--id <id>` | derived from folder name | Session folder id used in `session.folders.<id>`. |
+| `--kind <kind>` | `app` | Folder kind recorded in the session. Workspace mode uses `workspace`. |
+| `--yes` | off | Accept defaults, skip prompts. Required for non-interactive use. |
 
 ### Repo Mode
 
@@ -113,37 +140,237 @@ What happens:
 
 After this command, the user should open the workspace path in their editor.
 
-## Command: `weave workspace`
+## Command: `weave add`
 
-`weave workspace` shows the current local Weave session.
+`weave add` is mode-aware. Weave walks up from the current working directory to find `.weave/workspace.yml` and reads `mode`. The single argument is either a filesystem path or a git URL.
+
+Synopsis:
+
+```bash
+weave add [options] <path>
+```
+
+### Options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `<path>` | (required) | Filesystem path or git URL to add. Workspace mode also accepts URLs starting with `git@`, `https://`, `http://`, `ssh://`, `git://`, or `file://`. |
+| `--id <id>` | slug of basename | In repo mode: `session.folders.<id>`. In workspace mode: `workspace.yml.repos.<id>`. |
+| `--kind <kind>` | `app` | Folder kind recorded under the entry. |
+
+`weave add` does not take a `--mode` flag; mode is detected from the directory tree.
+
+### Repo mode
+
+Use when Weave is initialized in repo mode, or when no workspace metadata applies (no `.weave/workspace.yml` above `cwd`, or `mode: repo`).
 
 Example:
 
 ```bash
-weave workspace
+weave add ../backend --id backend --kind api
 ```
 
-Machine-readable example:
+What happens:
+
+- Weave resolves the target path.
+- Weave scaffolds `wiki/` and `.weave/sync.yml` in the target if missing.
+- Weave adds the folder to `~/.cache/weave/current-session.yml` under `session.folders`.
+- Weave does not update `.weave/workspace.yml` or `.gitignore` in a parent workspace.
+
+### Workspace mode
+
+Use when the current context is inside a workspace with `mode: workspace` in `.weave/workspace.yml`.
+
+Examples:
 
 ```bash
-weave workspace --json
+weave add ./billing
+weave add ../external-tooling
+weave add git@github.com:peoplebox/billing.git
+weave add https://github.com/peoplebox/audit.git --id audit-service
 ```
 
-What it does today:
+What happens for a **path inside the workspace**:
 
-- reads the local session file from `~/.cache/weave/current-session.yml`;
-- lists the session folders;
-- shows each folder id, path, and kind;
-- returns JSON when `--json` is passed.
+- Weave computes the relative path from the workspace root.
+- Weave appends `/<relative-path>/` to the workspace `.gitignore` (idempotent literal-line check).
+- Weave records `remote.origin.url` when the folder has a `.git/` with an `origin` remote.
+- Weave writes `repos.<id>` under `.weave/workspace.yml` with `path`, `kind`, and optional `remote`.
+- Weave does **not** add the sub-repo to `session.folders`.
 
-What it does not do today:
+What happens for a **path outside the workspace**:
 
-- it does not inspect `.weave/workspace.yml`;
-- it does not list repos from workspace metadata;
-- it does not change directories;
-- it does not open the workspace in an editor.
+- Weave moves the folder (including `.git/`) into the workspace root using the basename as the destination directory.
+- Weave refuses if the destination already exists.
+- Weave then registers and gitignores it as above.
 
-In V1 workspace mode, the expected success signal is that `weave workspace` shows the workspace folder with `kind: workspace`.
+What happens for a **git URL**:
+
+- Weave runs `git clone -- <url> <basename>` into the workspace root using the URL repo basename as the directory name.
+- The `--` separator defends against URLs that start with `-` (option-injection).
+- Weave sets `repos.<id>.remote` to the URL used for the clone.
+- Weave refuses when the destination directory already exists, and does not write `.gitignore` or `workspace.yml`.
+
+What happens on **duplicate add**:
+
+- If the resolved relative path is already present in `workspace.yml.repos`, Weave prints "already registered" and exits successfully without changing files. Passing a different `--id` for an already-registered path is still a no-op.
+
+Example run inside a workspace:
+
+```bash
+$ cd peoplebox-platform
+$ weave add ./billing
+Registered repo in workspace: billing
+
+Path:
+  billing
+
+Remote:
+  git@github.com:peoplebox/billing.git
+
+Workspace:
+  /Users/arpit/work/peoplebox-platform
+
+Next:
+  weave workspace
+```
+
+After the command, the workspace's `.weave/workspace.yml` contains:
+
+```yaml
+version: 1
+mode: workspace
+name: peoplebox-platform
+repos:
+  billing:
+    path: billing
+    kind: app
+    remote: git@github.com:peoplebox/billing.git
+```
+
+And `.gitignore` contains `/billing/` (in addition to anything that was already there).
+
+## Command: `weave workspace`
+
+`weave workspace` shows what is around you. It dispatches on the **current working directory**, not on session state. It is read-only — it never clones, moves, or writes to any file.
+
+Synopsis:
+
+```bash
+weave workspace [options]
+```
+
+### Options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--json` | off | Emit machine-readable JSON instead of human-readable text. |
+
+### Dispatch
+
+`weave workspace` calls `findWorkspaceMode(cwd)` — the same helper `weave add` uses — and walks up from the current working directory looking for `.weave/workspace.yml`.
+
+| `findWorkspaceMode(cwd)` result | Session present | Exit | Output |
+| --- | --- | --- | --- |
+| `mode: workspace` | yes or no | 0 | Workspace view: `workspace`, `repos`, `folders: []`. |
+| `mode: repo`, missing, or malformed | yes | 0 | Repo-mode view: `session.folders` in `folders`. |
+| `mode: repo`, missing, or malformed | no | 1 | `status: no_session` with today's message. |
+
+A teammate cloning a workspace fresh can run `weave workspace` immediately, before ever running `weave init`. The workspace view is fed entirely by the committed `workspace.yml`; no session is required.
+
+### Workspace mode output
+
+Triggered when `cwd` is inside (or is) a directory whose `.weave/workspace.yml` has `mode: workspace`.
+
+Text:
+
+```text
+Weave workspace: peoplebox-platform
+
+Path:
+  /Users/arpit/work/peoplebox-platform
+
+Repos:
+  billing    billing    app    git@github.com:peoplebox/billing.git
+  audit      audit      app
+
+Next:
+  weave add <path|url>
+  weave change new <title>
+```
+
+When there are no registered repos yet, the `Repos:` block reads `(no repos registered yet)`.
+
+JSON (`--json`):
+
+```json
+{
+  "session": { "status": "active", "updated_at": "2026-06-04T16:57:35.257Z" },
+  "workspace": {
+    "name": "peoplebox-platform",
+    "path": "/Users/arpit/work/peoplebox-platform",
+    "mode": "workspace"
+  },
+  "repos": [
+    {
+      "id": "billing",
+      "path": "billing",
+      "kind": "app",
+      "remote": "git@github.com:peoplebox/billing.git"
+    },
+    { "id": "audit", "path": "audit", "kind": "app" }
+  ],
+  "folders": []
+}
+```
+
+The `session` key is `null` if no Weave session exists. The `folders` array is always `[]` in workspace mode (the workspace itself is the source of truth, not `session.folders`).
+
+### Repo mode output
+
+Triggered when no workspace.yml is found above `cwd`, when `mode: repo` is recorded, or when the yml is malformed.
+
+Text:
+
+```text
+Current Weave session
+
+Folders:
+  frontend  /Users/arpit/personal/frontend  app
+
+Next:
+  weave add <path>
+  weave init
+```
+
+JSON (`--json`):
+
+```json
+{
+  "session": { "status": "active", "updated_at": "2026-06-04T16:57:35.257Z" },
+  "workspace": null,
+  "repos": [],
+  "folders": [
+    {
+      "id": "frontend",
+      "path": "/Users/arpit/personal/frontend",
+      "kind": "app",
+      "wiki": "/Users/arpit/personal/frontend/wiki",
+      "metadata": "/Users/arpit/personal/frontend/.weave"
+    }
+  ]
+}
+```
+
+Top-level JSON keys (`session`, `workspace`, `repos`, `folders`) are present in both modes so consumers can branch on `workspace != null`. Mode-irrelevant fields are `null` or `[]`.
+
+### Behavioral rules
+
+- `weave workspace` does not change directories.
+- `weave workspace` does not open the workspace in an editor.
+- `weave workspace` does not clone, move, or modify files — use `weave add` to grow the workspace.
+- In workspace mode `weave workspace` does not display `session.folders`. The workspace `workspace.yml` is the source of truth.
+- A malformed `workspace.yml` is treated as if absent. The command falls through to repo mode silently (no warning, no crash).
 
 ## Use Cases
 
@@ -207,16 +434,52 @@ It runs:
 weave workspace --json
 ```
 
-The JSON response is the current local session, not the full workspace metadata model.
+If the agent is inside a Weave workspace, the JSON response describes the workspace and its registered repos (committed truth). Otherwise it lists the session folders.
+
+### Use Case: Teammate Joins From A Fresh Clone
+
+A teammate clones the workspace and wants to see what's inside before doing anything else.
+
+They run:
+
+```bash
+git clone git@github.com:peoplebox/peoplebox-platform.git
+cd peoplebox-platform
+weave workspace --json
+```
+
+The command reads `.weave/workspace.yml` directly and returns the workspace name, root path, and registered repos. No `weave init` is required first.
+
+### Use Case: Grow A Workspace After Init
+
+A user already has `peoplebox-platform/` as a workspace and wants to add `billing`.
+
+They run:
+
+```bash
+cd peoplebox-platform
+weave add git@github.com:peoplebox/billing.git
+weave workspace
+```
+
+Weave clones `billing/`, gitignores it, registers it in `workspace.yml`, and `weave workspace` lists it under `Repos:`.
 
 ## Source Anchors
 
-- `src/commands/init.ts`: parses `weave init` options.
-- `src/lib/init-workspace.ts`: implements repo mode, workspace mode, current-repo adoption, workspace metadata, git initialization, and session updates.
-- `src/commands/workspace.ts`: defines `weave workspace`.
-- `src/lib/show-workspace.ts`: reads and prints the current local session.
-- `tests/init.test.ts`: covers repo mode, workspace mode, current-directory workspace behavior, current-repo adoption, safety checks, and workspace session output.
+- `src/commands/init.ts`: defines `weave init` and its options (`--mode`, `--workspace-name`, `--workspace-path`, `--id`, `--kind`, `--yes`).
+- `src/lib/init-workspace.ts`: implements repo mode, workspace mode, current-repo adoption, workspace metadata, git initialization, and session updates. Uses `registerRepoIntoWorkspace` for adopted-repo registration.
+- `src/commands/add.ts`: defines `weave add` and its options (`--id`, `--kind`).
+- `src/lib/add-folder.ts`: mode-aware add. Repo mode writes `session.folders`; workspace mode dispatches on URL vs path-inside vs path-outside and writes `workspace.yml.repos`.
+- `src/lib/workspace-mode.ts`: `findWorkspaceMode(cwd)` walks up looking for `.weave/workspace.yml` and reads `mode`. Shared by `weave add` and `weave workspace`.
+- `src/lib/workspace-repos.ts`: workspace.yml repos registry, idempotent `.gitignore` append (`/<path>/`), URL helpers (`isGitUrl` supports `git@`, `https://`, `http://`, `ssh://`, `git://`, `file://`), `registerRepoIntoWorkspace` (the single write path used by both init and add).
+- `src/lib/git.ts`: `cloneRepo` runs `git clone -- <url> <dest>` (the `--` separator is intentional to block URL-as-flag injection); `getGitRemote` reads `remote.origin.url`.
+- `src/commands/workspace.ts`: defines `weave workspace` and passes `process.cwd()` to `showWorkspace`.
+- `src/lib/show-workspace.ts`: `showWorkspace({ cwd })` dispatches on `findWorkspaceMode(cwd)`; emits stable top-level JSON keys (`session`, `workspace`, `repos`, `folders`).
+- `tests/init.test.ts`: covers init modes, repo-mode add, workspace-mode add (path inside, path outside adoption, URL clone, non-git folder, duplicate, refused destination, slug from `--id`), `weave workspace` workspace-mode view (root and from a subdirectory), `weave workspace` workspace-mode without a session, `weave workspace` repo-mode view, and graceful fall-through on malformed workspace.yml.
 
 ## Change History
 
 - 2026-06-04: Added current command reference for init modes, workspace setup paths, examples, and `weave workspace` session behavior.
+- 2026-06-04: Documented mode-aware `weave add` and workspace-mode `weave workspace` repos listing.
+- 2026-06-04: Reworked `weave workspace` to dispatch on cwd (shared `findWorkspaceMode` helper). Workspace mode renders a workspace view (`workspace`/`repos` keys) and no longer requires an active session; repo mode renders session folders without crawling workspace.yml.
+- 2026-06-04: Added a Command Surface overview and per-command Options tables, dispatch decision table for `weave workspace`, sample text and JSON outputs for both modes, and an explicit `file://` URL scheme entry in `weave add`. Documented `git clone -- <url> <dest>` separator as an intentional injection guard.

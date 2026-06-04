@@ -3,8 +3,8 @@ import { addFolder } from "../lib/add-folder.js";
 
 export function addCommand(): Command {
   return new Command("add")
-    .description("Add a folder to the current Weave session.")
-    .argument("<path>", "folder path to add")
+    .description("Add a folder or git URL to the current Weave context (repo session or workspace registry).")
+    .argument("<path>", "folder path or git URL to add")
     .option("--id <id>", "folder id")
     .option("--kind <kind>", "folder kind", "app")
     .action(async (targetPath: string, options: { id?: string; kind?: string }) => {

@@ -305,17 +305,20 @@ describe("current session workflow", () => {
     await expect(stat(path.join(backend, ".weave", "sync.yml"))).resolves.toMatchObject({});
   });
 
-  it("prints current session as JSON for agents", async () => {
+  it("prints current session as JSON for agents in repo mode", async () => {
     const cwd = await tempDir();
     const resolvedCwd = await realpath(cwd);
     const sessionPath = path.join(cwd, ".cache", "current-session.yml");
     await initWorkspace({ cwd, interactive: false, yes: true, folderId: "frontend", sessionPath });
 
-    const result = await showWorkspace({ json: true, sessionPath });
+    const outsidePath = await tempDir();
+    const result = await showWorkspace({ cwd: outsidePath, json: true, sessionPath });
     const output = JSON.parse(result.message);
 
     expect(result.status).toBe("ok");
     expect(output.session.status).toBe("active");
+    expect(output.workspace).toBeNull();
+    expect(output.repos).toEqual([]);
     expect(output.folders).toEqual([
       {
         id: "frontend",
@@ -327,7 +330,7 @@ describe("current session workflow", () => {
     ]);
   });
 
-  it("prints workspace sessions as JSON for agents", async () => {
+  it("prints workspace view as JSON when cwd is inside a workspace", async () => {
     const root = await tempDir();
     const workspacePath = path.join(root, "platform");
     const sessionPath = path.join(root, ".cache", "current-session.yml");
@@ -341,18 +344,361 @@ describe("current session workflow", () => {
       sessionPath,
     });
 
-    const result = await showWorkspace({ json: true, sessionPath });
+    const result = await showWorkspace({ cwd: workspacePath, json: true, sessionPath });
     const output = JSON.parse(result.message);
     const resolvedWorkspacePath = await realpath(workspacePath);
 
-    expect(output.folders).toEqual([
+    expect(result.status).toBe("ok");
+    expect(output.workspace).toEqual({
+      name: "platform",
+      path: resolvedWorkspacePath,
+      mode: "workspace",
+    });
+    expect(output.repos).toEqual([]);
+    expect(output.folders).toEqual([]);
+    expect(output.session.status).toBe("active");
+  });
+
+  it("prints workspace view from a subdirectory of the workspace", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const nested = path.join(workspacePath, "wiki", "changes");
+    await mkdir(nested, { recursive: true });
+    const result = await showWorkspace({ cwd: nested, json: true, sessionPath });
+    const output = JSON.parse(result.message);
+    const resolvedWorkspacePath = await realpath(workspacePath);
+
+    expect(output.workspace?.path).toBe(resolvedWorkspacePath);
+    expect(output.repos).toEqual([]);
+  });
+
+  it("prints workspace view in workspace mode without an active session", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const isolatedSessionPath = path.join(root, ".cache", "no-session.yml");
+    const result = await showWorkspace({ cwd: workspacePath, json: true, sessionPath: isolatedSessionPath });
+    const output = JSON.parse(result.message);
+    const resolvedWorkspacePath = await realpath(workspacePath);
+
+    expect(result.status).toBe("ok");
+    expect(output.session).toBeNull();
+    expect(output.workspace).toEqual({
+      name: "platform",
+      path: resolvedWorkspacePath,
+      mode: "workspace",
+    });
+    expect(output.repos).toEqual([]);
+  });
+
+  it("returns no_session in repo mode when no session exists", async () => {
+    const outsidePath = await tempDir();
+    const isolatedSessionPath = path.join(outsidePath, ".cache", "no-session.yml");
+
+    const result = await showWorkspace({ cwd: outsidePath, json: true, sessionPath: isolatedSessionPath });
+    const output = JSON.parse(result.message);
+
+    expect(result.status).toBe("no_session");
+    expect(output.session).toBeNull();
+    expect(output.workspace).toBeNull();
+    expect(output.folders).toEqual([]);
+  });
+
+  it("shows adopted repo in weave workspace after init", async () => {
+    const root = await tempDir();
+    const repo = path.join(root, "app-repo");
+    const workspacePath = path.join(root, "peoplebox-platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+    await mkdir(repo, { recursive: true });
+    await git(repo, ["init"]);
+    await git(repo, ["remote", "add", "origin", "git@example.com:peoplebox/app-repo.git"]);
+
+    await initWorkspace({
+      cwd: repo,
+      mode: "workspace",
+      workspaceName: "peoplebox-platform",
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const result = await showWorkspace({ cwd: workspacePath, json: true, sessionPath });
+    const output = JSON.parse(result.message);
+    const resolvedWorkspacePath = await realpath(workspacePath);
+
+    expect(output.workspace).toEqual({
+      name: "peoplebox-platform",
+      path: resolvedWorkspacePath,
+      mode: "workspace",
+    });
+    expect(output.repos).toEqual([
       {
-        id: "platform",
-        path: resolvedWorkspacePath,
-        kind: "workspace",
-        wiki: path.join(resolvedWorkspacePath, "wiki"),
-        metadata: path.join(resolvedWorkspacePath, ".weave"),
+        id: "app-repo",
+        path: "app-repo",
+        kind: "app",
+        remote: "git@example.com:peoplebox/app-repo.git",
       },
     ]);
+    expect(result.text).toContain("Repos:");
+    expect(result.text).toContain("app-repo");
+  });
+
+  it("registers an in-workspace path via weave add in workspace mode", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const billing = path.join(workspacePath, "billing");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    await mkdir(billing, { recursive: true });
+    await git(billing, ["init"]);
+    await git(billing, ["remote", "add", "origin", "git@example.com:peoplebox/billing.git"]);
+
+    const added = await addFolder({
+      cwd: workspacePath,
+      targetPath: "./billing",
+      folderKind: "app",
+      sessionPath,
+    });
+
+    const workspace = YAML.parse(await readFile(path.join(workspacePath, ".weave", "workspace.yml"), "utf8"));
+    const gitignore = await readFile(path.join(workspacePath, ".gitignore"), "utf8");
+    const session = await loadCurrentSession(sessionPath);
+
+    expect(added.status).toBe("added");
+    expect(workspace.repos.billing).toMatchObject({
+      path: "billing",
+      kind: "app",
+      remote: "git@example.com:peoplebox/billing.git",
+    });
+    expect(gitignore).toContain("/billing/");
+    expect(Object.keys(session?.folders ?? {})).toEqual(["platform"]);
+  });
+
+  it("registers a non-git in-workspace folder without remote", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const notes = path.join(workspacePath, "shared-notes");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    await mkdir(notes);
+
+    const added = await addFolder({ cwd: workspacePath, targetPath: "./shared-notes", sessionPath });
+    const workspace = YAML.parse(await readFile(path.join(workspacePath, ".weave", "workspace.yml"), "utf8"));
+
+    expect(added.status).toBe("added");
+    expect(workspace.repos["shared-notes"]).toMatchObject({
+      path: "shared-notes",
+      kind: "app",
+    });
+    expect(workspace.repos["shared-notes"].remote).toBeUndefined();
+  });
+
+  it("adopts an outside folder into the workspace via weave add", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const external = path.join(root, "external-tooling");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    await mkdir(external, { recursive: true });
+    await git(external, ["init"]);
+    await writeFile(path.join(external, "marker.txt"), "keep\n");
+
+    const added = await addFolder({ cwd: workspacePath, targetPath: "../external-tooling", sessionPath });
+    const workspace = YAML.parse(await readFile(path.join(workspacePath, ".weave", "workspace.yml"), "utf8"));
+    const movedPath = path.join(workspacePath, "external-tooling");
+
+    expect(added.status).toBe("added");
+    await expect(stat(external)).rejects.toThrow();
+    await expect(readFile(path.join(movedPath, "marker.txt"), "utf8")).resolves.toBe("keep\n");
+    expect(workspace.repos["external-tooling"]).toMatchObject({
+      path: "external-tooling",
+      kind: "app",
+    });
+  });
+
+  it("clones and registers a repo by git URL via weave add", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const source = path.join(root, "source-repo");
+    const bare = path.join(root, "billing.git");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await mkdir(source, { recursive: true });
+    await git(source, ["init"]);
+    await writeFile(path.join(source, "README.md"), "# billing\n");
+    await git(source, ["add", "README.md"]);
+    await git(source, ["commit", "-m", "init"]);
+    await git(source, ["clone", "--bare", source, bare]);
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const bareUrl = (await realpath(bare)).replace(/\\/g, "/");
+    const fileUrl = `file://${bareUrl}`;
+
+    const added = await addFolder({
+      cwd: workspacePath,
+      targetPath: fileUrl,
+      sessionPath,
+    });
+
+    const workspace = YAML.parse(await readFile(path.join(workspacePath, ".weave", "workspace.yml"), "utf8"));
+    const gitignore = await readFile(path.join(workspacePath, ".gitignore"), "utf8");
+
+    expect(added.status).toBe("added");
+    await expect(stat(path.join(workspacePath, "billing"))).resolves.toMatchObject({});
+    expect(workspace.repos.billing).toMatchObject({
+      path: "billing",
+      kind: "app",
+      remote: fileUrl,
+    });
+    expect(gitignore).toContain("/billing/");
+  });
+
+  it("treats duplicate workspace add as already registered", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const billing = path.join(workspacePath, "billing");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+    await mkdir(billing);
+
+    const first = await addFolder({ cwd: workspacePath, targetPath: "./billing", sessionPath });
+    const second = await addFolder({
+      cwd: workspacePath,
+      targetPath: "./billing",
+      folderId: "billing-copy",
+      sessionPath,
+    });
+
+    expect(first.status).toBe("added");
+    expect(second.status).toBe("already_exists");
+  });
+
+  it("refuses git URL weave add when destination already exists", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const source = path.join(root, "source-repo");
+    const bare = path.join(root, "billing.git");
+    const billingDir = path.join(workspacePath, "billing");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await mkdir(source, { recursive: true });
+    await git(source, ["init"]);
+    await writeFile(path.join(source, "README.md"), "# billing\n");
+    await git(source, ["add", "README.md"]);
+    await git(source, ["commit", "-m", "init"]);
+    await git(source, ["clone", "--bare", source, bare]);
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+    await mkdir(billingDir);
+
+    const bareUrl = (await realpath(bare)).replace(/\\/g, "/");
+    const fileUrl = `file://${bareUrl}`;
+
+    await expect(addFolder({ cwd: workspacePath, targetPath: fileUrl, sessionPath })).rejects.toThrow(
+      /Destination already exists/,
+    );
+  });
+
+  it("degrades gracefully to repo mode when workspace.yml is malformed", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    await writeFile(path.join(workspacePath, ".weave", "workspace.yml"), ":\n");
+
+    const result = await showWorkspace({ cwd: workspacePath, json: true, sessionPath });
+    const output = JSON.parse(result.message);
+
+    expect(result.status).toBe("ok");
+    expect(output.workspace).toBeNull();
+    expect(output.repos).toEqual([]);
+    expect(result.text).toContain("Folders:");
   });
 });
