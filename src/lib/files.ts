@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 export async function pathExists(path: string): Promise<boolean> {
@@ -34,12 +34,25 @@ export async function ensureDir(path: string): Promise<void> {
   await mkdir(path, { recursive: true });
 }
 
+export async function createDirExclusive(path: string): Promise<void> {
+  await mkdir(path, { recursive: false });
+}
+
 export async function ensureDirectory(path: string): Promise<void> {
   const value = await stat(path);
 
   if (!value.isDirectory()) {
     throw new Error(`Expected a directory: ${path}`);
   }
+}
+
+export async function isDirectoryEmpty(path: string): Promise<boolean> {
+  const entries = await readdir(path);
+  return entries.length === 0;
+}
+
+export async function movePath(source: string, target: string): Promise<void> {
+  await rename(source, target);
 }
 
 export async function readJsonCache<T>(path: string): Promise<T | null> {

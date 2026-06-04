@@ -129,7 +129,14 @@ npm unlink -g weave-it
 
 ## `weave init`
 
-Initializes Weave in the current folder and starts a new temporary session from that folder.
+Initializes Weave in repo mode or workspace mode and starts a new temporary session.
+
+- Repo mode is the default. Use it when you want Weave to code/reference only the current repo or folder.
+- Workspace mode is for multi-repo or multi-folder work. It creates a workspace with the shared `wiki/` and `.weave/` metadata.
+- When workspace mode runs inside an existing git repo, Weave creates the workspace beside that repo, moves the repo into the workspace, adds the repo directory to the workspace `.gitignore`, and registers it in `.weave/workspace.yml`.
+- After workspace-mode init, open the created workspace path in your editor.
+
+V1 workspace mode only creates the workspace and adopts the current repo when detected. Arbitrary attach, clone, migration, skill rewrites, and workspace-aware change commands are deferred.
 
 ```bash
 weave init [options]
@@ -138,22 +145,29 @@ weave init [options]
 Options:
 
 ```text
---id <id>      folder id
---kind <kind>  folder kind, defaults to app
---yes          accept defaults and skip prompts
--h, --help     display help for command
+--id <id>                  folder id
+--kind <kind>              folder kind, defaults to app
+--mode <mode>              init mode: repo or workspace; defaults to repo with --yes
+--workspace-name <name>    workspace name for workspace mode
+--workspace-path <path>    workspace path for workspace mode outside a git repo
+--yes                      accept defaults and skip prompts
+-h, --help                 display help for command
 ```
 
-Example:
+Examples:
 
 ```bash
 weave init --id weave-it --kind package --yes
+weave init --mode repo --yes
+weave init --mode workspace --workspace-name peoplebox-platform
+weave init --mode workspace --workspace-name peoplebox-platform --workspace-path ../peoplebox-platform
 ```
 
 From source:
 
 ```bash
 npm run dev -- init --id weave-it --kind package --yes
+npm run dev -- init --mode workspace --workspace-name peoplebox-platform
 ```
 
 ## `weave add <path>`
