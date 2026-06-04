@@ -27,7 +27,6 @@ const bundledSkillNames = [
   "weave-new",
   "weave-next",
   "weave-prd",
-  "weave-propagate",
 ] as const;
 
 const installedAgentDestinations = [
@@ -222,9 +221,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Do not write repo-tracked artifacts.");
     expect(skill.content).toContain("Do not set or clear artifact context.");
     expect(skill.content).toContain("Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-issues`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.");
-    expect(skill.content).toContain("weave change current all --json");
+    expect(skill.content).toContain("weave change current --json");
     expect(skill.content).toContain("weave artifact current --json");
-    expect(skill.content).toContain("Inspect only workspace targets whose current change matches the active change.");
+    expect(skill.content).toContain("Inspect only the resolved workspace or repo context whose current change matches the active change.");
     expect(skill.content).toContain("read live artifacts first");
     expect(skill.content).toContain("wiki/changes/<change-id>/status.yml");
     expect(skill.content).toContain("Source-aware stale-first recommendation");
@@ -276,7 +275,7 @@ describe("agent skills", () => {
 
   it("ships every bundled SKILL.md template with a last_changed_in frontmatter field", async () => {
     const skills = await listDefaultSkills();
-    expect(skills.length).toBeGreaterThanOrEqual(10);
+    expect(skills.length).toBeGreaterThanOrEqual(9);
     for (const skill of skills) {
       expect(skill.lastChangedIn).toMatch(/^\d+\.\d+\.\d+/);
     }
@@ -349,7 +348,6 @@ describe("agent skills", () => {
       "weave-next",
       "weave-issues",
       "weave-knowledge",
-      "weave-propagate",
       "weave-capture",
     ] as const;
     for (const skill of notPlanModeRequired) {
@@ -453,11 +451,6 @@ describe("agent skills", () => {
         expect.objectContaining({
           name: "weave-clarify",
           description: expect.stringContaining("Clarify and revise one existing Weave change artifact"),
-          hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
-        }),
-        expect.objectContaining({
-          name: "weave-propagate",
-          description: expect.stringContaining("Propagate an existing Weave change exploration"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
       ]),

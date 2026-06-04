@@ -18,7 +18,6 @@ import {
   type ProgressChangeResult,
   knowledgeChange,
   type KnowledgeChangeResult,
-  propagateChange,
   statusChange,
   switchChange,
   type CurrentChangeResult,
@@ -32,13 +31,6 @@ import { withNotices } from "../lib/with-notices.js";
 interface ChangeNewOptions {
   slug?: string;
   type?: ChangeType;
-  target?: string[];
-  json?: boolean;
-}
-
-interface ChangePropagateOptions {
-  from?: string;
-  to?: string[];
   json?: boolean;
 }
 
@@ -47,7 +39,6 @@ interface ChangeTargetOptions {
 }
 
 interface ChangeStatusOptions {
-  target?: string;
   json?: boolean;
 }
 
@@ -73,7 +64,7 @@ interface ChangeKnowledgeOptions extends ChangeStatusOptions {
 }
 
 export function changeCommand(): Command {
-  const command = new Command("change").description("Create, inspect, and propagate Weave change artifacts.");
+  const command = new Command("change").description("Create and inspect Weave change artifacts.");
 
   command
     .command("new")
@@ -81,7 +72,6 @@ export function changeCommand(): Command {
     .argument("<title>", "change title")
     .option("--type <type>", "change type: feat, fix, refactor, docs, test, ci, or chore", parseChangeType, "feat")
     .option("--slug <slug>", "change slug override")
-    .option("--target <target...>", "target folder path or session folder id")
     .option("--json", "print machine-readable JSON")
     .action(async (title: string, options: ChangeNewOptions) => {
       const json = options.json ?? false;
@@ -92,7 +82,6 @@ export function changeCommand(): Command {
             title,
             type: options.type,
             slug: options.slug,
-            targets: options.target,
           });
           return { json: result, text: result.message };
         });
@@ -102,13 +91,11 @@ export function changeCommand(): Command {
   command
     .command("list")
     .description("List changes.")
-    .argument("[target]", "target folder path, session folder id, or all")
     .option("--json", "print machine-readable JSON")
-    .action(async (target: string | undefined, options: ChangeTargetOptions) => {
+    .action(async (options: ChangeTargetOptions) => {
       await runAction(options.json ?? false, async () => {
         const result = await listChanges({
           cwd: process.cwd(),
-          target,
         });
         writeResult(result, options.json ?? false);
       });
@@ -117,13 +104,12 @@ export function changeCommand(): Command {
   command
     .command("current")
     .description("Show the current active change.")
-    .argument("[target]", "target folder path, session folder id, or all")
     .option("--json", "print machine-readable JSON")
-    .action(async (target: string | undefined, options: ChangeTargetOptions) => {
+    .action(async (options: ChangeTargetOptions) => {
       const json = options.json ?? false;
       await runAction(json, async () => {
         await withNotices({ commandName: "change-current", json }, async () => {
-          const result = await currentChange({ cwd: process.cwd(), target });
+          const result = await currentChange({ cwd: process.cwd() });
           return { json: result, text: result.message };
         });
       });
@@ -133,7 +119,6 @@ export function changeCommand(): Command {
     .command("status")
     .description("Show active change status and branch alignment.")
     .argument("[change]", "change reference to inspect without switching")
-    .option("--target <target>", "target folder path, session folder id, or all")
     .option("--json", "print machine-readable JSON")
     .action(async (change: string | undefined, options: ChangeStatusOptions) => {
       const json = options.json ?? false;
@@ -142,7 +127,6 @@ export function changeCommand(): Command {
           const result = await statusChange({
             cwd: process.cwd(),
             change,
-            target: options.target,
           });
           return { json: result, text: result.message };
         });
@@ -153,7 +137,6 @@ export function changeCommand(): Command {
     .command("progress")
     .description("Record lifecycle progress for the active change.")
     .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
-    .option("--target <target>", "target folder path or session folder id")
     .option("--source <source>", "source dependency: exploration, prd, architecture, discussion, sessions, or codebase", collectValues, [])
     .option("--no-invalidate", "suppress all downstream stale propagation")
     .option(
@@ -167,7 +150,6 @@ export function changeCommand(): Command {
         const result = await progressChange({
           cwd: process.cwd(),
           stage,
-          target: options.target,
           sources: options.source,
           noInvalidate: invalidate === false,
           invalidateOnly: typeof invalidate === "string" ? parseInvalidateList(invalidate) : undefined,
@@ -180,7 +162,6 @@ export function changeCommand(): Command {
     .command("clear-stale")
     .description("Explicitly clear a stale lane flag after content-sync verification.")
     .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
-    .option("--target <target>", "target folder path or session folder id")
     .option("--reason <reason>", "one-sentence verification rationale recorded in stale_history")
     .option("--json", "print machine-readable JSON")
     .action(async (lane: ChangeStage, options: ChangeClearStaleOptions) => {
@@ -188,7 +169,6 @@ export function changeCommand(): Command {
         const result = await clearChangeStaleness({
           cwd: process.cwd(),
           lane,
-          target: options.target,
           reason: options.reason,
         });
         writeResult(result, options.json ?? false);
@@ -199,7 +179,6 @@ export function changeCommand(): Command {
     .command("knowledge")
     .description("Record knowledge freshness for the active change.")
     .argument("<status>", "knowledge status: pending, stale, updated, or none", parseKnowledgeStatus)
-    .option("--target <target>", "target folder path or session folder id")
     .option("--domain <domain>", "affected knowledge domain", collectValues)
     .option("--shared <shared>", "affected shared behavior area", collectValues)
     .option("--file <file>", "touched or authoritative knowledge file", collectValues)
@@ -212,7 +191,6 @@ export function changeCommand(): Command {
         const result = await knowledgeChange({
           cwd: process.cwd(),
           status,
-          target: options.target,
           domains: options.domain,
           shared: options.shared,
           files: options.file,
@@ -234,25 +212,6 @@ export function changeCommand(): Command {
         const result = await switchChange({
           cwd: process.cwd(),
           change,
-        });
-        writeResult(result, options.json ?? false);
-      });
-    });
-
-  command
-    .command("propagate")
-    .description("Copy an existing change exploration to other folders.")
-    .argument("<change-id>", "change id")
-    .option("--from <target>", "source folder path or session folder id")
-    .requiredOption("--to <target...>", "target folder path or session folder id")
-    .option("--json", "print machine-readable JSON")
-    .action(async (changeId: string, options: ChangePropagateOptions) => {
-      await runAction(options.json ?? false, async () => {
-        const result = await propagateChange({
-          cwd: process.cwd(),
-          changeId,
-          from: options.from,
-          to: options.to ?? [],
         });
         writeResult(result, options.json ?? false);
       });

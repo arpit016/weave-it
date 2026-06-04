@@ -372,6 +372,125 @@ Top-level JSON keys (`session`, `workspace`, `repos`, `folders`) are present in 
 - In workspace mode `weave workspace` does not display `session.folders`. The workspace `workspace.yml` is the source of truth.
 - A malformed `workspace.yml` is treated as if absent. The command falls through to repo mode silently (no warning, no crash).
 
+## Change And Artifact Command Context
+
+`weave change` and `weave artifact` use cwd-dispatched context resolution. They walk up from `cwd` to the nearest valid `.weave/workspace.yml`:
+
+- `mode: workspace` resolves to the workspace root, so `workspace/wiki/changes/` is the single change and artifact store even when the command runs inside a registered sub-repo.
+- `mode: repo` resolves to the repo root, so nested directories do not create their own accidental `wiki/changes/`.
+- No valid Weave mode file above `cwd` is an error; initialize the project with `weave init` first.
+
+These command families no longer expose multi-target behavior. `--target`, `all` positional targets, and `weave change propagate` are removed.
+
+### Command Synopsis
+
+`weave change` manages durable change folders under the resolved root's `wiki/changes/` directory:
+
+```bash
+weave change new "<title>" [--type <type>] [--slug <slug>] [--json]
+weave change list [--json]
+weave change current [--json]
+weave change status [change] [--json]
+weave change switch <change> [--json]
+weave change progress <lane> [--source <source>...] [--no-invalidate|--invalidate <lanes>] [--json]
+weave change clear-stale <lane> [--reason <reason>] [--json]
+weave change knowledge <status> [--domain <domain>...] [--shared <shared>...] [--file <file>...] [--delta <path>] [--reason <reason>] [--invalidated-by <source>] [--json]
+```
+
+`weave artifact` manages the current artifact lane for the active change in the same resolved root:
+
+```bash
+weave artifact current [--json]
+weave artifact current set <exploration|prd|architecture> [--json]
+weave artifact current clear [--json]
+```
+
+### Examples
+
+Workspace mode from a registered sub-repo:
+
+```bash
+cd peoplebox-platform/billing/src
+weave change current
+weave change progress prd --source sessions
+weave artifact current set architecture
+```
+
+All three commands walk up to `peoplebox-platform/.weave/workspace.yml`, operate on `peoplebox-platform/wiki/changes/`, and do not create `billing/wiki/`.
+
+Repo mode from a nested directory:
+
+```bash
+cd single-app/src/routes
+weave change new "Fix route loading" --type fix
+weave change status
+```
+
+Both commands walk up to `single-app/.weave/workspace.yml` and operate on `single-app/wiki/changes/`.
+
+JSON consumers:
+
+```bash
+weave change current --json
+weave artifact current --json
+```
+
+The `targets` field remains a one-element array for compatibility with existing skills and automation, even though the command surface is now single-context.
+
+Removed behavior:
+
+```bash
+weave change new "Do thing" --target app
+weave change current all
+weave change propagate <change-id> --to api
+```
+
+These forms are no longer supported. Users should run commands from the desired workspace or repo context and let cwd dispatch select the single change store.
+
+### Use Cases
+
+#### Use Case: Workspace User Works Inside A Sub-Repo
+
+A user edits code inside `peoplebox-platform/billing/` while the active Weave change lives at the workspace root. They can run `weave change current`, `weave change status`, `weave change progress`, and `weave artifact current` from the sub-repo without first changing directory to the workspace root.
+
+Expected outcome: Weave resolves `peoplebox-platform/` as the command root and reads or writes `peoplebox-platform/wiki/changes/`.
+
+#### Use Case: Repo User Works Inside A Nested Source Directory
+
+A user is inside `single-app/src/routes/` in a repo-mode project and creates a fix change.
+
+Expected outcome: Weave resolves `single-app/` as the command root, creates `single-app/wiki/changes/<change-id>/`, and avoids accidental nested `src/routes/wiki/` scaffolding.
+
+#### Use Case: Agent Resolves Current Context
+
+An agent runs `weave change current --json` and `weave artifact current --json` from the directory currently being edited.
+
+Expected outcome: The agent receives the active change and artifact context for the containing workspace or repo root and reads `targets[0]`. The agent does not pass `--target`, `all`, or repo ids.
+
+#### Use Case: User Attempts Old Multi-Target Commands
+
+A user tries an older `--target`, `all`, or propagation command.
+
+Expected outcome: Commander rejects the unknown option or subcommand. The recovery is to rerun the command from the desired workspace/repo context.
+
+### Behavioral Rules
+
+- `session.folders` may provide display metadata such as id and name for the resolved root, but `.weave/workspace.yml` is the source of root selection.
+- Change and artifact commands do not add workspace sub-repos to `session.folders` merely because they are the current working directory.
+- Change and artifact commands do not create `wiki/` or `.weave/` inside workspace sub-repos during context resolution.
+- `weave change new` returns `targets: [...]` as a one-element array in JSON output for compatibility.
+- `weave change progress` and stale propagation semantics are unchanged after the root is resolved.
+- `weave change knowledge` records knowledge freshness for the active change in the resolved root and no longer accepts `--target`.
+
+### Source Anchors
+
+- Context resolver: `src/lib/workspace-mode.ts` (`findWorkspaceMode`, `resolveChangeContext`)
+- Change command library: `src/lib/changes.ts` (`createChange`, `currentChange`, `statusChange`, `progressChange`, `knowledgeChange`)
+- Artifact command library: `src/lib/artifact-context.ts` (`currentArtifact`, `setCurrentArtifact`, `clearCurrentArtifact`)
+- CLI command definitions: `src/commands/change.ts`, `src/commands/artifact.ts`
+- Tests: `tests/changes.test.ts`, `tests/cli-change-progress.test.ts`, `tests/cli-change-staleness.test.ts`, `tests/cli-skills.test.ts`, `tests/cli-tier1-notices.test.ts`
+- Skill guidance: `templates/skills/weave-new/SKILL.md`, `templates/skills/weave-next/SKILL.md`
+
 ## Use Cases
 
 ### Use Case: Single Repo Project

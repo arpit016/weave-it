@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
@@ -8,7 +8,22 @@ import { clearChangeStaleness, createChange, progressChange } from "../src/lib/c
 const testNow = new Date(2026, 4, 22, 10, 0, 0);
 
 async function tempDir(): Promise<string> {
-  return mkdtemp(path.join(os.tmpdir(), "weave-stale-"));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-stale-"));
+  await writeWorkspaceMetadata(cwd);
+  return cwd;
+}
+
+async function writeWorkspaceMetadata(cwd: string): Promise<void> {
+  await mkdir(path.join(cwd, ".weave"), { recursive: true });
+  await writeFile(
+    path.join(cwd, ".weave", "workspace.yml"),
+    YAML.stringify({
+      version: 1,
+      mode: "repo",
+      name: path.basename(cwd),
+      repos: {},
+    }),
+  );
 }
 
 function sessionPath(cwd: string): string {

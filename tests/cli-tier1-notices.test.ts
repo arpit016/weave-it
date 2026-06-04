@@ -46,6 +46,16 @@ async function setupWeaveRepo(): Promise<string> {
       "",
     ].join("\n"),
   );
+  await writeFile(
+    path.join(weaveDir, "workspace.yml"),
+    [
+      "version: 1",
+      "mode: repo",
+      "name: test-app",
+      "repos: {}",
+      "",
+    ].join("\n"),
+  );
   await writeFile(weaveDir + "/agents.yml", "version: 1\ninstalled: {}\n");
   return cwd;
 }
@@ -74,7 +84,7 @@ describe("Tier 1 commands include a notices field in --json output", () => {
     const projectMarker = path.join(cwd, "package.json");
     await writeFile(projectMarker, JSON.stringify({ name: "test", version: "0.0.0" }));
     const result = runCli(
-      ["change", "new", "Test change", "--target", cwd, "--json"],
+      ["change", "new", "Test change", "--json"],
       cwd,
       { WEAVE_NO_NOTICES: "1" },
     );

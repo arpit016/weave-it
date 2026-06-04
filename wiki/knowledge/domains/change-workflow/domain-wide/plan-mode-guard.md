@@ -22,16 +22,16 @@ The `weave artifact current set <lane>` body call in each skill's discovery sect
 | `weave-architect` | yes | enters/resumes the architecture lane; same resumption pattern | same |
 | `weave-prd` | no — Agent Mode | enters the PRD lane and writes `prd.md` directly | already calls `weave artifact current set prd` in its body in Agent Mode where no guard is needed |
 | `weave-clarify` | no — Agent Mode | amends one named artifact (`<target>` is a one-shot argument) and exits | does not enter a lane in the resumption sense; calls `weave change progress <target>` at the end; does not need the lane-commit |
-| Other 6 skills | no | not design-discussion | guard does not apply |
+| Other 5 skills | no | not design-discussion | guard does not apply |
 
-The narrow scope is enforced by tests: `EXPECTED_PLAN_MODE_GUARD` byte-identity assertion across `weave-explore` and `weave-architect` only, and a non-presence assertion against the other 8 skills.
+The narrow scope is enforced by tests: `EXPECTED_PLAN_MODE_GUARD` byte-identity assertion across `weave-explore` and `weave-architect` only, and a non-presence assertion against the other shipped skills.
 
 ## Behavioral Rules
 
 - The guard text is byte-identical across the two skills modulo `<lane>` (`exploration` / `architecture`) and `<skill-name>` (`weave-explore` / `weave-architect`) substitution. Drift is prevented by `EXPECTED_PLAN_MODE_GUARD` in `src/lib/skill-template-checks.ts`.
 - The guard is a prose contract addressed to the agent; the CLI does not enforce mode, does not block writes, and does not validate that the lane was set.
 - `weave artifact current set <lane> --json` writes only `.weave/session/<id>.yml` (local session state). It does not modify any repo-tracked file.
-- Skills that do not carry the guard (8 in total) follow their own entry semantics: `weave-prd` and `weave-clarify` run in Agent Mode and call `weave artifact current set` (or its equivalent end-step) without ceremony; the other 6 skills (`weave-new`, `weave-next`, `weave-issues`, `weave-knowledge`, `weave-propagate`, `weave-capture`) have no lane-entry semantics that require the guard.
+- Skills that do not carry the guard follow their own entry semantics: `weave-prd` and `weave-clarify` run in Agent Mode and call `weave artifact current set` (or its equivalent end-step) without ceremony; the other non-design skills (`weave-new`, `weave-next`, `weave-issues`, `weave-knowledge`, `weave-capture`) have no lane-entry semantics that require the guard.
 
 ## Defensive Companion: weave-capture
 

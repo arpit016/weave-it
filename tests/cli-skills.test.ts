@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +7,22 @@ import { createProgram } from "../src/cli.js";
 import { createChange } from "../src/lib/changes.js";
 
 async function tempDir(): Promise<string> {
-  return mkdtemp(path.join(os.tmpdir(), "weave-it-cli-skills-"));
+  const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-it-cli-skills-"));
+  await writeWorkspaceMetadata(cwd);
+  return cwd;
+}
+
+async function writeWorkspaceMetadata(cwd: string): Promise<void> {
+  await mkdir(path.join(cwd, ".weave"), { recursive: true });
+  await writeFile(
+    path.join(cwd, ".weave", "workspace.yml"),
+    YAML.stringify({
+      version: 1,
+      mode: "repo",
+      name: path.basename(cwd),
+      repos: {},
+    }),
+  );
 }
 
 describe("skills CLI", () => {

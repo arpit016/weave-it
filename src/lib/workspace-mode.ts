@@ -3,6 +3,7 @@ import path from "node:path";
 import { realpath } from "node:fs/promises";
 import YAML from "yaml";
 import { pathExists } from "./files.js";
+import { defaultSessionPath, findFolderByPath, loadCurrentSession } from "./session-state.js";
 
 export type WorkspaceModeKind = "workspace" | "repo";
 
@@ -10,6 +11,14 @@ export type FindWorkspaceModeResult = {
   mode: WorkspaceModeKind;
   workspacePath: string;
   workspaceYmlPath: string;
+};
+
+export type ResolvedChangeContext = {
+  mode: WorkspaceModeKind;
+  rootPath: string;
+  workspaceYmlPath: string;
+  folderId?: string;
+  folderName?: string;
 };
 
 export async function findWorkspaceMode(startPath: string): Promise<FindWorkspaceModeResult | undefined> {
@@ -37,6 +46,28 @@ export async function findWorkspaceMode(startPath: string): Promise<FindWorkspac
     }
     current = parent;
   }
+}
+
+export async function resolveChangeContext(
+  startPath: string,
+  sessionPath = defaultSessionPath(),
+): Promise<ResolvedChangeContext | undefined> {
+  const workspace = await findWorkspaceMode(startPath);
+  if (!workspace) {
+    return undefined;
+  }
+
+  const session = await loadCurrentSession(sessionPath);
+  const folderId = session ? findFolderByPath(session, workspace.workspacePath) : undefined;
+  const folder = folderId ? session?.folders[folderId] : undefined;
+
+  return {
+    mode: workspace.mode,
+    rootPath: workspace.workspacePath,
+    workspaceYmlPath: workspace.workspaceYmlPath,
+    folderId,
+    folderName: folder?.name,
+  };
 }
 
 async function readWorkspaceYml(workspaceYmlPath: string): Promise<{ mode?: string } | undefined> {

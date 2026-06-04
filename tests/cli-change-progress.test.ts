@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
@@ -23,6 +23,7 @@ afterEach(() => {
 
 async function setup(): Promise<{ cwd: string; session: string; changePath: string }> {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-cli-progress-"));
+  await writeWorkspaceMetadata(cwd);
   const session = path.join(cwd, ".session.yml");
   const created = await createChange({
     cwd,
@@ -37,6 +38,19 @@ async function setup(): Promise<{ cwd: string; session: string; changePath: stri
   process.env.WEAVE_SESSION_PATH = session;
   process.chdir(cwd);
   return { cwd, session, changePath };
+}
+
+async function writeWorkspaceMetadata(cwd: string): Promise<void> {
+  await mkdir(path.join(cwd, ".weave"), { recursive: true });
+  await writeFile(
+    path.join(cwd, ".weave", "workspace.yml"),
+    YAML.stringify({
+      version: 1,
+      mode: "repo",
+      name: path.basename(cwd),
+      repos: {},
+    }),
+  );
 }
 
 async function setupWithDownstream(): Promise<{ cwd: string; session: string; changePath: string }> {

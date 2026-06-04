@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { execFile } from "node:child_process";
-import { cp, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import YAML from "yaml";
@@ -20,6 +20,7 @@ import {
   type SessionCurrentChange,
 } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
+import { resolveChangeContext } from "./workspace-mode.js";
 
 const execFileAsync = promisify(execFile);
 const idChars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -194,30 +195,18 @@ export interface CreateChangeOptions {
   title: string;
   type?: ChangeType;
   slug?: string;
-  targets?: string[];
   now?: Date;
   randomId?: () => string;
   sessionPath?: string;
 }
 
-export interface PropagateChangeOptions {
-  cwd: string;
-  changeId: string;
-  from?: string;
-  to: string[];
-  now?: Date;
-  sessionPath?: string;
-}
-
 export interface ListChangesOptions {
   cwd: string;
-  target?: string;
   sessionPath?: string;
 }
 
 export interface CurrentChangeOptions {
   cwd: string;
-  target?: string;
   now?: Date;
   sessionPath?: string;
 }
@@ -225,7 +214,6 @@ export interface CurrentChangeOptions {
 export interface StatusChangeOptions {
   cwd: string;
   change?: string;
-  target?: string;
   now?: Date;
   sessionPath?: string;
 }
@@ -234,7 +222,6 @@ export interface ProgressChangeOptions {
   cwd: string;
   stage: ChangeStage;
   sources?: readonly string[];
-  target?: string;
   now?: Date;
   sessionPath?: string;
   noInvalidate?: boolean;
@@ -244,7 +231,6 @@ export interface ProgressChangeOptions {
 export interface KnowledgeChangeOptions {
   cwd: string;
   status: KnowledgeStatus;
-  target?: string;
   domains?: readonly string[];
   shared?: readonly string[];
   files?: readonly string[];
@@ -319,7 +305,7 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
     throw new ChangeCommandError("missing_title", "Change title is required");
   }
 
-  const targets = await resolveTargets(options.cwd, options.targets, options.sessionPath);
+  const targets = [await resolveTarget(options.cwd, options.sessionPath)];
   const type = options.type ?? "feat";
   const slug = normalizeChangeSlug(options.slug ?? title);
   const id = await generateChangeId(targets, slug, now, options.randomId ?? randomChangeIdPart);
@@ -359,54 +345,9 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
   return summarizeChangeOperation({ id, slug, title, type, branch, targets: results, verb: "Created" });
 }
 
-export async function propagateChange(options: PropagateChangeOptions): Promise<ChangeOperationResult> {
-  const now = options.now ?? new Date();
-  const source = await resolveTarget(options.cwd, options.from ?? options.cwd, options.sessionPath);
-  const sourceChangePath = changeDir(source.path, options.changeId);
-  if (!(await pathExists(sourceChangePath))) {
-    throw new ChangeCommandError("change_not_found", `Change not found: ${path.relative(options.cwd, sourceChangePath)}`);
-  }
-
-  const targets = await resolveTargets(options.cwd, options.to, options.sessionPath);
-  await assertChangeMissing(targets, options.changeId);
-  await assertCleanGitTargets(targets);
-
-  const metadata = await readExistingChangeMetadata(sourceChangePath, options.changeId);
-  const results: ChangeTargetResult[] = [];
-  for (const target of targets) {
-    const branchStatus = await ensureChangeBranch(target.path, metadata.branch);
-    await ensureWeaveScaffold({ folder: { path: target.path } });
-    const targetChangePath = changeDir(target.path, options.changeId);
-    await cp(sourceChangePath, targetChangePath, { recursive: true, errorOnExist: true, force: false });
-    results.push({ path: target.path, changePath: targetChangePath, branch: metadata.branch, branchStatus, current: true });
-  }
-
-  await saveCurrentForTargets(
-    options.sessionPath,
-    results.map((target) => ({
-      root: target.path,
-      changeId: metadata.id,
-      changePath: target.changePath,
-      branch: metadata.branch,
-      artifact: metadata.type === "feat" ? "exploration" : undefined,
-    })),
-    now,
-  );
-
-  return summarizeChangeOperation({
-    id: metadata.id,
-    slug: metadata.slug,
-    title: metadata.title,
-    type: metadata.type,
-    branch: metadata.branch,
-    targets: results,
-    verb: "Propagated",
-  });
-}
-
 export async function listChanges(options: ListChangesOptions): Promise<ChangeListResult> {
   const session = await loadCurrentSession(options.sessionPath ?? defaultSessionPath());
-  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
+  const targets = [await resolveTarget(options.cwd, options.sessionPath)];
   const summaries: ChangeTargetSummary[] = [];
 
   for (const target of targets) {
@@ -426,7 +367,7 @@ export async function currentChange(options: CurrentChangeOptions): Promise<Curr
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
   const session = await loadOrCreateSession(sessionPath, now);
-  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
+  const targets = [await resolveTarget(options.cwd, sessionPath)];
   const results: CurrentChangeTargetResult[] = [];
   let mutated = false;
 
@@ -451,7 +392,7 @@ export async function statusChange(options: StatusChangeOptions): Promise<Status
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
   const session = await loadOrCreateSession(sessionPath, now);
-  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
+  const targets = [await resolveTarget(options.cwd, sessionPath)];
   const results: StatusChangeTargetResult[] = [];
   let mutated = false;
 
@@ -503,7 +444,7 @@ export async function statusChange(options: StatusChangeOptions): Promise<Status
 
 export async function switchChange(options: SwitchChangeOptions): Promise<SwitchChangeResult> {
   const now = options.now ?? new Date();
-  const target = await resolveTarget(options.cwd, options.cwd, options.sessionPath);
+  const target = await resolveTarget(options.cwd, options.sessionPath);
   await assertCleanGitTargets([target]);
 
   const sessionPath = options.sessionPath ?? defaultSessionPath();
@@ -546,13 +487,7 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
   const session = await loadOrCreateSession(sessionPath, now);
-  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
-
-  if (targets.length !== 1) {
-    throw new ChangeCommandError("ambiguous_target", "Progress one change target at a time");
-  }
-
-  const target = targets[0];
+  const target = await resolveTarget(options.cwd, sessionPath);
   const context = await currentContextForTarget(session, target, now, { saveInferred: true });
   if (context.saved) {
     await saveCurrentSession(session, sessionPath);
@@ -631,7 +566,6 @@ export interface ClearChangeStalenessOptions {
   cwd: string;
   lane: ChangeStage;
   reason?: string;
-  target?: string;
   now?: Date;
   sessionPath?: string;
 }
@@ -657,13 +591,7 @@ export async function clearChangeStaleness(
     options.sessionPath ?? defaultSessionPath(),
     now,
   );
-  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
-
-  if (targets.length !== 1) {
-    throw new ChangeCommandError("ambiguous_target", "Clear staleness for one change target at a time");
-  }
-
-  const target = targets[0];
+  const target = await resolveTarget(options.cwd, options.sessionPath);
   const context = await currentContextForTarget(session, target, now, { saveInferred: true });
   if (context.saved) {
     await saveCurrentSession(session, options.sessionPath ?? defaultSessionPath());
@@ -734,13 +662,7 @@ export async function knowledgeChange(options: KnowledgeChangeOptions): Promise<
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
   const session = await loadOrCreateSession(sessionPath, now);
-  const targets = await resolveQueryTargets(options.cwd, options.target, options.sessionPath);
-
-  if (targets.length !== 1) {
-    throw new ChangeCommandError("ambiguous_target", "Update knowledge status for one change target at a time");
-  }
-
-  const target = targets[0];
+  const target = await resolveTarget(options.cwd, sessionPath);
   const context = await currentContextForTarget(session, target, now, { saveInferred: true });
   if (context.saved) {
     await saveCurrentSession(session, sessionPath);
@@ -852,37 +774,16 @@ async function assertChangeMissing(targets: ChangeTarget[], changeId: string): P
   }
 }
 
-async function resolveTargets(cwd: string, values: string[] | undefined, sessionPath?: string): Promise<ChangeTarget[]> {
-  const targetValues = values && values.length > 0 ? values : [cwd];
-  const targets = await Promise.all(targetValues.map((value) => resolveTarget(cwd, value, sessionPath)));
-  const deduped = new Map(targets.map((target) => [target.path, target]));
-  return [...deduped.values()];
-}
-
-async function resolveQueryTargets(cwd: string, value: string | undefined, sessionPath?: string): Promise<ChangeTarget[]> {
-  if (value === "all") {
-    const session = await loadCurrentSession(sessionPath ?? defaultSessionPath());
-    return Object.entries(session?.folders ?? {}).map(([id, folder]) => ({
-      id,
-      name: folder.name,
-      path: folder.path,
-    }));
+async function resolveTarget(cwd: string, sessionPath?: string): Promise<ChangeTarget> {
+  const context = await resolveChangeContext(cwd, sessionPath ?? defaultSessionPath());
+  if (!context) {
+    throw new ChangeCommandError("no_weave_context", "No Weave context found. Run `weave init` first.");
   }
 
-  return [await resolveTarget(cwd, value ?? cwd, sessionPath)];
-}
-
-async function resolveTarget(cwd: string, value: string, sessionPath?: string): Promise<ChangeTarget> {
-  const session = await loadCurrentSession(sessionPath ?? defaultSessionPath());
-  const sessionFolder = session?.folders[value];
-  const candidate = sessionFolder?.path ?? path.resolve(cwd, value);
-  const resolved = await realpath(candidate);
-  const sessionMatch = session ? findFolderByPath(session, resolved) : undefined;
-  const matchedFolder = sessionMatch ? session?.folders[sessionMatch] : undefined;
   return {
-    id: sessionFolder ? value : sessionMatch,
-    name: sessionFolder?.name ?? matchedFolder?.name,
-    path: resolved,
+    id: context.folderId,
+    name: context.folderName,
+    path: context.rootPath,
   };
 }
 
@@ -1469,17 +1370,6 @@ ${topic}
 
 Not ready
 `;
-}
-
-async function readExistingChangeMetadata(changePath: string, fallbackId: string): Promise<ExistingChangeMetadata> {
-  const parsed = await readChangeMetadata(changePath, fallbackId);
-  return {
-    id: parsed.id,
-    slug: parsed.slug,
-    title: parsed.title,
-    type: parsed.type,
-    branch: parsed.branch,
-  };
 }
 
 async function ensureChangeBranch(cwd: string, branch: string): Promise<BranchStatus> {

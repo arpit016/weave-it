@@ -13,7 +13,6 @@ interface ArtifactCurrentOptions {
 }
 
 interface ArtifactCurrentSetOptions {
-  target?: string;
   json?: boolean;
 }
 
@@ -22,13 +21,11 @@ export function artifactCommand(): Command {
 
   const current = new Command("current")
     .description("Show, set, or clear the current artifact context.")
-    .argument("[target]", "target folder path, session folder id, or all")
     .option("--json", "print machine-readable JSON")
-    .action(async (target: string | undefined, options: ArtifactCurrentOptions) => {
+    .action(async (options: ArtifactCurrentOptions) => {
       await runAction(options.json ?? false, async () => {
         const result = await currentArtifact({
           cwd: process.cwd(),
-          target,
         });
         writeResult(result, options.json ?? false);
       });
@@ -38,14 +35,12 @@ export function artifactCommand(): Command {
     .command("set")
     .description("Set the current artifact context for the active change.")
     .argument("<artifact>", "artifact: exploration, prd, or architecture", parseArtifactName)
-    .option("--target <target>", "target folder path or session folder id")
     .option("--json", "print machine-readable JSON")
     .action(async (artifact: ArtifactName, options: ArtifactCurrentSetOptions) => {
       await runAction(options.json ?? false, async () => {
         const result = await setCurrentArtifact({
           cwd: process.cwd(),
           artifact,
-          target: options.target,
         });
         writeResult(result, options.json ?? false);
       });
@@ -54,13 +49,11 @@ export function artifactCommand(): Command {
   current
     .command("clear")
     .description("Clear the current artifact context for the active change.")
-    .option("--target <target>", "target folder path or session folder id")
     .option("--json", "print machine-readable JSON")
     .action(async (options: ArtifactCurrentSetOptions) => {
       await runAction(options.json ?? false, async () => {
         const result = await clearCurrentArtifact({
           cwd: process.cwd(),
-          target: options.target,
         });
         writeResult(result, options.json ?? false);
       });

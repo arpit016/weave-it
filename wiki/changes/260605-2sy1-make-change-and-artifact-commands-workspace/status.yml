@@ -1,0 +1,41 @@
+version: 1
+id: 260605-2sy1-make-change-and-artifact-commands-workspace
+slug: make-change-and-artifact-commands-workspace
+title: Make change and artifact commands workspace-aware
+type: feat
+stage: issues
+branch: change/260605-2sy1-make-change-and-artifact-commands-workspace
+created_at: 2026-06-04T18:51:15.717Z
+updated_at: 2026-06-04T19:30:08.437Z
+artifacts:
+  prd:
+    sources:
+      - sessions
+    updated_at: 2026-06-04T18:53:34.328Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-06-04T19:07:31.796Z
+  issues:
+    sources:
+      - prd
+      - architecture
+      - codebase
+    updated_at: 2026-06-04T19:25:52.823Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-04T19:30:08.437Z
+  domains:
+    - cli-commands
+    - change-workflow
+  shared: []
+  files:
+    - wiki/knowledge/domains/cli-commands/features/core-command-reference/behavior.md
+    - wiki/knowledge/domains/change-workflow/index.md
+    - wiki/knowledge/domains/change-workflow/domain-wide/change-creation-and-stages.md
+    - wiki/knowledge/domains/change-workflow/domain-wide/plan-mode-guard.md
+  delta: wiki/changes/260605-2sy1-make-change-and-artifact-commands-workspace/knowledge-delta.md
+  reason: Documented cwd-dispatched single-context change and artifact command
+    behavior, removed multi-target propagation flows, and updated skill
+    guidance.

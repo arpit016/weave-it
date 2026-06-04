@@ -303,17 +303,16 @@ npm run dev -- workspace --json
 
 ## `weave change`
 
-Creates, inspects, switches, and propagates durable change exploration folders under `wiki/changes/`.
+Creates, inspects, and switches durable change folders under `wiki/changes/`.
 
 ```bash
 weave change new "<title>" [options]
-weave change list [target|all] [options]
-weave change current [target|all] [options]
+weave change list [options]
+weave change current [options]
 weave change status [change] [options]
 weave change progress <lane> [options]
 weave change clear-stale <lane> [options]
 weave change switch <change> [options]
-weave change propagate <change-id> --to <target...> [options]
 ```
 
 `weave change new` creates a change id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, creates or checks out the matching git branch, and records the new change as current in the local Weave session:
@@ -322,6 +321,8 @@ weave change propagate <change-id> --to <target...> [options]
 change/{change-id}
 ```
 
+Change and artifact commands are cwd-dispatched. Weave walks up from the current directory to `.weave/workspace.yml`; in workspace mode the workspace root owns `wiki/changes/`, and in repo mode the repo root owns `wiki/changes/`. Running from a nested workspace repo or repo subdirectory operates on that containing Weave root.
+
 Active change state is local workspace/session state. It is stored outside the repo so it does not appear in commits or pull requests.
 
 Options for `new`:
@@ -329,23 +330,12 @@ Options for `new`:
 ```text
 --type <type>          change type: feat, fix, refactor, docs, test, ci, or chore; defaults to feat
 --slug <slug>          change slug override
---target <target...>   target folder path or current session folder id
---json                 print machine-readable JSON
-```
-
-Options for `propagate`:
-
-```text
---from <target>        source folder path or current session folder id
---to <target...>       target folder path or current session folder id
 --json                 print machine-readable JSON
 ```
 
 Options for `list`, `current`, `status`, and `switch`:
 
 ```text
-target                 folder path, current session folder id, or all
---target <target>      target for status; accepts folder path, session folder id, or all
 --json                 print machine-readable JSON
 ```
 
@@ -353,7 +343,6 @@ Options for `progress`:
 
 ```text
 lane                  exploration, prd, architecture, or issues
---target <target>     target folder path or current session folder id
 --source <source>     repeatable source dependency: exploration, prd, architecture, discussion, sessions, or codebase
 --no-invalidate       suppress all downstream stale propagation for this call
 --invalidate <list>   mark only this comma-separated subset of dependent lanes stale (e.g. issues,architecture)
@@ -364,7 +353,6 @@ Options for `clear-stale`:
 
 ```text
 lane                  exploration, prd, architecture, or issues
---target <target>     target folder path or current session folder id
 --reason <reason>     one-sentence verification rationale recorded in stale_history
 --json                print machine-readable JSON
 ```
@@ -373,15 +361,13 @@ Examples:
 
 ```bash
 weave change new "Analytics of reviews"
-weave change new "Fix review import" --type fix --slug review-import --target app api
+weave change new "Fix review import" --type fix --slug review-import
 weave change list
-weave change list all
 weave change current
 weave change status
 weave change progress prd --source exploration --source sessions --json
-weave change status 260522-f3q9-review-analytics --target app
+weave change status 260522-f3q9-review-analytics
 weave change switch f3q9
-weave change propagate 260522-f3q9-review-analytics --from app --to api
 ```
 
 From source:
@@ -582,7 +568,6 @@ weave-next       answer what to do next for the active change
 weave-clarify    clarify an existing exploration, PRD, or architecture artifact
 weave-issues     create or reconcile local tasks.md implementation tasks (T#), QA findings (QF#), and refactors (R#)
 weave-knowledge  update current-state knowledge specs for an active change
-weave-propagate  copy an existing change exploration to another repo
 ```
 
 Every bundled skill carries a `# Surface Weave Notices` section telling the agent to forward any non-empty `notices` array from Tier 1 commands to the user verbatim, near the top of its response. The notice-surfacing block is byte-identical across all skills.
@@ -634,7 +619,6 @@ Then start Claude Code in the repo and ask:
 /weave-clarify prd
 /weave-issues "Create local tasks.md from the active PRD"
 /weave-knowledge
-/weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 ### Cursor
@@ -659,7 +643,6 @@ Then ask Cursor Agent from the repo:
 /weave-clarify prd
 /weave-issues "Create local tasks.md from the active PRD"
 /weave-knowledge
-/weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 ### Codex
@@ -684,7 +667,6 @@ $weave-next
 $weave-clarify prd
 $weave-issues "Create local tasks.md from the active PRD"
 $weave-knowledge
-$weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 ### opencode
@@ -709,7 +691,6 @@ Then invoke the slash command in opencode:
 /weave-clarify prd
 /weave-issues "Create local tasks.md from the active PRD"
 /weave-knowledge
-/weave-propagate 260522-f3q9-review-analytics to api
 ```
 
 Or invoke the skill naturally:
@@ -741,7 +722,7 @@ weave change knowledge none --delta wiki/changes/<change-id>/knowledge-delta.md 
 weave change knowledge stale --invalidated-by prd --reason "PRD changed after knowledge was updated"
 ```
 
-`weave change knowledge <status>` supports `pending`, `stale`, `updated`, and `none`, plus repeatable `--domain`, `--shared`, and `--file` flags and optional `--delta`, `--reason`, `--invalidated-by`, `--target`, and `--json`.
+`weave change knowledge <status>` supports `pending`, `stale`, `updated`, and `none`, plus repeatable `--domain`, `--shared`, and `--file` flags and optional `--delta`, `--reason`, `--invalidated-by`, and `--json`.
 
 The standard knowledge structure is scaffolded progressively:
 

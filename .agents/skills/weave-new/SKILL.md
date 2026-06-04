@@ -19,21 +19,19 @@ weave workspace --json
 weave change current
 ```
 
-2. Identify the current repo and any additional session repos. Explain that additional repos should participate only if the change will likely require implementation or tasks there.
+2. Identify the current workspace or repo context from `weave workspace --json`. In workspace mode, the workspace root owns the change store even if implementation later touches registered sub-repos.
 
-3. Ask the user which additional repos should participate when more than one repo is in the session.
-
-4. Run:
+3. Run:
 
 ```bash
-weave change new "<title>" --target <target>...
+weave change new "<title>"
 ```
 
 Use `--type <type>` when the work is not a new capability. Supported values are `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, and `chore`.
 
 Use `--slug <slug>` only when the user requested a specific folder or branch slug.
 
-5. Report the change id, target repos, branch status, and that the new change is now current.
+4. Report the change id, resolved workspace/repo context, branch status, and that the new change is now current.
 
 # Behavior Rules
 

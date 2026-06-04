@@ -6,14 +6,33 @@ import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
 import { clearCurrentArtifact, currentArtifact, setCurrentArtifact } from "../src/lib/artifact-context.js";
-import { createChange, currentChange, knowledgeChange, listChanges, progressChange, propagateChange, statusChange, switchChange } from "../src/lib/changes.js";
+import { createChange, currentChange, knowledgeChange, listChanges, progressChange, statusChange, switchChange } from "../src/lib/changes.js";
 
 const execFileAsync = promisify(execFile);
 const testNow = new Date(2026, 4, 22, 10, 0, 0);
 const testNowIso = testNow.toISOString();
 
-async function tempDir(): Promise<string> {
+async function rawTempDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "weave-it-changes-"));
+}
+
+async function tempDir(): Promise<string> {
+  const cwd = await rawTempDir();
+  await writeWorkspaceMetadata(cwd, "repo");
+  return cwd;
+}
+
+async function writeWorkspaceMetadata(cwd: string, mode: "repo" | "workspace"): Promise<void> {
+  await mkdir(path.join(cwd, ".weave"), { recursive: true });
+  await writeFile(
+    path.join(cwd, ".weave", "workspace.yml"),
+    YAML.stringify({
+      version: 1,
+      mode,
+      name: path.basename(cwd),
+      repos: {},
+    }),
+  );
 }
 
 async function git(cwd: string, args: string[]): Promise<string> {
@@ -166,36 +185,28 @@ describe("changes", () => {
     await expect(git(cwd, ["branch", "--show-current"])).resolves.toBe("change/260522-a7k2-change-workflow-scaffold");
   });
 
-  it("creates the same change id across selected targets", async () => {
+  it("creates a single change id in the cwd-dispatched repo root", async () => {
     const root = await tempDir();
     const app = path.join(root, "app");
-    const api = path.join(root, "api");
     await mkdir(app);
-    await mkdir(api);
 
     const result = await createChange({
       cwd: app,
       title: "Review analytics",
-      targets: [app, api],
       now: testNow,
       randomId: () => "b8ff",
       sessionPath: sessionPath(root),
     });
 
-    expect(result.targets).toHaveLength(2);
-    await expect(stat(path.join(app, "wiki", "changes", result.id, "exploration.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(api, "wiki", "changes", result.id, "exploration.md"))).resolves.toMatchObject({});
-    const appPath = await realpath(app);
-    const apiPath = await realpath(api);
+    expect(result.targets).toHaveLength(1);
+    await expect(stat(path.join(root, "wiki", "changes", result.id, "exploration.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(app, "wiki"))).rejects.toThrow();
+    const rootPath = await realpath(root);
     const parsed = YAML.parse(await readFile(sessionPath(root), "utf8"));
     expect(Object.values(parsed.folders)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          path: appPath,
-          current_artifact: expect.objectContaining({ artifact: "exploration", change_id: result.id }),
-        }),
-        expect.objectContaining({
-          path: apiPath,
+          path: rootPath,
           current_artifact: expect.objectContaining({ artifact: "exploration", change_id: result.id }),
         }),
       ]),
@@ -220,41 +231,50 @@ describe("changes", () => {
     await expect(stat(path.join(cwd, "wiki", "changes", result.id))).resolves.toMatchObject({});
   });
 
-  it("propagates existing change artifacts to another folder", async () => {
-    const root = await tempDir();
-    const source = path.join(root, "source");
-    const target = path.join(root, "target");
-    await mkdir(source);
-    await mkdir(target);
+  it("resolves workspace sub-repo cwd to the workspace change root", async () => {
+    const workspace = await rawTempDir();
+    await writeWorkspaceMetadata(workspace, "workspace");
+    const billing = path.join(workspace, "billing");
+    const nested = path.join(billing, "src");
+    await mkdir(nested, { recursive: true });
+    const session = sessionPath(workspace);
 
     const created = await createChange({
-      cwd: source,
+      cwd: nested,
       title: "Change workflow scaffold",
       now: testNow,
       randomId: () => "f3q9",
-      sessionPath: sessionPath(root),
+      sessionPath: session,
     });
-    const propagated = await propagateChange({
-      cwd: source,
-      changeId: created.id,
-      from: source,
-      to: [target],
-      sessionPath: sessionPath(root),
-    });
+    const current = await currentChange({ cwd: nested, sessionPath: session });
+    const artifact = await currentArtifact({ cwd: nested, sessionPath: session });
+    const parsed = YAML.parse(await readFile(session, "utf8"));
 
-    expect(propagated.id).toBe(created.id);
-    await expect(readFile(path.join(target, "wiki", "changes", created.id, "exploration.md"), "utf8")).resolves.toContain(
-      "# Change Workflow Scaffold",
+    expect(created.targets[0].path).toBe(await realpath(workspace));
+    expect(current.targets[0]).toMatchObject({ path: await realpath(workspace), current: expect.objectContaining({ id: created.id }) });
+    expect(artifact.targets[0]).toMatchObject({
+      path: await realpath(workspace),
+      artifact: expect.objectContaining({ change_id: created.id }),
+    });
+    await expect(stat(path.join(workspace, "wiki", "changes", created.id, "exploration.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(billing, "wiki"))).rejects.toThrow();
+    expect(Object.values(parsed.folders)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: await realpath(workspace) })]),
     );
-    await expect(
-      propagateChange({
-        cwd: source,
-        changeId: created.id,
-        from: source,
-        to: [target],
-        sessionPath: sessionPath(root),
-      }),
-    ).rejects.toThrow("Change already exists");
+    expect(Object.values(parsed.folders)).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: await realpath(billing) })]),
+    );
+  });
+
+  it("fails clearly outside any Weave context", async () => {
+    const cwd = await rawTempDir();
+
+    await expect(currentChange({ cwd, sessionPath: sessionPath(cwd) })).rejects.toMatchObject({
+      code: "no_weave_context",
+    });
+    await expect(createChange({ cwd, title: "Outside context", sessionPath: sessionPath(cwd) })).rejects.toMatchObject({
+      code: "no_weave_context",
+    });
   });
 
   it("records created changes as current in the local session", async () => {

@@ -35,7 +35,6 @@ export interface ArtifactCurrentResult {
 
 export interface ArtifactCurrentOptions {
   cwd: string;
-  target?: string;
   now?: Date;
   sessionPath?: string;
 }
@@ -47,7 +46,7 @@ export interface ArtifactCurrentSetOptions extends ArtifactCurrentOptions {
 export async function currentArtifact(options: ArtifactCurrentOptions): Promise<ArtifactCurrentResult> {
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const changeResult = await currentChange({ cwd: options.cwd, target: options.target, now, sessionPath });
+  const changeResult = await currentChange({ cwd: options.cwd, now, sessionPath });
   const session = await loadCurrentSession(sessionPath);
   const targets: ArtifactCurrentTargetResult[] = changeResult.targets.map((target) => {
     const saved = currentArtifactForPath(session, target.path);
@@ -76,7 +75,7 @@ export async function setCurrentArtifact(options: ArtifactCurrentSetOptions): Pr
   const artifact = parseArtifact(options.artifact);
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const changeResult = await currentChange({ cwd: options.cwd, target: options.target, now, sessionPath });
+  const changeResult = await currentChange({ cwd: options.cwd, now, sessionPath });
 
   if (changeResult.targets.length !== 1) {
     throw new ChangeCommandError("ambiguous_target", "Set current artifact for one target at a time");
@@ -128,7 +127,7 @@ export async function setCurrentArtifact(options: ArtifactCurrentSetOptions): Pr
 export async function clearCurrentArtifact(options: ArtifactCurrentOptions): Promise<ArtifactCurrentResult> {
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const changeResult = await currentChange({ cwd: options.cwd, target: options.target, now, sessionPath });
+  const changeResult = await currentChange({ cwd: options.cwd, now, sessionPath });
 
   if (changeResult.targets.length !== 1) {
     throw new ChangeCommandError("ambiguous_target", "Clear current artifact for one target at a time");

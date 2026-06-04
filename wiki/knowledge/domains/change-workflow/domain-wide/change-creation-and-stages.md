@@ -6,11 +6,13 @@ Define the current behavior of `weave change new` scaffolding and the change `st
 
 ## Current Behavior
 
-`weave change new "<title>" [--type <type>] [--slug <slug>] [--target <target>...]` creates a change for each resolved target:
+`weave change new "<title>" [--type <type>] [--slug <slug>]` creates one change in the cwd-dispatched Weave context:
 
 - Generates the change id, creates `wiki/changes/<change-id>/`, writes `status.yml`, and creates an empty `sessions/` directory.
 - Ensures the change branch `change/<change-id>` (skipped outside a git repo).
 - Records the change as current in local session state.
+
+Weave resolves the context by walking up from `cwd` to `.weave/workspace.yml`. In workspace mode, the workspace root owns the change store even when the command runs inside a registered sub-repo. In repo mode, nested directories resolve to the repo root. `weave change new` no longer accepts `--target` and does not create changes across multiple targets.
 
 The first-artifact scaffolding and starting stage depend on `--type`:
 

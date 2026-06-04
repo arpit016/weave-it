@@ -30,10 +30,10 @@ Start by discovering the current Weave session:
 weave workspace --json
 ```
 
-Resolve active change targets:
+Resolve the active change for the current cwd-dispatched workspace or repo context:
 
 ```bash
-weave change current all --json
+weave change current --json
 weave change status --json
 ```
 
@@ -53,15 +53,15 @@ No active Weave change found. Run `weave change new` or `weave change switch`, t
 
 # Scope
 
-Inspect only workspace targets whose current change matches the active change.
+Inspect only the resolved workspace or repo context whose current change matches the active change.
 
-Do not summarize unrelated repos from the same Weave session. If the active change applies to multiple targets, summarize each matching target clearly and combine the recommendation only when their artifact states agree.
+Do not summarize unrelated repos from the same Weave session. In workspace mode, treat registered sub-repos as implementation locations inside the single workspace change context, not as separate artifact targets.
 
-If a target branch does not match the active change branch, include that branch mismatch before recommending the next command.
+If the current branch does not match the active change branch, include that branch mismatch before recommending the next command.
 
 # Required Read Order
 
-For each active-change target, read live artifacts first:
+For the active change, read live artifacts first:
 
 ```text
 wiki/changes/<change-id>/status.yml
