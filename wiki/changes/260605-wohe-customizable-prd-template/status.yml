@@ -1,0 +1,15 @@
+version: 1
+id: 260605-wohe-customizable-prd-template
+slug: customizable-prd-template
+title: Customizable PRD template
+type: feat
+stage: prd
+branch: change/260605-wohe-customizable-prd-template
+created_at: 2026-06-04T20:41:21.824Z
+updated_at: 2026-06-04T20:42:36.772Z
+artifacts:
+  prd:
+    sources:
+      - discussion
+      - sessions
+    updated_at: 2026-06-04T20:42:36.772Z

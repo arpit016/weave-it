@@ -8,7 +8,7 @@ import { ensureDir, pathExists, writeFileAtomic } from "./files.js";
 
 export type AgentName = "codex" | "cursor" | "claude" | "opencode";
 export type AgentSelection = AgentName | "all";
-export type ManagedArtifactKind = "skill" | "command";
+export type ManagedArtifactKind = "skill" | "command" | "resource";
 export type SkillOperationStatus = "installed" | "unchanged" | "modified" | "updated" | "reset" | "missing";
 
 export interface DefaultSkill {
@@ -21,6 +21,13 @@ export interface DefaultSkill {
 }
 
 interface DefaultCommand {
+  name: string;
+  sourcePath: string;
+  content: string;
+  hash: string;
+}
+
+interface DefaultSkillResource {
   name: string;
   sourcePath: string;
   content: string;
@@ -69,6 +76,7 @@ export interface ManifestEntry {
 export interface AgentManifestEntries {
   skills?: Record<string, ManifestEntry>;
   commands?: Record<string, ManifestEntry>;
+  resources?: Record<string, ManifestEntry>;
 }
 
 export interface AgentsManifest {
@@ -221,14 +229,30 @@ async function defaultArtifactsForTarget(
   const skills = onlyName
     ? [await readDefaultSkill(onlyName, { templatesDir: options.templatesDir })]
     : await listDefaultSkills({ templatesDir: options.templatesDir });
-  const artifacts: ManagedArtifact[] = skills.map((skill) => ({
-    kind: "skill",
-    name: skill.name,
-    content: skill.content,
-    hash: skill.hash,
-    lastChangedIn: skill.lastChangedIn,
-    destination: installedSkillPath(target.skillsDir, skill.name),
-  }));
+  const artifacts: ManagedArtifact[] = [];
+
+  for (const skill of skills) {
+    artifacts.push({
+      kind: "skill",
+      name: skill.name,
+      content: skill.content,
+      hash: skill.hash,
+      lastChangedIn: skill.lastChangedIn,
+      destination: installedSkillPath(target.skillsDir, skill.name),
+    });
+
+    const resources = await listDefaultSkillResources(skill);
+    for (const resource of resources) {
+      artifacts.push({
+        kind: "resource",
+        name: `${skill.name}/${resource.name}`,
+        content: resource.content,
+        hash: resource.hash,
+        lastChangedIn: skill.lastChangedIn,
+        destination: installedSkillResourcePath(target.skillsDir, skill.name, resource.name),
+      });
+    }
+  }
 
   if (target.agent === "opencode" && target.commandsDir) {
     const commands = onlyName
@@ -248,6 +272,28 @@ async function defaultArtifactsForTarget(
   }
 
   return artifacts;
+}
+
+async function listDefaultSkillResources(skill: DefaultSkill): Promise<DefaultSkillResource[]> {
+  const skillDir = dirname(skill.sourcePath);
+  const entries = await readdir(skillDir, { withFileTypes: true });
+  const resources = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name !== "SKILL.md")
+      .map(async (entry) => {
+        validateSkillResourceName(entry.name);
+        const sourcePath = join(skillDir, entry.name);
+        const content = await readFile(sourcePath, "utf8");
+        return {
+          name: entry.name,
+          sourcePath,
+          content,
+          hash: hashContent(content),
+        };
+      }),
+  );
+
+  return resources.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 async function listDefaultOpencodeCommands(
@@ -345,13 +391,20 @@ async function updateArtifact(
   now: Date,
 ): Promise<SkillOperationResult> {
   const relativePath = relative(cwd, artifact.destination);
+  const entry = getManifestEntry(manifest, agent, artifact.kind, artifact.name);
 
   if (!(await pathExists(artifact.destination))) {
+    if (!entry && artifact.kind === "resource") {
+      await ensureDir(dirname(artifact.destination));
+      await writeFile(artifact.destination, artifact.content);
+      setManifestEntry(manifest, agent, artifact, relativePath, now);
+      return result(agent, artifact, relativePath, "installed", `Installed ${artifact.name} ${artifact.kind} for ${agent}`);
+    }
+
     return result(agent, artifact, relativePath, "missing", `Missing ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
   const currentHash = hashContent(await readFile(artifact.destination, "utf8"));
-  const entry = getManifestEntry(manifest, agent, artifact.kind, artifact.name);
   if (!entry || currentHash !== entry.installed_hash) {
     return result(agent, artifact, relativePath, "modified", `Skipped modified ${artifact.name} ${artifact.kind} for ${agent}`);
   }
@@ -395,7 +448,7 @@ function setManifestEntry(
     return;
   }
 
-  const bucket = artifact.kind === "skill" ? "skills" : "commands";
+  const bucket = manifestBucketForKind(artifact.kind);
   entries[bucket] ??= {};
   entries[bucket][artifact.name] = {
     path: relativePath,
@@ -413,7 +466,7 @@ function getManifestEntry(
   name: string,
 ): ManifestEntry | undefined {
   const entries = manifest.installed[agent];
-  return kind === "skill" ? entries?.skills?.[name] : entries?.commands?.[name];
+  return entries?.[manifestBucketForKind(kind)]?.[name];
 }
 
 function resolveAgentTargets(cwd: string, agent: AgentSelection): ConcreteTarget[] {
@@ -442,6 +495,10 @@ function installedSkillPath(skillsDir: string, skillName: string): string {
   return join(skillsDir, skillName, "SKILL.md");
 }
 
+function installedSkillResourcePath(skillsDir: string, skillName: string, resourceName: string): string {
+  return join(skillsDir, skillName, resourceName);
+}
+
 function installedOpencodeCommandPath(commandsDir: string, commandName: string): string {
   return join(commandsDir, `${commandName}.md`);
 }
@@ -459,7 +516,7 @@ export async function loadAgentsManifest(cwd: string): Promise<AgentsManifest> {
   for (const agent of Object.keys(installed) as AgentName[]) {
     const buckets = installed[agent];
     if (!buckets) continue;
-    for (const bucket of ["skills", "commands"] as const) {
+    for (const bucket of ["skills", "commands", "resources"] as const) {
       const entries = buckets[bucket];
       if (!entries) continue;
       for (const name of Object.keys(entries)) {
@@ -589,6 +646,25 @@ async function findTemplatesRoot(): Promise<string> {
 function validateSkillName(name: string): void {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) {
     throw new Error(`Invalid skill name: ${name}`);
+  }
+}
+
+function validateSkillResourceName(name: string): void {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*\.md$/.test(name)) {
+    throw new Error(`Invalid skill resource name: ${name}`);
+  }
+}
+
+function manifestBucketForKind(kind: ManagedArtifactKind): "skills" | "commands" | "resources" {
+  switch (kind) {
+    case "skill":
+      return "skills";
+    case "command":
+      return "commands";
+    case "resource":
+      return "resources";
+    default:
+      throw new Error(`Unsupported artifact kind: ${kind satisfies never}`);
   }
 }
 
