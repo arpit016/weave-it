@@ -83,7 +83,7 @@ Start by discovering the current Weave session:
 weave workspace --json
 ```
 
-Use the returned folders as the boundary for context loading.
+Use the cwd-dispatched workspace or repo context returned by `weave workspace --json` as the boundary for context loading. In workspace mode, the workspace root owns the change store and registered sub-repos in `repos[]` are implementation locations inside that single context. In repo mode, the active session's folders are the boundary.
 
 Resolve the target change:
 
@@ -112,13 +112,13 @@ After resolving the active change, set local artifact context:
 weave artifact current set architecture --json
 ```
 
-Identify the relevant change folder for each relevant workspace folder:
+Identify the change folder under the resolved workspace or repo context:
 
 ```text
 wiki/changes/<change-id>/
 ```
 
-Do not assume every folder in the workspace is relevant. Use the resolved change status, PRD, and available artifacts to identify which folders apply.
+In workspace mode there is one change context: the workspace root. In repo mode, do not assume every session folder is relevant; use the resolved change status, PRD, and available artifacts to identify which contexts apply.
 
 ---
 
@@ -571,7 +571,7 @@ Then summarize:
 - open technical questions
 - whether the PRD should be revisited
 
-If multiple relevant folders were processed, list each created or revised architecture separately.
+If multiple relevant contexts were processed (repo mode with multiple session folders), list each created or revised architecture separately. In workspace mode, the workspace root is the single context.
 
 ---
 

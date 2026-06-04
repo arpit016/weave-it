@@ -14,6 +14,7 @@ A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture
 - [change-creation-and-stages](domain-wide/change-creation-and-stages.md): `weave change new` scaffolding (feature vs non-feature), the `stage` vocabulary, and the non-lane `started` stage used by non-feature changes.
 - [lifecycle-progress-and-staleness](domain-wide/lifecycle-progress-and-staleness.md): `weave change progress` semantics, the default pessimistic stale propagation, CLI levers (`--no-invalidate`, `--invalidate`), explicit `weave change clear-stale`, the `stale_history` audit trail, and the agent-side verification protocol embedded in five skills.
 - [plan-mode-guard](domain-wide/plan-mode-guard.md): the byte-identical Plan Mode Guard embedded in the two plan-mode-required design-discussion skills (`weave-explore`, `weave-architect`). Refuses non-Plan-Mode entry and explicitly authorizes `weave artifact current set <lane>` as a Plan-Mode-safe lane-commit (it writes local session state only). Other design-discussion skills (`weave-prd`, `weave-clarify`) run in Agent Mode and do not carry the guard.
+- [workspace-aware-skill-context](domain-wide/workspace-aware-skill-context.md): agent skills resolve one cwd-dispatched workspace or repo context; workspace mode uses the workspace root as the single change store and treats registered sub-repos as implementation locations, not separate artifact targets.
 
 ## Glossary Cross-References
 

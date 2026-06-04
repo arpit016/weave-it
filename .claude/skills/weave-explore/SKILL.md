@@ -42,9 +42,9 @@ weave change current --json
 weave artifact current set exploration --json
 ```
 
-Use the returned folders as the exploration boundary. If there is no active Weave change, stop and ask the user to run `weave change new` or `weave change switch` before continuing.
+Use the cwd-dispatched workspace or repo context returned by `weave workspace --json` as the exploration boundary. In workspace mode, the workspace root owns the change store and registered sub-repos in `repos[]` are implementation locations inside that single context. In repo mode, the active session's folders are the boundary. If there is no active Weave change, stop and ask the user to run `weave change new` or `weave change switch` before continuing.
 
-For each folder, inspect Weave knowledge first when present:
+For each resolved context, inspect Weave knowledge first when present:
 
 ```text
 wiki/knowledge/index.md
@@ -75,7 +75,7 @@ implementation.md
 tasks.md
 ```
 
-Do not assume every folder in the session is equally relevant. Identify which folders appear relevant and why.
+In workspace mode there is one change context: the workspace root. In repo mode, do not assume every session folder is equally relevant; identify which contexts appear relevant and why.
 
 ---
 
