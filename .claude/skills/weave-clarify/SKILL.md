@@ -86,6 +86,8 @@ Accept common filenames as aliases:
 exploration.md -> exploration
 prd.md -> prd
 architecture.md -> architecture
+architecture/index.md -> architecture
+architecture/<facet>.md -> architecture
 ```
 
 If the user provides a target artifact, clarify only that artifact.
@@ -113,7 +115,16 @@ Read the selected target first:
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
+wiki/changes/<change-id>/architecture/index.md
+wiki/changes/<change-id>/architecture/*.md
 ```
+
+For architecture, resolve artifact shape before reading:
+
+- Legacy file mode: `architecture.md` exists and `architecture/` does not.
+- Folder mode: `architecture/` exists and may contain `index.md` plus direct child facet files.
+- Conflict mode: both `architecture.md` and `architecture/` exist. Stop before editing and ask whether to keep legacy file mode, migrate to folder mode, or reconcile by hand.
+- Missing mode: neither exists. Stop with the architecture missing message.
 
 If the selected target does not exist, stop with the relevant message:
 
@@ -126,7 +137,7 @@ No prd.md found for <change-id>. Run `weave-prd` first, then run `weave-clarify 
 ```
 
 ```text
-No architecture.md found for <change-id>. Run `weave-architect` first, then run `weave-clarify architecture`.
+No architecture artifact found for <change-id>. Run `weave-architect` and `weave-capture` first, then run `weave-clarify architecture`.
 ```
 
 ## 2. Supporting Artifacts
@@ -138,6 +149,8 @@ wiki/changes/<change-id>/status.yml
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
+wiki/changes/<change-id>/architecture/index.md
+wiki/changes/<change-id>/architecture/*.md
 wiki/changes/<change-id>/decisions.md
 wiki/changes/<change-id>/contracts.md
 wiki/changes/<change-id>/handoff.md
@@ -212,6 +225,7 @@ Classify the user's clarification as one or more of:
 - assumption confirmation
 - ambiguity resolution
 - technical direction change
+- architecture facet restructuring
 - follow-up artifact staleness
 
 If the clarification appears to describe a substantially different change, stop and ask for explicit confirmation before repurposing the active change artifact.
@@ -244,6 +258,25 @@ Write only the selected target artifact.
 
 Do not edit follow-up artifacts in the same invocation, even when they are stale.
 
+For architecture folder mode, "selected artifact" means the architecture lane. You may edit `architecture/index.md` and direct child facet files in one invocation only when the user's clarification is explicitly structural within the architecture lane.
+
+Supported architecture structural operations:
+
+- create facet: add `architecture/<facet>.md` when the user explicitly asks for a separate facet or a template-backed facet is clearly requested
+- split facet: move a coherent concern from `index.md`, `architecture.md`, or another facet into a new facet file
+- merge facets: combine two or more facet files and remove the superseded facet only after preserving still-valid content
+- rename facet: move `architecture/<old>.md` to `architecture/<new>.md` and update references in `index.md`
+- delete facet: remove a facet only when the user explicitly confirms the content is obsolete or preserved elsewhere
+- move content: relocate content between `index.md` and facets without changing its meaning
+- update index: keep `architecture/index.md` as the canonical overview and facet map
+
+Legacy migration:
+
+- If the user asks to split or introduce facets while only `architecture.md` exists, migrate to folder mode by creating `architecture/index.md` from the legacy file and then creating/updating facets.
+- Preserve legacy lifecycle frontmatter in `architecture/index.md`.
+- Remove `architecture.md` only after `architecture/index.md` and any facets contain the preserved content and the user intent clearly implies migration.
+- If migration intent is unclear, ask before moving or deleting the legacy file.
+
 When updating:
 
 - preserve still-valid content
@@ -259,8 +292,8 @@ When updating:
 After writing the selected artifact, identify other supported artifacts that may need clarification:
 
 - If `exploration.md` changed and `prd.md` exists, report `prd.md` as a likely follow-up when product behavior, scope, requirements, or acceptance changed.
-- If `prd.md` changed and `status.yml.artifacts.architecture.sources` includes `prd`, report `architecture.md` as a likely follow-up when technical design, rollout, risks, or tests may be stale.
-- If `architecture.md` changed and issue/task evidence depends on `architecture`, report issues or `tasks.md` as a likely follow-up when implementation slices may be stale.
+- If `prd.md` changed and `status.yml.artifacts.architecture.sources` includes `prd`, report the architecture artifact as a likely follow-up when technical design, rollout, risks, or tests may be stale.
+- If the architecture artifact changed and issue/task evidence depends on `architecture`, report issues or `tasks.md` as a likely follow-up when implementation slices may be stale.
 
 Do not edit those artifacts. Ask the user to run `weave-clarify <target>` separately for each follow-up artifact.
 
@@ -295,7 +328,7 @@ Add a concise dated `Revision History` entry for meaningful changes.
 
 ## architecture
 
-Use `architecture.md` as the target when technical approach, affected systems, data flow, architecture decisions, rejected alternatives, rollout, operations, testing, security, risks, assumptions, or open technical questions changed.
+Use the architecture artifact as the target when technical approach, affected systems, data flow, architecture decisions, rejected alternatives, rollout, operations, testing, security, risks, assumptions, open technical questions, or architecture facet structure changed.
 
 Prefer `prd.md` as the product contract. If the technical clarification exposes a product ambiguity not settled by the PRD, record it under `Product Questions Raised by Technical Design` and report `prd.md` as a follow-up artifact.
 
@@ -311,6 +344,8 @@ Write the clarified artifact to exactly one of:
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
+wiki/changes/<change-id>/architecture/index.md
+wiki/changes/<change-id>/architecture/*.md
 ```
 
 Do not write any other files.
@@ -336,7 +371,7 @@ Run only the command matching the selected target artifact and pass only sources
 After writing, respond with:
 
 ```text
-Clarified <target>: wiki/changes/<change-id>/<artifact>.md
+Clarified <target>: wiki/changes/<change-id>/<artifact-path>
 ```
 
 Then include:

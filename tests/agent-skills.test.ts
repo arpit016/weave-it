@@ -125,11 +125,11 @@ describe("agent skills", () => {
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
-  it("ships weave-architect as a canonical architecture generation skill", async () => {
+  it("ships weave-architect as a canonical read-only architecture thinking skill", async () => {
     const skill = await readDefaultSkill("weave-architect");
 
     expect(skill.name).toBe("weave-architect");
-    expect(skill.description).toContain("Generate or revise architecture.md");
+    expect(skill.description).toContain("Read-only thinking partner");
     expect(skill.content).toContain("# Plan Mode Guard");
     expect(skill.content).toContain("This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-architect again.");
     expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
@@ -137,26 +137,28 @@ describe("agent skills", () => {
     expect(skill.content).toContain("IS allowed in Plan Mode");
     expect(skill.content).toContain("Do not write repo-tracked artifacts directly");
     expect(skill.content).not.toContain("# Plan Mode Protocol");
+    expect(skill.content).toContain("This skill is a read-only architecture thinking partner");
+    expect(skill.content).toContain("It never creates, edits, renames, deletes, or progresses repo-tracked artifacts.");
+    expect(skill.content).toContain("It does not read architecture template resources");
     expect(skill.content).toContain("Treat `prd.md` as the preferred product contract when it exists and is useful");
-    expect(skill.content).toContain("Do not require `prd.md` before generating or revising `architecture.md`");
+    expect(skill.content).toContain("do not require it before architecture thinking");
     expect(skill.content).toContain("Interview the user relentlessly about the engineering design");
     expect(skill.content).toContain("Ask questions one at a time and wait for the user's response");
     expect(skill.content).toContain('explicitly offer: "Explain with an example before deciding"');
     expect(skill.content).toContain("restate the original decision question");
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture.md");
+    expect(skill.content).toContain("wiki/changes/<change-id>/architecture/index.md");
+    expect(skill.content).toContain("wiki/changes/<change-id>/architecture/*.md");
     expect(skill.content).toContain("weave artifact current set architecture --json");
-    expect(skill.content).toContain("weave change progress architecture --source prd --source codebase --json");
-    expect(skill.content).toContain("artifact: architecture");
-    expect(skill.content).toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
-    expect(skill.content).toContain("updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
-    expect(skill.content).toContain("Use UTC ISO timestamps for `created_at` and `updated_at`.");
-    expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter");
+    expect(skill.content).not.toContain("weave change progress architecture --source prd --source codebase --json");
+    expect(skill.content).not.toContain("artifact: architecture");
+    expect(skill.content).not.toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
+    expect(skill.content).not.toContain("updated_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
     expect(skill.content).toContain("Treat `weave-architect` as entering or resuming the architecture lane for the active change.");
-    expect(skill.content).toContain("## 3. Architecture Resume Context");
+    expect(skill.content).toContain("# Architecture Context Loading");
     expect(skill.content).toContain("sessions/*-architecture.md");
-    expect(skill.content).toContain("Read `architecture.md` before session notes. The live artifact is canonical current truth.");
-    expect(skill.content).toContain("Use the latest `## Next Resume Point`");
-    expect(skill.content).toContain("Loaded architecture.md and <N> architecture session note(s).");
+    expect(skill.content).toContain("Facet-only folder mode is valid context");
+    expect(skill.content).toContain("## Architecture Dissection");
     expect(skill.content).not.toContain("Before writing the live artifact, inspect pending session notes for the selected lane");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-architect", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
@@ -192,7 +194,7 @@ describe("agent skills", () => {
     expect(skill.content).toContain("For session-only capture, write `None; session-only capture` or equivalent under `Live Artifact Updates Applied`.");
     expect(skill.content).toContain("Session-only capture does not require the selected live artifact to exist.");
     expect(skill.content).toContain("Session-only capture does not enforce upstream prerequisite artifacts.");
-    expect(skill.content).toContain("Session-only capture must not create or update `exploration.md`, `prd.md`, or `architecture.md`.");
+    expect(skill.content).toContain("Session-only capture must not create or update `exploration.md`, `prd.md`, `architecture.md`, or `architecture/`.");
     expect(skill.content).toContain("Before writing the live artifact, inspect pending session notes for the selected lane:");
     expect(skill.content).toContain("wiki/changes/<change-id>/sessions/*-<artifact>.md");
     expect(skill.content).toContain("If the selected live artifact does not exist, consider all matching lane session notes.");
@@ -203,14 +205,14 @@ describe("agent skills", () => {
     expect(skill.content).toContain("When the live artifact already exists, preserve its template structure and lifecycle frontmatter");
     expect(skill.content).toContain("missing `exploration.md`: create it for the valid active change");
     expect(skill.content).toContain("missing `prd.md`: create it from current discussion, PRD sessions, and useful exploration context when enough product truth exists");
-    expect(skill.content).toContain("missing `architecture.md`: create it from current discussion, architecture sessions, useful PRD context, and codebase/technical context when enough engineering truth exists");
+    expect(skill.content).toContain("missing architecture artifact: create `architecture/index.md` from current discussion");
     expect(skill.content).toContain("just-completed Plan Mode `weave-architect` discussion is valid source material");
     expect(skill.content).toContain("weave change progress exploration --source discussion --json");
     expect(skill.content).toContain("weave change progress prd --source exploration --source sessions --json");
     expect(skill.content).toContain("weave change progress architecture --source prd --source codebase --json");
     expect(skill.content).toContain("Do not call lifecycle progress in session-only mode.");
     expect(skill.content).toContain("Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.");
-    expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and enough selected-lane context.");
+    expect(skill.content).toContain("Do not create `exploration.md`, `prd.md`, `architecture.md`, or `architecture/` in artifact capture mode without a valid active change, valid target context, and enough selected-lane context.");
     expect(skill.content).toContain("Captured session: wiki/changes/<change-id>/sessions/<filename>.md");
     expect(skill.content).toContain("Updated artifact: none (session-only capture)");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-capture", "SKILL.md"));
@@ -290,6 +292,12 @@ describe("agent skills", () => {
     const knowledgeTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8");
     await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8")).resolves.toBe(knowledgeTemplate);
     await expect(readFile(path.join(process.cwd(), ".claude", "skills", "weave-knowledge", "knowledge-templates.md"), "utf8")).resolves.toBe(knowledgeTemplate);
+
+    for (const resource of ["api-contract-template.md", "frontend-backend-template.md", "index-template.md", "schema-template.md"]) {
+      const architectTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-architect", resource), "utf8");
+      await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-architect", resource), "utf8")).resolves.toBe(architectTemplate);
+      await expect(readFile(path.join(process.cwd(), ".claude", "skills", "weave-architect", resource), "utf8")).resolves.toBe(architectTemplate);
+    }
   });
 
   it("ships every bundled SKILL.md template with a last_changed_in frontmatter field", async () => {
@@ -347,7 +355,6 @@ describe("agent skills", () => {
   it("embeds the Lifecycle Staleness Verification Protocol verbatim in every progress-calling skill", async () => {
     const progressCallers = [
       "weave-prd",
-      "weave-architect",
       "weave-clarify",
       "weave-issues",
       "weave-capture",
@@ -417,7 +424,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Read the selected live artifact before session notes. The live artifact is canonical current truth.");
     expect(skill.content).toContain("Use the latest `## Next Resume Point`, unresolved points, user preferences, and agent recommendations as clarification context.");
     expect(skill.content).toContain("Preserve existing artifact lifecycle frontmatter; if the selected artifact has no frontmatter, add compatible lifecycle frontmatter using UTC ISO timestamps for `created_at` and `updated_at`.");
-    expect(skill.content).toContain("Clarified <target>: wiki/changes/<change-id>/<artifact>.md");
+    expect(skill.content).toContain("architecture/index.md -> architecture");
+    expect(skill.content).toContain("Supported architecture structural operations");
+    expect(skill.content).toContain("Clarified <target>: wiki/changes/<change-id>/<artifact-path>");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-clarify", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
@@ -464,7 +473,7 @@ describe("agent skills", () => {
         }),
         expect.objectContaining({
           name: "weave-architect",
-          description: expect.stringContaining("Generate or revise architecture.md"),
+          description: expect.stringContaining("Read-only thinking partner"),
           hash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
         }),
         expect.objectContaining({
@@ -639,6 +648,38 @@ describe("agent skills", () => {
     await expect(readFile(installedPath, "utf8")).resolves.toBe("custom PRD template\n");
   });
 
+  it("installs direct child architecture template resources and preserves user edits", async () => {
+    const cwd = await tempDir();
+    const installedPath = path.join(cwd, ".agents", "skills", "weave-architect", "index-template.md");
+
+    await installAgentSkills({ cwd, agent: "codex" });
+    const manifest = (await readManifest(cwd)) as {
+      installed: { codex: { resources: Record<string, { path: string; installed_from: string }> } };
+    };
+
+    for (const resource of ["api-contract-template.md", "frontend-backend-template.md", "index-template.md", "schema-template.md"]) {
+      const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-architect", resource), "utf8");
+      expect(installed).toContain("facet:");
+      expect(manifest.installed.codex.resources[`weave-architect/${resource}`]).toMatchObject({
+        path: `.agents/skills/weave-architect/${resource}`,
+        installed_from: expect.stringMatching(/^\d+\.\d+\.\d+/),
+      });
+    }
+
+    await writeFile(installedPath, "custom architecture index template\n");
+
+    const installAgain = await installAgentSkills({ cwd, agent: "codex" });
+    const update = await updateAgentSkills({ cwd, agent: "codex" });
+
+    expect(installAgain.results).toContainEqual(
+      expect.objectContaining({ kind: "resource", skill: "weave-architect/index-template.md", status: "modified" }),
+    );
+    expect(update.results).toContainEqual(
+      expect.objectContaining({ kind: "resource", skill: "weave-architect/index-template.md", status: "modified" }),
+    );
+    await expect(readFile(installedPath, "utf8")).resolves.toBe("custom architecture index template\n");
+  });
+
   it("updates untouched installed skills when the default source changes", async () => {
     const cwd = await tempDir();
     const templatesDir = path.join(cwd, "templates", "skills");
@@ -747,6 +788,21 @@ describe("agent skills", () => {
     await expect(readFile(templatePath, "utf8")).resolves.toContain("# <Feature / Change Name> PRD");
   });
 
+  it("resets modified architecture template resources only when explicitly requested", async () => {
+    const cwd = await tempDir();
+    const templatePath = path.join(cwd, ".agents", "skills", "weave-architect", "schema-template.md");
+
+    await installAgentSkills({ cwd, agent: "codex" });
+    await writeFile(templatePath, "custom schema template\n");
+
+    const reset = await resetAgentSkills({ cwd, agent: "codex", skill: "weave-architect" });
+
+    expect(reset.results).toContainEqual(
+      expect.objectContaining({ kind: "resource", skill: "weave-architect/schema-template.md", status: "reset" }),
+    );
+    await expect(readFile(templatePath, "utf8")).resolves.toContain("# Schema Design");
+  });
+
   it("shows diffs between installed skills and current defaults", async () => {
     const cwd = await tempDir();
     const installedPath = path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md");
@@ -776,6 +832,21 @@ describe("agent skills", () => {
     expect(result.message).toContain("+++ default:resource:weave-prd/prd-template.md");
     expect(result.message).toContain("-custom PRD template");
     expect(result.message).toContain("+# <Feature / Change Name> PRD");
+  });
+
+  it("shows diffs between installed architecture template resources and current defaults", async () => {
+    const cwd = await tempDir();
+    const installedPath = path.join(cwd, ".agents", "skills", "weave-architect", "api-contract-template.md");
+
+    await installAgentSkills({ cwd, agent: "codex" });
+    await writeFile(installedPath, "custom API contract template\n");
+
+    const result = await diffAgentSkills({ cwd, agent: "codex", skill: "weave-architect" });
+
+    expect(result.status).toBe("ok");
+    expect(result.message).toContain("+++ default:resource:weave-architect/api-contract-template.md");
+    expect(result.message).toContain("-custom API contract template");
+    expect(result.message).toContain("+# API Contract Design");
   });
 
   it("installs opencode skill and slash command wrapper", async () => {

@@ -78,7 +78,7 @@ Combining the two raises `conflicting_stale_flags` at the library level (`progre
 
 ## Agent-Side Verification Protocol
 
-Skills that call `weave change progress` carry an embedded `# Lifecycle Staleness Verification` section (byte-identical across all five). The protocol tells the agent:
+Skills that call `weave change progress` carry an embedded `# Lifecycle Staleness Verification` section (byte-identical across all four progress-calling skills). The protocol tells the agent:
 
 1. Identify the structural dependents of the lane being progressed by reading `status.yml.artifacts.<other-lane>.sources`.
 2. For each dependent, read both that dependent artifact and the artifact being progressed; decide per-lane whether the upstream change actually invalidates the dependent content. Binary decision per lane: invalidates, or does not.
@@ -91,12 +91,13 @@ Skills that call `weave change progress` carry an embedded `# Lifecycle Stalenes
 
 When uncertain, the protocol mandates the pessimistic default. False-positive stale flags are recoverable; silently leaving a real downstream artifact mismatched is not.
 
-The five participating skills: `weave-prd`, `weave-architect`, `weave-clarify`, `weave-issues`, `weave-capture`.
+The four participating skills: `weave-prd`, `weave-clarify`, `weave-issues`, `weave-capture`. `weave-architect` is read-only and does not progress the architecture lane.
 
 ## Integrations And Side Effects
 
 - `weave change status` includes `stale` and `stale_history` in its JSON output.
-- `weave-issues` separately warns and blocks when `status.yml.stale.architecture` exists, recommending `weave-architect` (existing behavior, predates this protocol).
+- `weave-issues` separately warns and blocks when `status.yml.stale.architecture` exists, recommending architecture refresh before task work.
+- `weave change progress issues` can infer `architecture` as a source from either substantive legacy `architecture.md` or substantive folder-mode architecture resolved through the architecture artifact resolver.
 - Existing changes without `artifacts`, `stale`, or `stale_history` continue to work; absent fields are treated as empty.
 
 ## Source Anchors
@@ -104,13 +105,15 @@ The five participating skills: `weave-prd`, `weave-architect`, `weave-clarify`, 
 - Core logic: `src/lib/changes.ts` (`progressChange`, `clearChangeStaleness`, `resolveStalePropagationTargets`, `transitiveDependents`, `parseStaleHistory`)
 - CLI: `src/commands/change.ts` (`progress` subcommand flags `--no-invalidate`/`--invalidate`, `clear-stale` subcommand)
 - Skill contract source: `EXPECTED_LIFECYCLE_SYNC_PROTOCOL` in `src/lib/skill-template-checks.ts`
-- Templates embedding the protocol: `templates/skills/weave-prd/SKILL.md`, `templates/skills/weave-architect/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`, `templates/skills/weave-issues/SKILL.md`, `templates/skills/weave-capture/SKILL.md`
-- Tests: `tests/cli-change-staleness.test.ts` (lib-level lever behavior), `tests/cli-change-progress.test.ts` (CLI flag wiring), `tests/agent-skills.test.ts` (byte-identity), `tests/changes.test.ts` (default propagation regression baseline)
+- Templates embedding the protocol: `templates/skills/weave-prd/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`, `templates/skills/weave-issues/SKILL.md`, `templates/skills/weave-capture/SKILL.md`
+- Architecture source inference: `src/lib/architecture-artifact.ts`, `src/lib/changes.ts`
+- Tests: `tests/cli-change-staleness.test.ts` (lib-level lever behavior), `tests/cli-change-progress.test.ts` (CLI flag wiring), `tests/agent-skills.test.ts` (byte-identity), `tests/changes.test.ts` (default propagation and architecture source inference), `tests/architecture-artifact.test.ts`
 
 ## Change History
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): `--no-invalidate` and `--invalidate=<lanes>` flags added to `weave change progress`; `weave change clear-stale <lane> --reason` introduced; `status.yml.stale_history` audit field introduced; agent-side `# Lifecycle Staleness Verification` byte-identical block embedded in five progress-calling skills.
 - 2026-06-04 (change `260604-68e6-fix-change-progress-qf-bug`): fixed a CLI flag-wiring defect where `--no-invalidate` and `--invalidate <lanes>` collided on one Commander option and made every `weave change progress` invocation crash with `raw.trim is not a function`. The `change progress` action now derives both levers from that single option; the documented lever behavior is reachable from the CLI again. Added `tests/cli-change-progress.test.ts`. `maxStage`/`stageIndex` now tolerate the `started` stored stage.
+- 2026-06-06 (change `260606-k0l6-architecture-folder`): removed `weave-architect` from the progress-calling skill set because architect is now read-only; folder-mode architecture can now drive default `issues` source inference when the architecture resolver reports substantive file or folder mode.
 
 ## Open Questions
 

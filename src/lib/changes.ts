@@ -4,6 +4,7 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import YAML from "yaml";
+import { architectureMarkdownPaths, hasSubstantiveMarkdown, resolveArchitectureArtifact } from "./architecture-artifact.js";
 import { artifactFileName, artifactFrontmatter, type ArtifactName } from "./artifact-metadata.js";
 import { pathExists } from "./files.js";
 import { findGitRoot } from "./git.js";
@@ -1045,7 +1046,7 @@ async function resolveProgressSources(
     return { sources };
   }
 
-  if (options.stage === "issues" && (await hasSubstantiveMarkdown(path.join(changePath, artifactFileName("architecture"))))) {
+  if (options.stage === "issues" && (await resolveArchitectureArtifact(changePath)).substantive) {
     return { sources: ["architecture"] };
   }
 
@@ -1129,31 +1130,20 @@ function transitiveDependents(source: ChangeStage, artifacts: ChangeArtifactsMet
   return changeStages.filter((stage) => dependents.has(stage));
 }
 
-async function hasSubstantiveMarkdown(filePath: string): Promise<boolean> {
-  if (!(await pathExists(filePath))) {
-    return false;
-  }
-  const content = await readFile(filePath, "utf8");
-  const withoutFrontmatter = content.replace(/^---\n[\s\S]*?\n---\n?/, "");
-  const withoutScaffold = withoutFrontmatter
-    .split("\n")
-    .filter((line) => {
-      const trimmed = line.trim();
-      return trimmed && !trimmed.startsWith("#") && trimmed !== "Not ready";
-    })
-    .join("\n")
-    .trim();
-  return withoutScaffold.length > 0;
-}
-
 async function hasIssueEvidence(changePath: string): Promise<boolean> {
   const tasksPath = path.join(changePath, "tasks.md");
   if (await hasSubstantiveMarkdown(tasksPath)) {
     return true;
   }
 
-  for (const filename of ["exploration.md", "prd.md", "architecture.md"]) {
-    const filePath = path.join(changePath, filename);
+  const architecture = await resolveArchitectureArtifact(changePath);
+  const evidencePaths = [
+    path.join(changePath, "exploration.md"),
+    path.join(changePath, "prd.md"),
+    ...architectureMarkdownPaths(architecture),
+  ];
+
+  for (const filePath of evidencePaths) {
     if (!(await pathExists(filePath))) {
       continue;
     }

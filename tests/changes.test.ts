@@ -612,6 +612,62 @@ describe("changes", () => {
     expect(status.stale).toBeUndefined();
   });
 
+  it("infers architecture as issues source from substantive folder-mode architecture", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Folder architecture lifecycle",
+      now: testNow,
+      randomId: () => "lf01",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+    const architecturePath = path.join(changePath, "architecture");
+    await mkdir(architecturePath);
+    await writeFile(path.join(architecturePath, "schema.md"), "# Schema\n\nSubstantive schema design.\n");
+
+    const progressed = await progressChange({
+      cwd,
+      stage: "issues",
+      sessionPath: session,
+      now: testNow,
+    });
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+
+    expect(progressed.sources).toEqual(["architecture"]);
+    expect(progressed.note).toBeUndefined();
+    expect(status.artifacts.issues.sources).toEqual(["architecture"]);
+  });
+
+  it("does not infer architecture as issues source from scaffold-only folder-mode architecture", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Empty folder architecture lifecycle",
+      now: testNow,
+      randomId: () => "lf02",
+      sessionPath: session,
+    });
+    const changePath = path.join(cwd, "wiki", "changes", created.id);
+    const architecturePath = path.join(changePath, "architecture");
+    await mkdir(architecturePath);
+    await writeFile(path.join(architecturePath, "index.md"), "# Architecture\n");
+
+    const progressed = await progressChange({
+      cwd,
+      stage: "issues",
+      sessionPath: session,
+      now: testNow,
+    });
+    const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
+
+    expect(progressed.sources).toEqual([]);
+    expect(progressed.note).toContain("No sources recorded for issues");
+    expect(status.artifacts.issues.sources).toEqual([]);
+  });
+
   it("does not stale direct architecture when PRD progresses", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);

@@ -709,7 +709,7 @@ Bare `weave-capture` writes a structured session note, promotes pending lane ses
 
 `weave-next` is read-only and advisory. It summarizes the active change, artifact state, current artifact context, and recent resume notes, then recommends the next Weave skill without writing artifacts or invoking the recommendation automatically.
 
-`weave-clarify` is for refining an existing change artifact when scope, requirements, assumptions, or decisions change midstream. It updates one selected artifact at a time, such as `exploration.md`, `prd.md`, or `architecture.md`, and reports follow-up artifacts that should be clarified separately. Use `weave-prd` and `weave-architect` for initial generation; use `weave-clarify` when an existing artifact needs a focused amendment.
+`weave-clarify` is for refining an existing change artifact when scope, requirements, assumptions, or decisions change midstream. It updates one selected artifact at a time, such as `exploration.md`, `prd.md`, legacy `architecture.md`, or folder-mode `architecture/index.md` plus architecture facets, and reports follow-up artifacts that should be clarified separately. Use `weave-prd` and `weave-architect` for initial design work; use `weave-capture` to persist architecture discussions and `weave-clarify` when an existing artifact needs a focused amendment or architecture facet restructure.
 
 `weave-knowledge` updates current-state behavioral specs under `wiki/knowledge/**` and writes change-local provenance to `wiki/changes/<change-id>/knowledge-delta.md`. It creates missing standard knowledge files when needed, but does not silently reorganize user-authored knowledge.
 

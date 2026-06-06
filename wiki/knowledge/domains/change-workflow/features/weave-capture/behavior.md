@@ -4,7 +4,7 @@
 
 `weave-capture` captures the current discussion into the active Weave change without storing a raw transcript. It runs in two modes:
 
-- **Artifact capture** (bare `weave-capture`): creates a structured session note, promotes pending session context for the selected lane, and merges durable content into the corresponding live artifact (`exploration.md`, `prd.md`, or `architecture.md`).
+- **Artifact capture** (bare `weave-capture`): creates a structured session note, promotes pending session context for the selected lane, and merges durable content into the corresponding live artifact (`exploration.md`, `prd.md`, legacy `architecture.md`, or folder-mode `architecture/index.md` plus facets).
 - **Session-only capture** (`weave-capture session [exploration|prd|architecture]`): creates a lane-aware structured session note only, never updating live artifacts.
 
 `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.
@@ -17,7 +17,7 @@ Step order:
 2. Resolve capture mode (artifact vs session-only) and resolve the lane.
 3. **Defensive Lane Verification** (see below). If the resolved lane and conversation substance disagree, stop and ask the user to confirm the lane before any write.
 4. Identify the active change folder, ensure `sessions/` exists, generate a timestamped session filename `YYYYMMDD-HHMMSS-<4-char-id>-<artifact>.md`.
-5. Write the structured session note with `artifact`, `capture_mode`, and `captured_at` frontmatter and the standard section list (Summary, Decisions Made, Options Considered, Rejected Approaches, User Preferences, Agent Recommendations, Unresolved Points, Live Artifact Updates Applied, Next Resume Point).
+5. Write the structured session note with `artifact`, `capture_mode`, `captured_at`, and `facets` frontmatter and the standard section list (Summary, Decisions Made, Options Considered, Rejected Approaches, User Preferences, Agent Recommendations, Unresolved Points, Live Artifact Updates Applied, Next Resume Point). For architecture captures, `facets` lists affected architecture concerns such as `index`, `schema`, `api-contract`, `frontend-backend`, or user-defined facet slugs; non-architecture captures use `facets: []`.
 6. For artifact-capture mode, merge durable content into the selected live artifact (preserving template structure and lifecycle frontmatter); apply the Lifecycle Staleness Verification Protocol before calling `weave change progress <lane>`.
 7. For session-only mode, skip step 6 entirely; do not call lifecycle progress.
 
@@ -42,9 +42,13 @@ This step is a defensive recovery for a missed lane-commit upstream: if a plan-m
 
 ## Behavioral Rules
 
-- Session-only capture must not create or update `exploration.md`, `prd.md`, or `architecture.md`.
+- Session-only capture must not create or update `exploration.md`, `prd.md`, `architecture.md`, or `architecture/`.
 - Session-only capture does not require the selected live artifact to exist and does not enforce upstream prerequisite artifacts.
-- Artifact capture must not create `exploration.md`, `prd.md`, or `architecture.md` without a valid active change, valid target context, and enough selected-lane context. When the artifact does not exist, all matching lane session notes are considered; when it exists, only session notes newer than `updated_at` are considered.
+- Artifact capture must not create `exploration.md`, `prd.md`, `architecture.md`, or `architecture/` without a valid active change, valid target context, and enough selected-lane context. When the artifact does not exist, all matching lane session notes are considered; when it exists, only session notes newer than `updated_at` are considered.
+- For architecture artifact capture, existing legacy `architecture.md` stays in file mode unless the user explicitly requests folder mode or a separate facet. If no architecture artifact exists, new architecture capture creates folder mode at `architecture/index.md` by default.
+- If both `architecture.md` and `architecture/` exist, capture stops before writing and asks the user how to resolve the shape conflict.
+- Folder-mode architecture capture treats `architecture/index.md` as the entry point and direct child `architecture/*.md` files as facets.
+- Capture discovers architecture templates from direct child resources in the installed `weave-architect` skill folder by `<facet>-template.md` convention. Template-backed facets use the matching template; no-template content is merged into existing architecture docs unless the user explicitly asks for a separate facet file.
 - The capture session file is a continuation aid; live artifacts remain the durable current truth.
 - `weave-capture` never reads cross-lane session notes (e.g. a PRD capture does not consider exploration sessions).
 - The raw conversation transcript is never copied or stored.
@@ -58,6 +62,8 @@ This step is a defensive recovery for a missed lane-commit upstream: if a plan-m
 ## Source Anchors
 
 - Canonical skill: `templates/skills/weave-capture/SKILL.md`
+- Architecture artifact shape: `wiki/knowledge/domains/change-workflow/domain-wide/architecture-artifacts.md`
+- Architecture template resources: `templates/skills/weave-architect/*-template.md`
 - Installed copies: `.agents/skills/weave-capture/SKILL.md`, `.claude/skills/weave-capture/SKILL.md`
 - Opencode wrapper: `templates/opencode/commands/weave-capture.md`
 - Plan Mode Protocol companion: `templates/skills/weave-prd/SKILL.md`, `templates/skills/weave-architect/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`, `templates/skills/weave-explore/SKILL.md`
@@ -67,6 +73,7 @@ This step is a defensive recovery for a missed lane-commit upstream: if a plan-m
 ## Change History
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): added the `# Defensive Lane Verification` step (lane vs conversation-substance comparison with explicit user ask on mismatch); embedded the byte-identical `# Lifecycle Staleness Verification` and `# Surface Weave Notices` blocks.
+- 2026-06-06 (change `260606-k0l6-architecture-folder`): architecture capture learned folder-mode architecture, `facets` session frontmatter, direct child architecture template resources, and no-template facet creation only on explicit user request.
 
 ## Open Questions
 

@@ -46,9 +46,13 @@ wiki/changes/<change-id>/status.yml
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
+wiki/changes/<change-id>/architecture/index.md
+wiki/changes/<change-id>/architecture/*.md
 wiki/changes/<change-id>/tasks.md
 wiki/changes/<change-id>/sessions/*.md
 ```
+
+Architecture may be legacy file mode or folder mode. If `architecture/` exists, read `architecture/index.md` and direct child facet files as architecture context. If both `architecture.md` and `architecture/` exist, report the conflict and avoid treating either as the sole canonical architecture source.
 
 Read relevant knowledge files when present:
 

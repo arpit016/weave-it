@@ -138,6 +138,7 @@ Existing session files using `yyyy-mm-dd-<4-char-id>-<artifact>.md` remain valid
 artifact: <exploration|prd|architecture>
 capture_mode: <artifact|session>
 captured_at: <YYYY-MM-DDTHH:mm:ss.sssZ>
+facets: []
 ---
 
 # Session Capture: <Artifact> - <YYYY-MM-DD>
@@ -165,6 +166,8 @@ Do not copy or store the raw transcript. Summarize and structure the discussion.
 
 Set `capture_mode: session` for session-only capture. Set `capture_mode: artifact` for regular artifact capture.
 
+For architecture captures, set `facets: [...]` to the architecture concerns discussed, such as `index`, `schema`, `api-contract`, `frontend-backend`, or user-named facet slugs. For non-architecture captures, use `facets: []`.
+
 For session-only capture, write `None; session-only capture` or equivalent under `Live Artifact Updates Applied`.
 
 8. For session-only capture, stop after writing the session note.
@@ -175,6 +178,7 @@ Do not create or update:
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
+wiki/changes/<change-id>/architecture/
 ```
 
 Session-only capture is resume context only. It is not canonical artifact truth. It does not require the lane's live artifact to exist and does not require upstream prerequisite artifacts.
@@ -184,8 +188,16 @@ Session-only capture is resume context only. It is not canonical artifact truth.
 ```text
 exploration -> wiki/changes/<change-id>/exploration.md
 prd -> wiki/changes/<change-id>/prd.md
-architecture -> wiki/changes/<change-id>/architecture.md
+architecture -> wiki/changes/<change-id>/architecture.md or wiki/changes/<change-id>/architecture/index.md plus facets
 ```
+
+For architecture targets, resolve artifact shape before writing:
+
+- If only `architecture.md` exists, preserve legacy file mode unless the user explicitly asks to move to folder mode or create a separate facet.
+- If `architecture/` exists, use folder mode. Treat `architecture/index.md` as the canonical entry point and direct child `architecture/*.md` files as facets.
+- If neither exists and architecture content is being captured, create folder mode at `architecture/index.md` by default.
+- If both `architecture.md` and `architecture/` exist, stop before writing and ask whether to keep legacy file mode, migrate to folder mode, or reconcile the conflict with `weave-clarify`.
+- Facet-only folder mode is valid. If a user explicitly asks to capture a concern into its own file and no matching template exists, create the facet file without a template and link or mention it from `index.md` when useful.
 
 Before writing the live artifact, inspect pending session notes for the selected lane:
 
@@ -215,6 +227,14 @@ Only merge artifact-relevant current truth:
 
 When the live artifact already exists, preserve its template structure and lifecycle frontmatter. When the live artifact is missing but allowed by the target rules below, create it with appropriate lifecycle frontmatter and the normal artifact structure for that lane.
 
+For folder-mode architecture, discover direct child template resources in the installed skill directory:
+
+```text
+<agent-skills-dir>/weave-architect/*-template.md
+```
+
+Use templates by convention only. `index-template.md` is for `architecture/index.md`; `<facet>-template.md` is for `architecture/<facet>.md`. If no relevant template exists, fit content into existing architecture docs wherever it belongs. Create a new no-template facet only when the user explicitly asks for a separate facet file or the current capture cannot be represented honestly in existing docs.
+
 Do not add transcript-style discussion to the live artifact.
 
 10. For artifact capture, after successfully creating or updating the live artifact, run lifecycle progress for the selected artifact:
@@ -239,7 +259,7 @@ Run only the command matching the selected artifact and pass only sources that a
 - Session-only capture requires a valid active change.
 - Session-only capture does not require the selected live artifact to exist.
 - Session-only capture does not enforce upstream prerequisite artifacts.
-- Session-only capture must not create or update `exploration.md`, `prd.md`, or `architecture.md`.
+- Session-only capture must not create or update `exploration.md`, `prd.md`, `architecture.md`, or `architecture/`.
 
 ## Artifact Capture
 
@@ -251,7 +271,7 @@ Run only the command matching the selected artifact and pass only sources that a
 - If the selected live artifact does not exist, create it only when the active change, target context, and selected-lane context are sufficient:
   - missing `exploration.md`: create it for the valid active change
   - missing `prd.md`: create it from current discussion, PRD sessions, and useful exploration context when enough product truth exists
-  - missing `architecture.md`: create it from current discussion, architecture sessions, useful PRD context, and codebase/technical context when enough engineering truth exists
+  - missing architecture artifact: create `architecture/index.md` from current discussion, architecture sessions, useful PRD context, and codebase/technical context when enough engineering truth exists
 - Treat upstream artifacts as optional sources, not prerequisites.
 - If selected-lane context is insufficient, write the session note and stop before creating the live artifact. Tell the user which lane conversation or interview is needed next.
 
@@ -261,7 +281,7 @@ Creating a missing live artifact is allowed only for the selected capture target
 
 - For `exploration.md`, synthesize the artifact from the current discussion and mark unresolved discovery points clearly.
 - For `prd.md`, synthesize the artifact from current discussion, PRD sessions, and useful exploration context. Do not require `exploration.md`.
-- For `architecture.md`, synthesize the artifact from current discussion, architecture sessions, useful PRD context, and codebase/technical context. A just-completed Plan Mode `weave-architect` discussion is valid source material for the first architecture draft.
+- For architecture, synthesize `architecture/index.md` and any explicit or template-backed facet files from current discussion, architecture sessions, useful PRD context, and codebase/technical context. A just-completed Plan Mode `weave-architect` discussion is valid source material for the first architecture draft.
 - If the current discussion does not contain enough durable content for the selected missing artifact, write the session note and stop before creating the live artifact. Tell the user which lane conversation is needed next.
 
 # Behavior Rules
@@ -270,8 +290,8 @@ Creating a missing live artifact is allowed only for the selected capture target
 - The skill owns discussion synthesis, session note writing, and live artifact merging.
 - Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.
 - Do not create a new change unless the user explicitly asks for a new change.
-- Do not create `exploration.md`, `prd.md`, or `architecture.md` in session-only mode.
-- Do not create `exploration.md`, `prd.md`, or `architecture.md` in artifact capture mode without a valid active change, valid target context, and enough selected-lane context.
+- Do not create `exploration.md`, `prd.md`, `architecture.md`, or `architecture/` in session-only mode.
+- Do not create `exploration.md`, `prd.md`, `architecture.md`, or `architecture/` in artifact capture mode without a valid active change, valid target context, and enough selected-lane context.
 - Do not store raw transcripts in v1.
 - Do not remove existing lifecycle frontmatter.
 - Do not call lifecycle progress in session-only mode.
@@ -285,7 +305,7 @@ For artifact capture, report both outputs:
 
 ```text
 Captured session: wiki/changes/<change-id>/sessions/<filename>.md
-Updated artifact: wiki/changes/<change-id>/<artifact-file>.md
+Updated artifact: wiki/changes/<change-id>/<artifact-path>
 ```
 
 For session-only capture, report the session and explicitly state that no live artifact was updated:

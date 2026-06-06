@@ -10,6 +10,8 @@
 
 `weave-issues` runs through seven steps before lifecycle progress: gather context, explore the codebase, classify discovered work, draft vertical-slice tasks, quiz the user, write or reconcile `tasks.md`, and record lifecycle progress.
 
+PRD and architecture are preferred durable sources but are not prerequisites. When they exist, `weave-issues` acts as a downstream coverage and consistency gate before writing tasks: it checks generated tasks against PRD use cases and architecture decisions, verifies PRD/architecture coherence, and records the result in `## Coverage Review`.
+
 Within an active change, section selection in `tasks.md` is driven by the category of each discovered work item, not by the change's declared `status.yml.type`. `T#` implementation tasks remain the backbone. Three first-class categories exist:
 
 - `T#` (implementation tasks) live in `## Active Task Index` and per-task detail sections. They are vertical slices that cut through all relevant integration layers end-to-end. Each `T#` may optionally carry an `Origin` (`qa_finding` or `refactor`) and a `Related finding` (`QF#` or `R#`).
@@ -26,6 +28,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 
 - frontmatter: `artifact: tasks`, `status`, `owner: engineering`, `created_at`, `updated_at`, `source`
 - `## Source Context`: PRD, architecture, sessions, codebase, external references, local references when used
+- `## Coverage Review`: PRD coverage, architecture coverage, and PRD/Architecture sync when relevant sources exist
 - `## Local Tracking Status`: declares no external publishing
 - `## Status Legend`: task statuses
 - `## Active Task Index`: ID, Status, Type, Title, Blocked by
@@ -45,6 +48,10 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - Generated tasks start as `todo` unless a real blocker is already known.
 - `weave-issues` does not assign `not_tested` during task generation; implementers apply it later when implementation appears complete but automated verification could not be completed.
 - `weave-issues` previews the proposed breakdown and waits for explicit user approval before writing `tasks.md`.
+- If `prd.md` exists, generated tasks should cover concrete PRD use cases, acceptance criteria, non-goals, and relevant edge cases.
+- If an architecture artifact exists, generated tasks should cover architecture decisions, facet-specific responsibilities, rollout, data migration, API contracts, observability, tests, and risks that require implementation work.
+- If PRD and architecture conflict, `weave-issues` stops before writing tasks and asks whether to clarify PRD or architecture first.
+- In folder-mode architecture, `weave-issues` reads `architecture/index.md` and substantive direct child facet files; it does not rely only on the index.
 - On rerun, `weave-issues` reads existing `tasks.md` and current source context, proposes a reconciliation, preserves statuses and checked acceptance criteria when intent still maps cleanly, keeps stable IDs for unchanged intent, assigns new IDs to new items, and never reuses invalidated IDs.
 - Obsolete tasks are marked `invalid` (not deleted), removed from the active index, and listed in `## Invalid Tasks` with reasons.
 - Append-first, preview-before-write, and stable-ID reconciliation apply to `QF#` and `R#` entries the same way they apply to `T#` tasks. `T#`, `QF#`, and `R#` use independent ID namespaces.
@@ -89,6 +96,9 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 ## Edge Cases
 
 - Architecture appears stale because `prd.md` changed: do not assume architecture is stale; rely on `status.yml` source-aware stale state.
+- PRD exists but architecture does not: generate tasks from the concrete source material available and mark architecture coverage as absent in `## Coverage Review`; do not require architecture solely as a prerequisite.
+- Architecture exists but PRD does not: generate tasks from architecture or other concrete sources when sufficient and mark PRD coverage as absent in `## Coverage Review`.
+- Architecture is folder-mode with substantive facets but a missing or thin index: use the facet context and call out partial architecture coverage in `## Coverage Review`.
 - A defect surfaces that changes product behavior or acceptance criteria: record the `QF#`, but the user should run `weave-clarify prd` or `weave-explore` to update product artifacts.
 - A defect invalidates the technical approach: record the `QF#`, but the user should run `weave-clarify architecture` or `weave-architect` to update the design.
 - A refactor turns out to change observable behavior: it is not a refactor and should be reclassified.
@@ -102,6 +112,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 ## Source Anchors
 
 - Canonical skill: `templates/skills/weave-issues/SKILL.md`
+- Architecture artifact shape: `wiki/knowledge/domains/change-workflow/domain-wide/architecture-artifacts.md`
 - Installed copies: `.agents/skills/weave-issues/SKILL.md`, `.claude/skills/weave-issues/SKILL.md`
 - Opencode wrapper: `templates/opencode/commands/weave-issues.md` (and installed `.opencode/commands/weave-issues.md`)
 - Propagation/manifest: `src/lib/agent-skills.ts`, `.weave/agents.yml`
@@ -113,6 +124,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - 2026-06-01 (change `260602-943x-fix-issues-skill-with-creating-tasks`): `weave-issues` was rewritten around local `tasks.md` creation and reconciliation; external publishing was removed; the canonical `tasks.md` shape (frontmatter, source context, status legend, active task index, T# details, invalid tasks, verification) was established; test-suite-aware verification guidance was added.
 - 2026-06-03 (change `260602-of9s-add-ability-to-bug-fix`): added the classification step (`QF#`/`R#`/`T#`); added `## QA Findings` and `## Refactors` as flat siblings of the task index, both defaulting to `None.`; added optional `Origin` and `Related finding` fields on `T#` tasks; extended append-first/stable-ID/independent-namespace reconciliation rules to `QF#` and `R#`; deferred `R#` entries may exist without a `T#`.
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): embedded the byte-identical `# Surface Weave Notices` and `# Lifecycle Staleness Verification` blocks; `last_changed_in: 0.1.0` added to the skill frontmatter. The `tasks.md` shape and core `weave-issues` behavior are unchanged.
+- 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-issues` became tolerant of optional PRD/architecture sources while acting as a downstream coverage and consistency gate; it now reads folder-mode architecture (`architecture/index.md` plus facets) and records PRD/architecture coverage in `tasks.md`.
 
 ## Open Questions
 

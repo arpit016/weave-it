@@ -68,8 +68,12 @@ wiki/changes/<change-id>/status.yml
 wiki/changes/<change-id>/exploration.md
 wiki/changes/<change-id>/prd.md
 wiki/changes/<change-id>/architecture.md
+wiki/changes/<change-id>/architecture/index.md
+wiki/changes/<change-id>/architecture/*.md
 wiki/changes/<change-id>/tasks.md
 ```
+
+Architecture may be legacy file mode or folder mode. If `architecture/` exists, treat `architecture/index.md` as the entry point and direct child facet files as part of the architecture lane. If both `architecture.md` and `architecture/` exist, mention the conflict before recommending the next step.
 
 Then read relevant recent session notes newest-first:
 
@@ -87,7 +91,7 @@ If a session note conflicts with the live artifact, prefer the live artifact unl
 
 Classify each artifact conservatively.
 
-Treat an artifact as missing when the file does not exist.
+Treat an artifact as missing when its file or folder shape does not exist.
 
 Treat an artifact as not usable when it is blank, whitespace-only, scaffold-only with headings but no substantive content, or explicitly marked not ready for the next lane.
 
@@ -98,7 +102,7 @@ For `exploration.md`, use `PRD Readiness` when present:
 
 For `prd.md`, open product questions or unresolved PRD session context can make PRD resume work primary even when architecture exists.
 
-For `architecture.md`, open technical questions or unresolved architecture session context can make architecture resume work primary before issues.
+For the architecture artifact, open technical questions, unresolved architecture session context, missing folder index, or substantive facet-only context can make architecture resume work primary before issues.
 
 For issue evidence, use conservative v1 heuristics only:
 

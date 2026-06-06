@@ -25,14 +25,22 @@ Work from whatever is already in the conversation context. If the user passes an
 For a Weave change, prefer durable change artifacts before drafting tasks:
 
 - Read `wiki/changes/<change-id>/prd.md` as the product contract when present.
-- Read `wiki/changes/<change-id>/architecture.md` as the engineering design when present.
+- Read the architecture artifact as the engineering design when present: legacy `wiki/changes/<change-id>/architecture.md` or folder-mode `wiki/changes/<change-id>/architecture/index.md` plus direct child `architecture/*.md` facets.
 - Read `wiki/changes/<change-id>/status.yml` when present to check stale lifecycle state.
 - Read existing `wiki/changes/<change-id>/tasks.md` when present so reruns can reconcile instead of replacing blindly.
-- If both PRD and architecture exist, use `prd.md` for user behavior and acceptance, and `architecture.md` for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
+- If both PRD and architecture exist, use `prd.md` for user behavior and acceptance, and the architecture artifact for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
 - If `status.yml.stale.architecture` exists, warn that architecture is stale from its recorded sources and ask for explicit confirmation before creating or reconciling tasks. If the user does not explicitly confirm, stop and recommend `weave-architect`.
 - Do not assume architecture is stale merely because `prd.md` changed; rely on source-aware stale state in `status.yml`.
 
 Task generation may use any sufficiently concrete plan or context, including PRD, architecture, implementation plan, spec, sessions, discussion, codebase findings, local paths, or external issue references.
+
+PRD and architecture are optional sources, not prerequisites. When either exists, `weave-issues` acts as a downstream consistency gate:
+
+- Verify generated tasks cover all concrete PRD use cases, acceptance criteria, non-goals, and edge cases that are relevant to implementation.
+- Verify generated tasks cover architecture decisions, facet-specific responsibilities, rollout, data migration, API contracts, observability, testing, and risks that require implementation work.
+- Verify PRD and architecture are mutually coherent. If they conflict, stop before writing tasks and ask the user whether to clarify PRD or architecture first.
+- If architecture folder mode exists, review `architecture/index.md` and each substantive facet file; do not only read the index.
+- Include a `## Coverage Review` section in `tasks.md` summarizing PRD coverage, architecture coverage, and PRD/Architecture sync. If a source is absent, state that it was absent instead of treating that as a blocker.
 
 ### 2. Explore The Codebase
 
