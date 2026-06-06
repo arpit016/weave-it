@@ -28,6 +28,8 @@ For context-gathering skills, workspace mode has two layers:
 
 `weave-explore` and `weave-architect` use registered repos as bounded context sources. They lightly inventory all registered repos, then deeply inspect only relevant repos based on the user request, active change artifacts, repo names/kinds, docs, knowledge, prior changes, or code references. They prefer current docs, knowledge specs, ADRs, and repo-local Weave wiki content before implementation code, and use code/tests to verify important claims.
 
+`weave-clarify` is narrower: it may inspect registered sub-repos only when the selected artifact clarification depends on repo-local truth. It does not inventory or inspect every registered repo by default, and it should recommend `weave-explore` or `weave-architect` when the needed context is broad or uncertain.
+
 ## Behavioral Rules
 
 - Skills must not treat `folders: []` as no context when `workspace` is present.
@@ -35,6 +37,7 @@ For context-gathering skills, workspace mode has two layers:
 - Skills must not create, read, or update change artifacts under each registered sub-repo by default.
 - `weave-explore` uses relevant sub-repo context to understand product behavior, domain language, workflows, roles, permissions, states, rollout behavior, and edge cases.
 - `weave-architect` uses relevant sub-repo context to understand affected repos, cross-repo boundaries, contracts, data flow, schema/API/event/job/deployment constraints, rollout, observability, testing, and risks.
+- `weave-clarify` uses sub-repo context as targeted verification context when the selected artifact references repo-local docs/code or the requested clarification changes behavior, technical direction, permissions, rollout, integration boundaries, or architecture facet ownership.
 - Context-gathering skills should report which repos/docs/code anchors were inspected and which repos were skipped when findings depend on workspace sub-repo context.
 - In workspace mode, completion summaries should describe the workspace root as the single processed context.
 - In repo mode, skills may still describe multiple contexts when multiple session folders are relevant.
@@ -51,3 +54,4 @@ For context-gathering skills, workspace mode has two layers:
 
 - 2026-06-04 (change `260605-bdsu-workspace-aware-skills`): design-discussion and artifact-authoring skills were updated to use the cwd-dispatched workspace-or-repo context instead of assuming `weave workspace --json` always returns populated `folders[]`.
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-explore` and `weave-architect` gained an explicit workspace repo context protocol: registered `repos[]` are lightly inventoried as docs/code evidence sources, relevant repos are inspected deeply, docs/wiki/specs are preferred before code, and findings report inspected/skipped repos.
+- 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-clarify` gained narrower sub-repo awareness for targeted verification during artifact clarification, without broad repo discovery by default.

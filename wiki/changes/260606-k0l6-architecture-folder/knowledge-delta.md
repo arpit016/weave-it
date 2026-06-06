@@ -9,6 +9,7 @@
 - `weave-issues` treats PRD and architecture as optional sources, but when they exist it acts as a downstream coverage and consistency gate before writing tasks.
 - Skill resources are direct child files beside `SKILL.md`; architect templates are installed, updated, reset, diffed, and preserved under the same resource rules as existing PRD and knowledge templates.
 - `weave-explore` and `weave-architect` now treat workspace `repos[]` as bounded evidence sources: they lightly inventory all registered repos, deeply inspect only relevant repos, prefer repo docs/wiki/specs before code, and report inspected/skipped repo context.
+- `weave-clarify` is also sub-repo aware, but only as targeted verification context when the selected artifact clarification depends on repo-local truth.
 
 ## Affected Knowledge Areas
 
@@ -48,7 +49,7 @@ Not applicable. The change updates durable current-state behavior for architectu
 - Resolver: `src/lib/architecture-artifact.ts`
 - Lifecycle integration: `src/lib/changes.ts`
 - Skill templates: `templates/skills/weave-architect/SKILL.md`, `templates/skills/weave-capture/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`, `templates/skills/weave-issues/SKILL.md`, `templates/skills/weave-next/SKILL.md`, `templates/skills/weave-knowledge/SKILL.md`
-- Workspace repo context skills: `templates/skills/weave-explore/SKILL.md`, `templates/skills/weave-architect/SKILL.md`
+- Workspace repo context skills: `templates/skills/weave-explore/SKILL.md`, `templates/skills/weave-architect/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`
 - Skill resources: `templates/skills/weave-architect/*-template.md`
 - Tests: `tests/architecture-artifact.test.ts`, `tests/changes.test.ts`, `tests/agent-skills.test.ts`
 

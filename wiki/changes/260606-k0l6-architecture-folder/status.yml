@@ -6,7 +6,7 @@ type: feat
 stage: issues
 branch: change/260606-k0l6-architecture-folder
 created_at: 2026-06-06T09:12:43.174Z
-updated_at: 2026-06-06T19:27:58.053Z
+updated_at: 2026-06-06T19:36:32.785Z
 artifacts:
   prd:
     sources:
@@ -28,7 +28,7 @@ artifacts:
     updated_at: 2026-06-06T18:06:27.801Z
 knowledge:
   status: updated
-  updated_at: 2026-06-06T19:27:58.053Z
+  updated_at: 2026-06-06T19:36:32.785Z
   domains:
     - change-workflow
     - cli-distribution
@@ -47,5 +47,6 @@ knowledge:
     - wiki/knowledge/domains/cli-distribution/features/skill-resources/behavior.md
   delta: wiki/changes/260606-k0l6-architecture-folder/knowledge-delta.md
   reason: Updated knowledge for folder-mode architecture artifacts, read-only
-    architect behavior, workspace repo context discovery, architecture
-    capture/clarify responsibilities, issues coverage gate, and skill resources.
+    architect behavior, workspace repo context discovery and targeted
+    clarification verification, architecture capture/clarify responsibilities,
+    issues coverage gate, and skill resources.

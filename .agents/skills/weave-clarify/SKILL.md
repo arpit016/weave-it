@@ -70,6 +70,41 @@ In workspace mode there is one change context: the workspace root. In repo mode,
 
 ---
 
+# Workspace Repo Context For Clarification
+
+In workspace mode, treat `workspace.path` as the single artifact root. Registered `repos[]` entries are available as implementation and documentation context, not separate artifact targets.
+
+`weave-clarify` is not a broad discovery skill. Do not inventory or inspect every registered repo by default.
+
+Inspect sub-repos only when the clarification depends on repo-local truth, such as:
+
+- the selected artifact references a repo, module, API, schema, job, migration, test, doc, or ADR
+- the user names a repo or implementation area
+- the clarification changes technical direction, acceptance behavior, permissions, rollout, or integration boundaries
+- architecture facet restructuring depends on where responsibilities actually live
+
+When sub-repo context is needed, prefer repo-local docs, knowledge, specs, ADRs, and prior changes before implementation code. Use code and tests to verify important claims.
+
+Keep inspection narrowly scoped to the selected artifact and the clarification requested. Do not use `weave-clarify` to perform broad product discovery or architecture exploration; recommend `weave-explore` or `weave-architect` when the required context is broad or uncertain.
+
+Do not create, read, or update change artifacts under each sub-repo by default. Durable change artifacts remain under:
+
+```text
+<workspace.path>/wiki/changes/<change-id>/
+```
+
+If repo context influenced the clarification, mention it in the completion response:
+
+```text
+Repo context used:
+- Repos inspected:
+- Docs/knowledge read:
+- Code/test anchors read:
+- Repos intentionally skipped:
+```
+
+---
+
 # Target Artifact
 
 Supported target artifacts:
@@ -381,6 +416,16 @@ Clarifications applied: <count or concise summary>
 Open questions: <count>
 Follow-up artifacts:
 - <artifact or None>
+```
+
+If repo context influenced the clarification, also include:
+
+```text
+Repo context used:
+- Repos inspected:
+- Docs/knowledge read:
+- Code/test anchors read:
+- Repos intentionally skipped:
 ```
 
 If no write was made because the skill needed target selection, confirmation, or answers to blocking questions, say that directly and list what is needed next.

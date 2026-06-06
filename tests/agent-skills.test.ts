@@ -432,6 +432,12 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Treat the selected target artifact as the only write target");
     expect(skill.content).toContain("Supported target artifacts");
     expect(skill.content).toContain("Do not edit follow-up artifacts");
+    expect(skill.content).toContain("# Workspace Repo Context For Clarification");
+    expect(skill.content).toContain("`weave-clarify` is not a broad discovery skill. Do not inventory or inspect every registered repo by default.");
+    expect(skill.content).toContain("Inspect sub-repos only when the clarification depends on repo-local truth");
+    expect(skill.content).toContain("Keep inspection narrowly scoped to the selected artifact and the clarification requested.");
+    expect(skill.content).toContain("recommend `weave-explore` or `weave-architect` when the required context is broad or uncertain.");
+    expect(skill.content).toContain("Repo context used:");
     expect(skill.content).toContain("weave change progress <target> --json");
     expect(skill.content).toContain("weave change progress architecture --source prd --source codebase --json");
     expect(skill.content).toContain("## 3. Target Resume Context");
