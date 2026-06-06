@@ -14,7 +14,7 @@ PRD and architecture are preferred durable sources but are not prerequisites. Wh
 
 Within an active change, section selection in `tasks.md` is driven by the category of each discovered work item, not by the change's declared `status.yml.type`. `T#` implementation tasks remain the backbone. Three first-class categories exist:
 
-- `T#` (implementation tasks) live in `## Active Task Index` and per-task detail sections. They are vertical slices that cut through all relevant integration layers end-to-end. Each `T#` may optionally carry an `Origin` (`qa_finding` or `refactor`) and a `Related finding` (`QF#` or `R#`).
+- `T#` (implementation tasks) live in `## Active Task Index` and per-task detail sections. They are vertical slices that cut through all relevant integration layers end-to-end. Each `T#` may optionally carry an `Origin` (`qa_finding` or `refactor`) and a `Related finding` (`QF#` or `R#`). `T#` tasks also carry scope and repo-location metadata when generated from the current template: `Scope`, `Primary repo`, `Repos`, `Architecture refs`, and `Coordination`.
 - `QF#` (QA findings) live in `## QA Findings`. They record observed defects with observed vs expected behavior, reproduction, severity, source, artifact impact, and related tasks.
 - `R#` (refactors) live in `## Refactors`. They record structural cleanup with no observable behavior change. A deferred `R#` may exist without any `T#` task.
 
@@ -31,8 +31,8 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - `## Coverage Review`: PRD coverage, architecture coverage, and PRD/Architecture sync when relevant sources exist
 - `## Local Tracking Status`: declares no external publishing
 - `## Status Legend`: task statuses
-- `## Active Task Index`: ID, Status, Type, Title, Blocked by
-- `## T#: <Title>` detail blocks: Status, Type, Blocked by, User stories covered, Origin, Related finding, What to build, Acceptance Criteria, Verification
+- `## Active Task Index`: ID, Status, Type, Scope, Primary repo, Repos, Title, Blocked by
+- `## T#: <Title>` detail blocks: Status, Type, Scope, Primary repo, Repos, Architecture refs, Coordination, Blocked by, User stories covered, Origin, Related finding, What to build, optional Repo Involvement, Acceptance Criteria, Verification
 - `## QA Findings`: Finding Status Legend; index with ID, Status, Severity, Source, Related Task, Summary; per-`QF#` blocks; defaults to `None.`
 - `## Refactors`: Refactor Status Legend; index with ID, Status, Scope, Related Tasks, Summary; per-`R#` blocks; defaults to `None.`
 - `## Invalid Tasks`: defaults to `None.`
@@ -41,6 +41,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 ## Configuration Dimensions
 
 - Slice type: `HITL` (requires human interaction) or `AFK` (mergeable without human interaction). Prefer `AFK` over `HITL`.
+- Scope: a free-form planning and ownership label such as `backend`, `frontend`, `full-stack`, or user-provided language. Scope is not a repo name, architecture facet name, technical layer, lifecycle lane, or artifact target.
 - Repo testing maturity: if a usable test base exists, code-affecting tasks include automated test expectations and verification commands; otherwise tasks include explicit manual or smoke verification.
 
 ## Behavioral Rules
@@ -48,14 +49,20 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - Generated tasks start as `todo` unless a real blocker is already known.
 - `weave-issues` does not assign `not_tested` during task generation; implementers apply it later when implementation appears complete but automated verification could not be completed.
 - `weave-issues` previews the proposed breakdown and waits for explicit user approval before writing `tasks.md`.
+- If invoked as `weave-issues <scope>`, the argument is treated as a free-form planning and ownership label for the run. Scoped runs still read all relevant source context and may propose `Scope: full-stack` tasks when the smallest independently-verifiable behavior crosses backend and frontend boundaries.
+- Scoped tasks must remain tracer bullets. A scope narrows planning ownership; it does not permit horizontal layer tasks such as separate database-table, endpoint, component, or route tasks unless each resulting task is independently meaningful and verifiable.
+- In workspace mode, registered `repos[]` are implementation-location evidence for `Primary repo`, `Repos`, likely code anchors, and likely verification anchors. They are not separate task artifact targets.
+- Multi-repo tasks and tasks with ambiguous implementation locations include `### Repo Involvement` as guidance with repo role, likely code anchors, and test/verification anchors. `Repo Involvement` is not subtask tracking and must not include per-repo statuses.
 - If `prd.md` exists, generated tasks should cover concrete PRD use cases, acceptance criteria, non-goals, and relevant edge cases.
 - If an architecture artifact exists, generated tasks should cover architecture decisions, facet-specific responsibilities, rollout, data migration, API contracts, observability, tests, and risks that require implementation work.
 - If PRD and architecture conflict, `weave-issues` stops before writing tasks and asks whether to clarify PRD or architecture first.
 - In folder-mode architecture, `weave-issues` reads `architecture/index.md` and substantive direct child facet files; it does not rely only on the index.
 - On rerun, `weave-issues` reads existing `tasks.md` and current source context, proposes a reconciliation, preserves statuses and checked acceptance criteria when intent still maps cleanly, keeps stable IDs for unchanged intent, assigns new IDs to new items, and never reuses invalidated IDs.
+- On a scoped rerun, `weave-issues` preserves unrelated scope tasks unless the current scope reveals a direct conflict, reconciles tasks in the requested scope, and stops before writing if the scoped plan conflicts with another scope's existing task or architecture assumption.
 - Obsolete tasks are marked `invalid` (not deleted), removed from the active index, and listed in `## Invalid Tasks` with reasons.
 - Append-first, preview-before-write, and stable-ID reconciliation apply to `QF#` and `R#` entries the same way they apply to `T#` tasks. `T#`, `QF#`, and `R#` use independent ID namespaces.
 - `weave-issues` does not create `issues.md`.
+- `weave-issues` does not create `tasks/<repo>/tasks.md`, per-repo task artifacts, rigid scope legends, or per-repo task statuses inside `Repo Involvement`.
 
 ## Task Status Legend
 
@@ -99,6 +106,9 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - PRD exists but architecture does not: generate tasks from the concrete source material available and mark architecture coverage as absent in `## Coverage Review`; do not require architecture solely as a prerequisite.
 - Architecture exists but PRD does not: generate tasks from architecture or other concrete sources when sufficient and mark PRD coverage as absent in `## Coverage Review`.
 - Architecture is folder-mode with substantive facets but a missing or thin index: use the facet context and call out partial architecture coverage in `## Coverage Review`.
+- A scope resembles a repo name or architecture facet: do not assume it is a repo selector or facet selector; use all relevant source context and map repos separately through `Primary repo`, `Repos`, and `Repo Involvement`.
+- A scoped run reveals a full-stack behavior: propose a `Scope: full-stack` task instead of forcing an artificial backend-only or frontend-only split.
+- Repo mapping is uncertain: preview candidate repo mappings and ask for confirmation before writing vague implementation-location metadata.
 - A defect surfaces that changes product behavior or acceptance criteria: record the `QF#`, but the user should run `weave-clarify prd` or `weave-explore` to update product artifacts.
 - A defect invalidates the technical approach: record the `QF#`, but the user should run `weave-clarify architecture` or `weave-architect` to update the design.
 - A refactor turns out to change observable behavior: it is not a refactor and should be reclassified.
@@ -107,6 +117,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 
 - `tasks.md` is the only file `weave-issues` writes; `issues.md` is never created.
 - The `issues` lane and source IDs are reused unchanged; no new lifecycle lane or source ID is introduced.
+- Workspace sub-repos remain implementation and evidence locations, not separate `issues` artifact targets.
 - Installed agent copies of the skill remain byte-identical to `templates/skills/weave-issues/SKILL.md`.
 
 ## Source Anchors
@@ -125,6 +136,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - 2026-06-03 (change `260602-of9s-add-ability-to-bug-fix`): added the classification step (`QF#`/`R#`/`T#`); added `## QA Findings` and `## Refactors` as flat siblings of the task index, both defaulting to `None.`; added optional `Origin` and `Related finding` fields on `T#` tasks; extended append-first/stable-ID/independent-namespace reconciliation rules to `QF#` and `R#`; deferred `R#` entries may exist without a `T#`.
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): embedded the byte-identical `# Surface Weave Notices` and `# Lifecycle Staleness Verification` blocks; `last_changed_in: 0.1.0` added to the skill frontmatter. The `tasks.md` shape and core `weave-issues` behavior are unchanged.
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-issues` became tolerant of optional PRD/architecture sources while acting as a downstream coverage and consistency gate; it now reads folder-mode architecture (`architecture/index.md` plus facets) and records PRD/architecture coverage in `tasks.md`.
+- 2026-06-07 (change `260607-ycuo-workspace-aware-issues`): `weave-issues` became scope-aware at the skill level. It now treats `weave-issues <scope>` as a free-form planning/ownership label, preserves tracer-bullet semantics under scoped generation, permits `Scope: full-stack` when behavior crosses backend/frontend boundaries, adds task metadata for scope and repo-location guidance, and forbids per-repo task artifacts.
 
 ## Open Questions
 

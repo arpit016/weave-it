@@ -963,6 +963,14 @@ describe("agent skills", () => {
     expect(issuesSkill).toContain("Refactor Status Legend:");
     expect(issuesSkill).toContain("`deferred`: logged for later; no `T#` yet");
     expect(issuesSkill).toContain("| ID | Status | Scope | Related Tasks | Summary |");
+    expect(issuesSkill).toContain("If the user invokes `weave-issues <scope>`");
+    expect(issuesSkill).toContain("Scope is not a repo name, architecture facet name, technical layer, lifecycle lane, or artifact target.");
+    expect(issuesSkill).toContain("A scoped run may still propose `Scope: full-stack` tasks");
+    expect(issuesSkill).toContain("| ID | Status | Type | Scope | Primary repo | Repos | Title | Blocked by |");
+    expect(issuesSkill).toContain("Architecture refs: <relevant architecture files/facets, or None>");
+    expect(issuesSkill).toContain("### Repo Involvement");
+    expect(issuesSkill).toContain("`Repo Involvement` is implementation guidance only");
+    expect(issuesSkill).toContain("Do not create `tasks/<repo>/tasks.md`");
     expect(nextSkill).toContain("name: weave-next");
     expect(knowledgeSkill).toContain("name: weave-knowledge");
     expect(knowledgeSkill).toContain("weave change knowledge updated");

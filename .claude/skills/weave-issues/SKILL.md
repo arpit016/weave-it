@@ -22,6 +22,14 @@ It does not publish, close, comment on, label, or otherwise mutate external issu
 
 Work from whatever is already in the conversation context. If the user passes an issue reference, URL, issue number, or local path as an argument, read it as source context when available. Do not mutate the referenced tracker item or file.
 
+If the user invokes `weave-issues <scope>`, treat `<scope>` as a free-form planning and ownership label for this run.
+
+Common examples are `backend`, `frontend`, and `full-stack`, but do not enforce a fixed taxonomy. Preserve the user's language unless it is ambiguous.
+
+Scope is not a repo name, architecture facet name, technical layer, lifecycle lane, or artifact target. `weave-issues backend` means generate or reconcile backend-owned tracer-bullet implementation slices using all relevant source context. `weave-issues frontend` means generate or reconcile frontend-owned tracer-bullet implementation slices using all relevant source context.
+
+A scoped run may still propose `Scope: full-stack` tasks when the smallest independently verifiable behavior crosses backend and frontend boundaries. Do not force a naturally full-stack behavior into fake backend-only or frontend-only tasks.
+
 For a Weave change, prefer durable change artifacts before drafting tasks:
 
 - Read `wiki/changes/<change-id>/prd.md` as the product contract when present.
@@ -31,6 +39,8 @@ For a Weave change, prefer durable change artifacts before drafting tasks:
 - If both PRD and architecture exist, use `prd.md` for user behavior and acceptance, and the architecture artifact for technical sequencing, affected systems, risks, rollout, observability, and testing strategy.
 - If `status.yml.stale.architecture` exists, warn that architecture is stale from its recorded sources and ask for explicit confirmation before creating or reconciling tasks. If the user does not explicitly confirm, stop and recommend `weave-architect`.
 - Do not assume architecture is stale merely because `prd.md` changed; rely on source-aware stale state in `status.yml`.
+
+When a scope is provided, still read all source context relevant to that scoped ownership boundary. Do not read only a same-named architecture facet and do not assume the scope is a repo selector. For example, `weave-issues backend` may need `architecture/backend.md`, `architecture/frontend.md`, `architecture/api-contract.md`, `architecture/index.md`, repo docs, and existing frontend or full-stack tasks to detect coordination needs or conflicts.
 
 Task generation may use any sufficiently concrete plan or context, including PRD, architecture, implementation plan, spec, sessions, discussion, codebase findings, local paths, or external issue references.
 
@@ -45,6 +55,16 @@ PRD and architecture are optional sources, not prerequisites. When either exists
 ### 2. Explore The Codebase
 
 Explore the codebase enough to understand current implementation conventions before drafting tasks. Issue titles and task descriptions should use the project's domain glossary vocabulary and respect ADRs in the area being touched.
+
+In workspace mode, use registered `repos[]` as implementation-location evidence, not as separate task artifact targets. For repos that appear relevant to the requested scope or source context, identify:
+
+- repo id or name
+- repo kind when known
+- likely code anchors
+- likely test or verification anchors
+- which task scope(s) the repo appears relevant to
+
+Do not create per-repo task files. The only task artifact remains `wiki/changes/<change-id>/tasks.md`.
 
 Also inspect testing conventions:
 
@@ -71,6 +91,34 @@ Within an active change, `tasks.md` section selection is driven by the category 
 
 Break the plan into **tracer bullet** tasks. Each task is a thin vertical slice that cuts through all relevant integration layers end-to-end, not a horizontal slice of one layer.
 
+Scoped tasks must remain tracer bullets. A scope narrows planning ownership; it does not permit horizontal layer tasks.
+
+Bad backend slices:
+
+- Add database table
+- Add service method
+- Add endpoint
+
+Good backend slice:
+
+- Allow API consumers to create pending workspace invitations
+
+Bad frontend slices:
+
+- Add component
+- Add route
+- Wire API client
+
+Good frontend slice:
+
+- Let admins submit workspace invitations from settings
+
+Good full-stack slice:
+
+- Let admins create a pending workspace invitation from workspace settings
+
+DB work usually belongs inside the relevant backend-owned behavior slice. Mobile work may use the team's normal frontend/client scope language. Contract and API boundary work should usually be captured as `Coordination` on the relevant task unless the user naturally provides a separate scope label.
+
 Slices may be `HITL` or `AFK`. HITL slices require human interaction, such as an architectural decision or a design review. AFK slices can be implemented and merged without human interaction. Prefer AFK over HITL where possible.
 
 <vertical-slice-rules>
@@ -89,8 +137,13 @@ Present the proposed breakdown as a numbered list before writing `tasks.md`. For
 
 - **Title**: short descriptive name
 - **Type**: HITL / AFK
+- **Scope**: backend, frontend, full-stack, or the user-provided label
+- **Primary repo**: main implementation location, or `workspace` / `None` when not repo-specific
+- **Repos**: all repos expected to be touched, or `None`
+- **Architecture refs**: architecture files or facets that explain the task, when known
 - **Blocked by**: which other slices, if any, must complete first
 - **User stories covered**: which user stories this addresses, if the source material has them
+- **Repo-local or full-stack**: whether the slice is contained in one repo/scope or crosses repos/scopes
 
 Ask the user:
 
@@ -98,6 +151,9 @@ Ask the user:
 - Are the dependency relationships correct?
 - Should any slices be merged or split further?
 - Are the correct slices marked as HITL and AFK?
+- Are the scopes and repo mappings correct?
+- Should any backend/frontend scoped task become full-stack, or vice versa?
+- Are any repo/code anchors missing or misleading?
 
 Iterate until the user approves the breakdown.
 
@@ -125,6 +181,21 @@ If `tasks.md` already exists:
 - remove invalid tasks from the active task index
 - list invalid tasks in a separate `## Invalid Tasks` section with reasons
 - write only after explicit user approval
+
+If `tasks.md` already exists and the user invoked a scope:
+
+- read the existing `tasks.md` before drafting
+- preserve unrelated scope tasks unless the current scope reveals a direct conflict
+- reconcile tasks in the requested scope
+- preserve stable IDs when task intent still maps cleanly
+- preserve statuses and checked acceptance criteria when intent still maps cleanly
+- add new scoped tasks with new IDs
+- mark obsolete tasks in the requested scope as `invalid` rather than deleting them
+- do not reuse invalidated task IDs
+- if a scoped run discovers a genuinely cross-backend/frontend behavior, propose a `Scope: full-stack` task instead of forcing it into backend-only or frontend-only tasks
+- if the scoped plan conflicts with another scope's existing task or architecture assumption, stop before writing and ask whether to clarify PRD or architecture first
+
+Do not create `tasks/<repo>/tasks.md`, per-repo task artifacts, per-repo task statuses inside `Repo Involvement`, or rigid scope legends. Do not split a tracer bullet into backend/frontend tasks merely because multiple repos are involved. Split only when each resulting task is independently meaningful and verifiable.
 
 Append-first, preview-before-write, and stable-ID reconciliation apply to `QF#` and `R#` entries the same way they apply to `T#` tasks. `T#`, `QF#`, and `R#` use independent ID namespaces; do not reuse invalidated IDs across any of them. A deferred `R#` may exist without a `T#` task.
 
@@ -164,15 +235,25 @@ External issue publishing status: not used. This change tracks implementation lo
 
 ## Active Task Index
 
-| ID | Status | Type | Title | Blocked by |
-| --- | --- | --- | --- | --- |
-| T1 | todo | AFK | <title> | None |
+| ID | Status | Type | Scope | Primary repo | Repos | Title | Blocked by |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| T1 | todo | AFK | <scope> | <repo or workspace> | <repos or None> | <title> | None |
 
 ## T1: <Title>
 
 Status: todo
 
 Type: AFK
+
+Scope: <backend | frontend | full-stack | user-provided label>
+
+Primary repo: <repo id or workspace>
+
+Repos: <repo ids, or None>
+
+Architecture refs: <relevant architecture files/facets, or None>
+
+Coordination: <none or concrete cross-scope note>
 
 Blocked by: None - can start immediately
 
@@ -185,6 +266,16 @@ Related finding: <none | QF# | R#>
 ### What to build
 
 Describe the end-to-end behavior for this vertical slice. Avoid layer-by-layer implementation unless the source material requires it.
+
+### Repo Involvement
+
+Include this section for multi-repo tasks or when implementation location would otherwise be ambiguous. Omit it for obvious single-repo tasks.
+
+| Repo | Scope | Role | Likely code anchors | Test/verification anchors |
+| --- | --- | --- | --- | --- |
+| <repo> | <scope> | <what this repo contributes to the behavior> | <paths or "inspect repo docs/code"> | <tests/checks or "inspect repo test conventions"> |
+
+`Repo Involvement` is implementation guidance only; it is not subtask tracking and must not include per-repo statuses.
 
 ### Acceptance Criteria
 

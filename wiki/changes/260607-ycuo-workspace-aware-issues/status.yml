@@ -1,0 +1,36 @@
+version: 1
+id: 260607-ycuo-workspace-aware-issues
+slug: workspace-aware-issues
+title: workspace aware issues
+type: feat
+stage: issues
+branch: change/260607-ycuo-workspace-aware-issues
+created_at: 2026-06-06T19:50:59.203Z
+updated_at: 2026-06-06T22:52:58.308Z
+artifacts:
+  prd:
+    sources:
+      - discussion
+    updated_at: 2026-06-06T22:16:42.222Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-06-06T22:31:48.883Z
+  issues:
+    sources:
+      - prd
+      - architecture
+      - codebase
+    updated_at: 2026-06-06T22:49:38.465Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-06T22:52:58.308Z
+  domains:
+    - change-workflow
+  shared: []
+  files:
+    - wiki/knowledge/domains/change-workflow/features/weave-issues/behavior.md
+  delta: wiki/changes/260607-ycuo-workspace-aware-issues/knowledge-delta.md
+  reason: Updated weave-issues scope-aware task behavior and canonical tasks.md
+    metadata.
