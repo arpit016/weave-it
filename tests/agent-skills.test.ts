@@ -79,6 +79,13 @@ describe("agent skills", () => {
     expect(skill.content).not.toContain("# Plan Mode Protocol");
     expect(skill.content).toContain("weave workspace --json");
     expect(skill.content).toContain("weave artifact current set exploration --json");
+    expect(skill.content).toContain("# Workspace Repo Context Protocol");
+    expect(skill.content).toContain("Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.");
+    expect(skill.content).toContain("Lightly inventory all registered repos. Deeply inspect only repos that appear relevant");
+    expect(skill.content).toContain("Prefer current docs, knowledge specs, ADRs, and repo-local Weave wiki content before reading implementation code.");
+    expect(skill.content).toContain("Repos skipped: <repo id> (<reason>)");
+    expect(skill.content).toContain("# Sub-Repo Product Discovery");
+    expect(skill.content).toContain("Translate technical findings into product behavior questions.");
     expect(skill.content).toContain("`weave-explore` means enter or resume exploration for the active change.");
     expect(skill.content).toContain("Read `wiki/changes/<change-id>/exploration.md` first. Treat the live artifact as canonical current truth.");
     expect(skill.content).toContain("sessions/*-exploration.md");
@@ -150,6 +157,14 @@ describe("agent skills", () => {
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture/index.md");
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture/*.md");
     expect(skill.content).toContain("weave artifact current set architecture --json");
+    expect(skill.content).toContain("# Workspace Repo Context Protocol");
+    expect(skill.content).toContain("Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.");
+    expect(skill.content).toContain("Lightly inventory all registered repos. Deeply inspect only repos that appear relevant");
+    expect(skill.content).toContain("Prefer current docs, knowledge specs, ADRs, and repo-local Weave wiki content before reading implementation code.");
+    expect(skill.content).toContain("Repos skipped: <repo id> (<reason>)");
+    expect(skill.content).toContain("# Sub-Repo Architecture Discovery");
+    expect(skill.content).toContain("Docs and ADRs are the first pass. Code and tests are the verification pass.");
+    expect(skill.content).toContain("## Cross-Repo Architecture");
     expect(skill.content).not.toContain("weave change progress architecture --source prd --source codebase --json");
     expect(skill.content).not.toContain("artifact: architecture");
     expect(skill.content).not.toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");

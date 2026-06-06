@@ -8,6 +8,7 @@
 - `weave-clarify architecture` owns explicit architecture restructuring: create/split/merge/rename/delete facets, move content, update index, and migrate legacy `architecture.md` only on explicit user request.
 - `weave-issues` treats PRD and architecture as optional sources, but when they exist it acts as a downstream coverage and consistency gate before writing tasks.
 - Skill resources are direct child files beside `SKILL.md`; architect templates are installed, updated, reset, diffed, and preserved under the same resource rules as existing PRD and knowledge templates.
+- `weave-explore` and `weave-architect` now treat workspace `repos[]` as bounded evidence sources: they lightly inventory all registered repos, deeply inspect only relevant repos, prefer repo docs/wiki/specs before code, and report inspected/skipped repo context.
 
 ## Affected Knowledge Areas
 
@@ -19,6 +20,7 @@
 - `change-workflow/features/weave-clarify`
 - `change-workflow/features/weave-issues`
 - `cli-distribution/features/skill-resources`
+- `change-workflow/domain-wide/workspace-aware-skill-context`
 
 ## Knowledge Files Updated
 
@@ -32,6 +34,7 @@
 - `wiki/knowledge/domains/change-workflow/features/weave-issues/behavior.md`
 - `wiki/knowledge/domains/cli-distribution/index.md`
 - `wiki/knowledge/domains/cli-distribution/features/skill-resources/behavior.md`
+- `wiki/knowledge/domains/change-workflow/domain-wide/workspace-aware-skill-context.md`
 
 ## No-Impact Rationale
 
@@ -45,6 +48,7 @@ Not applicable. The change updates durable current-state behavior for architectu
 - Resolver: `src/lib/architecture-artifact.ts`
 - Lifecycle integration: `src/lib/changes.ts`
 - Skill templates: `templates/skills/weave-architect/SKILL.md`, `templates/skills/weave-capture/SKILL.md`, `templates/skills/weave-clarify/SKILL.md`, `templates/skills/weave-issues/SKILL.md`, `templates/skills/weave-next/SKILL.md`, `templates/skills/weave-knowledge/SKILL.md`
+- Workspace repo context skills: `templates/skills/weave-explore/SKILL.md`, `templates/skills/weave-architect/SKILL.md`
 - Skill resources: `templates/skills/weave-architect/*-template.md`
 - Tests: `tests/architecture-artifact.test.ts`, `tests/changes.test.ts`, `tests/agent-skills.test.ts`
 

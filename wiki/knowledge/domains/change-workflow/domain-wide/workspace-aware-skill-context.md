@@ -21,10 +21,21 @@ The result is interpreted as a cwd-dispatched context:
 
 Registered workspace sub-repos are not separate artifact targets by default. A skill may inspect or edit code in those repos when relevant, but PRD, architecture, exploration, clarification, task, capture, and knowledge artifacts belong to the workspace root change context.
 
+For context-gathering skills, workspace mode has two layers:
+
+- Artifact layer: the workspace root owns `wiki/changes/<change-id>/` and the current durable Weave artifacts.
+- Evidence layer: registered `repos[]` are candidate sources of docs, repo-local wiki content, specs, ADRs, code, and tests that may explain current product behavior or technical boundaries.
+
+`weave-explore` and `weave-architect` use registered repos as bounded context sources. They lightly inventory all registered repos, then deeply inspect only relevant repos based on the user request, active change artifacts, repo names/kinds, docs, knowledge, prior changes, or code references. They prefer current docs, knowledge specs, ADRs, and repo-local Weave wiki content before implementation code, and use code/tests to verify important claims.
+
 ## Behavioral Rules
 
 - Skills must not treat `folders: []` as no context when `workspace` is present.
 - Skills should identify the change folder under the resolved workspace or repo context, not under every registered repo.
+- Skills must not create, read, or update change artifacts under each registered sub-repo by default.
+- `weave-explore` uses relevant sub-repo context to understand product behavior, domain language, workflows, roles, permissions, states, rollout behavior, and edge cases.
+- `weave-architect` uses relevant sub-repo context to understand affected repos, cross-repo boundaries, contracts, data flow, schema/API/event/job/deployment constraints, rollout, observability, testing, and risks.
+- Context-gathering skills should report which repos/docs/code anchors were inspected and which repos were skipped when findings depend on workspace sub-repo context.
 - In workspace mode, completion summaries should describe the workspace root as the single processed context.
 - In repo mode, skills may still describe multiple contexts when multiple session folders are relevant.
 
@@ -39,3 +50,4 @@ Registered workspace sub-repos are not separate artifact targets by default. A s
 ## Change History
 
 - 2026-06-04 (change `260605-bdsu-workspace-aware-skills`): design-discussion and artifact-authoring skills were updated to use the cwd-dispatched workspace-or-repo context instead of assuming `weave workspace --json` always returns populated `folders[]`.
+- 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-explore` and `weave-architect` gained an explicit workspace repo context protocol: registered `repos[]` are lightly inventoried as docs/code evidence sources, relevant repos are inspected deeply, docs/wiki/specs are preferred before code, and findings report inspected/skipped repos.

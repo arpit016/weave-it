@@ -44,6 +44,47 @@ weave artifact current set exploration --json
 
 Use the cwd-dispatched workspace or repo context returned by `weave workspace --json` as the exploration boundary. In workspace mode, the workspace root owns the change store and registered sub-repos in `repos[]` are implementation locations inside that single context. In repo mode, the active session's folders are the boundary. If there is no active Weave change, stop and ask the user to run `weave change new` or `weave change switch` before continuing.
 
+# Workspace Repo Context Protocol
+
+When `weave workspace --json` returns a `workspace` object, treat `workspace.path` as the single Weave change artifact root. Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.
+
+Do not create, read, or update change artifacts under each sub-repo by default. Durable change artifacts remain under:
+
+```text
+<workspace.path>/wiki/changes/<change-id>/
+```
+
+Before deep inspection, build a lightweight repo context map from `repos[]`:
+
+- repo id
+- repo path
+- repo kind
+- remote, when present
+- whether the repo appears relevant to the current user request
+- docs and knowledge surfaces present, such as `README.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/`, `docs/adr/`, `adr/`, `wiki/knowledge/`, `wiki/changes/`, `specs/`
+- obvious code/test surfaces that may verify current behavior
+
+Lightly inventory all registered repos. Deeply inspect only repos that appear relevant from the user's request, active change artifacts, repo names/kinds, docs, knowledge, prior changes, or code references.
+
+Prefer current docs, knowledge specs, ADRs, and repo-local Weave wiki content before reading implementation code. Use code and tests to verify important claims from docs or memory.
+
+If a repo is skipped, keep the reason simple: unrelated name/kind, no matching docs, no matching code references, or out of scope for the current question.
+
+When presenting findings, include a short context note:
+
+```text
+Context loaded:
+- Workspace artifact root: <path>
+- Repos inspected: <repo ids>
+- Repo docs/knowledge read: <paths>
+- Code/test anchors read: <paths>
+- Repos skipped: <repo id> (<reason>)
+```
+
+Do not exhaustively scan every repo unless the user explicitly asks for a workspace-wide audit.
+
+---
+
 For each resolved context, inspect Weave knowledge first when present:
 
 ```text
@@ -209,6 +250,40 @@ Instead of asking:
 
 Ask:
 > "Is it acceptable if users see updates a few seconds later?"
+
+---
+
+# Sub-Repo Product Discovery
+
+In workspace mode, use registered repos to understand existing product behavior across the workspace.
+
+For relevant repos, prioritize reading:
+
+```text
+wiki/knowledge/**
+wiki/changes/**
+README.md
+CONTEXT.md
+CONTEXT-MAP.md
+docs/**
+docs/adr/**
+adr/**
+specs/**
+tests/**
+```
+
+Use sub-repo context to discover:
+
+- domain language and user-facing terminology
+- actors, roles, permissions, and ownership boundaries
+- existing workflows and lifecycle states
+- configuration or rollout behavior that changes user experience
+- failure states, edge cases, and operational expectations
+- prior changes or specs that constrain the current exploration
+
+Read implementation code only as needed to verify current behavior, locate hidden assumptions, or resolve contradictions between docs and reality.
+
+Translate technical findings into product behavior questions. Do not ask the user to choose implementation details unless the choice materially changes user behavior, compliance, visibility, permissions, rollout, or operational guarantees.
 
 ---
 

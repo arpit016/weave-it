@@ -72,6 +72,45 @@ weave artifact current set architecture --json
 
 Surface any Tier 1 notices from the commands above.
 
+# Workspace Repo Context Protocol
+
+When `weave workspace --json` returns a `workspace` object, treat `workspace.path` as the single Weave change artifact root. Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.
+
+Do not create, read, or update change artifacts under each sub-repo by default. Durable change artifacts remain under:
+
+```text
+<workspace.path>/wiki/changes/<change-id>/
+```
+
+Before deep inspection, build a lightweight repo context map from `repos[]`:
+
+- repo id
+- repo path
+- repo kind
+- remote, when present
+- whether the repo appears relevant to the current user request
+- docs and knowledge surfaces present, such as `README.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/`, `docs/adr/`, `adr/`, `wiki/knowledge/`, `wiki/changes/`, `specs/`
+- obvious code/test surfaces that may verify current behavior
+
+Lightly inventory all registered repos. Deeply inspect only repos that appear relevant from the user's request, active change artifacts, repo names/kinds, docs, knowledge, prior changes, or code references.
+
+Prefer current docs, knowledge specs, ADRs, and repo-local Weave wiki content before reading implementation code. Use code and tests to verify important claims from docs or memory.
+
+If a repo is skipped, keep the reason simple: unrelated name/kind, no matching docs, no matching code references, or out of scope for the current question.
+
+When presenting findings, include a short context note:
+
+```text
+Context loaded:
+- Workspace artifact root: <path>
+- Repos inspected: <repo ids>
+- Repo docs/knowledge read: <paths>
+- Code/test anchors read: <paths>
+- Repos skipped: <repo id> (<reason>)
+```
+
+Do not exhaustively scan every repo unless the user explicitly asks for a workspace-wide audit.
+
 # Architecture Context Loading
 
 Read live artifacts first, then sessions:
@@ -107,6 +146,62 @@ Inspect only context that can materially affect the architecture:
 - adjacent integration boundaries across registered workspace repos
 
 Use existing architecture, framework conventions, helpers, data models, and ADRs before inventing a new abstraction.
+
+# Sub-Repo Architecture Discovery
+
+In workspace mode, use registered repos to understand technical boundaries across the workspace.
+
+For relevant repos, prioritize reading:
+
+```text
+README.md
+CONTEXT.md
+CONTEXT-MAP.md
+docs/**
+docs/adr/**
+adr/**
+specs/**
+wiki/knowledge/**
+wiki/changes/**
+package manifests and build config
+schema and migration files
+API route or contract files
+event, queue, job, or worker definitions
+deployment and runtime config
+tests around integration boundaries
+```
+
+Use sub-repo context to identify:
+
+- affected repos and ownership boundaries
+- cross-repo data flow
+- API, event, job, schema, and deployment contracts
+- shared libraries or duplicated behavior
+- migration and rollout constraints
+- observability, testing, and failure-mode implications
+- architecture decisions already recorded in docs, ADRs, or repo-local wiki content
+
+Docs and ADRs are the first pass. Code and tests are the verification pass.
+
+When returning an architecture dissection, include repo-aware findings when relevant:
+
+```text
+## Workspace Context
+- Affected repos:
+- Repos inspected:
+- Important docs/ADRs:
+- Important code/test anchors:
+- Repos skipped:
+
+## Cross-Repo Architecture
+- Boundaries:
+- Contracts:
+- Data flow:
+- Rollout/migration concerns:
+- Risks:
+```
+
+Keep this skill read-only. Do not create, edit, move, rename, delete, or progress artifacts in any sub-repo.
 
 # Deep Dive Modes
 
