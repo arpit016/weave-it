@@ -30,6 +30,14 @@ Then verify it works:
 weave --help
 ```
 
+Optional: install `codebase-memory-mcp` if you want coding agents to use indexed codebase context while working with Weave-managed repos:
+
+```bash
+npm install -g codebase-memory-mcp
+```
+
+After installing it, configure or restart your coding agent and index the project. See the [`codebase-memory-mcp` GitHub documentation](https://github.com/DeusData/codebase-memory-mcp) for further setup. Weave works without this MCP; it just gives compatible agents a faster way to search architecture, symbols, and call relationships before reading source files.
+
 ## Requirements
 
 - Node.js `>=22.12`
