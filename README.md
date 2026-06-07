@@ -1,6 +1,6 @@
 # Weave-It
 
-Weave-It is a TypeScript CLI package. The npm package is `weave-it` and the CLI binary is `weave`.
+Weave-It is a TypeScript CLI package. The npm package is `@weave-tools/weave-it` and the CLI binary is `weave`.
 
 ## What Is Weave?
 
@@ -21,7 +21,7 @@ Each repo can contain a committed `wiki/` folder that acts like an LLM-friendly 
 Install the CLI globally from npm:
 
 ```bash
-npm install -g weave-it
+npm install -g @weave-tools/weave-it
 ```
 
 Then verify it works:
@@ -130,7 +130,7 @@ After code changes, run `npm run build` again so the linked command uses the lat
 To remove the local global link:
 
 ```bash
-npm unlink -g weave-it
+npm unlink -g @weave-tools/weave-it
 ```
 
 ## Supported CLI Commands
@@ -442,7 +442,7 @@ If a target is not a git repo, Weave still writes the change artifacts and repor
 
 ## `weave status`
 
-Shows the installed weave-it package version, the bundled skill versions, and any notices for the current repo.
+Shows the installed `@weave-tools/weave-it` package version, the bundled skill versions, and any notices for the current repo.
 
 ```bash
 weave status [options]
@@ -457,8 +457,8 @@ Options:
 
 `weave status` is the explicit, detailed view of:
 
-- the installed `weave-it` npm package version,
-- the latest cached `weave-it` version from the npm registry (refreshed at most once every 24h),
+- the installed `@weave-tools/weave-it` npm package version,
+- the latest cached `@weave-tools/weave-it` version from the npm registry (refreshed at most once every 24h),
 - every installed skill, the package version it was installed from, the current bundled package version, and a per-skill state (`current`, `outdated`, `modified`, `missing`),
 - the same `notices` array that Tier 1 commands return in `--json` mode.
 
@@ -484,9 +484,9 @@ weave status
 Notice kinds:
 
 ```text
-package_outdated   a newer weave-it npm version is cached locally
+package_outdated   a newer @weave-tools/weave-it npm version is cached locally
 skills_modified    one or more installed SKILL.md files differ from the manifest hash
-skills_outdated    one or more installed skills were installed from an older weave-it version than the current bundled skills
+skills_outdated    one or more installed skills were installed from an older @weave-tools/weave-it version than the current bundled skills
 ```
 
 Notices are computed in parallel with the command's normal work; missing network, an unwritable `~/.weave/cache`, or a stripped-down npm registry response all degrade gracefully to an empty array.
@@ -502,7 +502,7 @@ Non-Tier-1 commands (`agent install`, `agent update`, `change list`, `change pro
 
 ## Skill Versioning
 
-Every bundled `SKILL.md` template carries a `last_changed_in` frontmatter field recording the `weave-it` package version of the last substantive change to that skill:
+Every bundled `SKILL.md` template carries a `last_changed_in` frontmatter field recording the `@weave-tools/weave-it` package version of the last substantive change to that skill:
 
 ```yaml
 ---
@@ -853,8 +853,8 @@ npm publish
 5. Verify the release:
 
 ```bash
-npm view weave-it
-npm install -g weave-it && weave --help
+npm view @weave-tools/weave-it
+npm install -g @weave-tools/weave-it && weave --help
 ```
 
 6. Optionally refresh this clone's own installed skill copies so local dogfooding matches what shipped:

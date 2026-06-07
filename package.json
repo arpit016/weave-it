@@ -1,7 +1,7 @@
 {
-  "name": "weave-it",
+  "name": "@weave-tools/weave-it",
   "version": "0.1.0",
-  "description": "Repo-local LLM wiki and temporary multi-folder AI session tooling.",
+  "description": "SDLC package for AI-assisted software teams working across monorepos and multi-repo workspaces.",
   "type": "module",
   "license": "MIT",
   "author": "Arpit Agarwal <agarwalarpit22@gmail.com>",
