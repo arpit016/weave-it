@@ -39,6 +39,7 @@ Do not write repo-tracked artifacts directly. Produce the plan, decisions, quest
 - Treat `weave-architect` as entering or resuming the architecture lane for the active change.
 - Treat `prd.md` as the preferred product contract when it exists and is useful, but do not require it before architecture thinking.
 - Read enough code, docs, ADRs, knowledge specs, and existing Weave artifacts to understand current implementation patterns before recommending design.
+- Read `.weave/architecture-considerations.md` when present and use it as user-owned team architecture guidance.
 - In workspace mode, inspect registered repo folders as implementation locations inside one shared change context. In repo mode, keep the resolved repo context as the boundary.
 - Support both legacy `wiki/changes/<change-id>/architecture.md` and folder-mode `wiki/changes/<change-id>/architecture/index.md` plus `architecture/*.md` facets.
 - If both `architecture.md` and `architecture/` exist, call out the conflict and ask the user to resolve it with `weave-clarify` or `weave-capture` before relying on either as canonical.
@@ -126,6 +127,7 @@ wiki/changes/<change-id>/architecture/*.md
 wiki/changes/<change-id>/sessions/*-architecture.md
 wiki/changes/<change-id>/knowledge-delta.md
 wiki/changes/<change-id>/tasks.md
+.weave/architecture-considerations.md
 ```
 
 Architecture shape rules:
@@ -136,6 +138,19 @@ Architecture shape rules:
 - Conflict mode exists when both `architecture.md` and `architecture/` exist. Report it explicitly.
 
 For session notes, prefer the latest `## Next Resume Point`, unresolved decisions, and explicit user preferences. If session notes contain `facets: [...]` frontmatter, use it to find relevant facet discussions, but do not require it.
+
+# Team Architecture Considerations
+
+If `.weave/architecture-considerations.md` exists, read it before making architecture recommendations.
+
+Treat this file as user-owned advisory guidance:
+
+- Do not edit it.
+- Do not quote it exhaustively.
+- Apply relevant guidance silently while reasoning.
+- Surface only constraints, conflicts, or risks that materially affect the design.
+- Do not treat examples as mandatory unless the file says they are.
+- If it conflicts with PRD context, ADRs, existing architecture, code reality, or explicit user instructions, call out the conflict and ask which source should be authoritative.
 
 # Codebase And Docs Context
 
@@ -158,6 +173,7 @@ For relevant repos, prioritize reading:
 README.md
 CONTEXT.md
 CONTEXT-MAP.md
+.weave/architecture-considerations.md
 docs/**
 docs/adr/**
 adr/**

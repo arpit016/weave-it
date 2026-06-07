@@ -1,0 +1,50 @@
+version: 1
+id: 260607-vuwa-architecture-skill-update
+slug: architecture-skill-update
+title: architecture skill update
+type: fix
+stage: issues
+branch: change/260607-vuwa-architecture-skill-update
+created_at: 2026-06-07T15:15:42.155Z
+updated_at: 2026-06-07T15:46:31.626Z
+artifacts:
+  architecture:
+    sources:
+      - discussion
+      - codebase
+    updated_at: 2026-06-07T15:22:22.208Z
+  issues:
+    sources:
+      - architecture
+      - codebase
+    updated_at: 2026-06-07T15:34:42.401Z
+execution:
+  version: 1
+  branch: change/260607-vuwa-architecture-skill-update
+  repos:
+    root:
+      path: .
+      mode: repo
+      branch: change/260607-vuwa-architecture-skill-update
+      state: prepared
+      branch_status: already_active
+      prepared_head: 375df993cd7fd5a9f1b171c3e08633f0e45979b9
+      prepared_at: 2026-06-07T15:36:16.396Z
+      verified_at: 2026-06-07T15:37:21.999Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-07T15:46:31.626Z
+  domains:
+    - cli-commands
+    - change-workflow
+    - cli-distribution
+  shared: []
+  files:
+    - wiki/knowledge/domains/cli-commands/index.md
+    - wiki/knowledge/domains/cli-commands/features/core-command-reference/behavior.md
+    - wiki/knowledge/domains/cli-commands/features/weave-doctor/behavior.md
+    - wiki/knowledge/domains/change-workflow/features/weave-architect/behavior.md
+    - wiki/knowledge/domains/cli-distribution/features/notices/behavior.md
+  delta: wiki/changes/260607-vuwa-architecture-skill-update/knowledge-delta.md
+  reason: Updated current knowledge for weave doctor, architecture considerations
+    scaffold, architect skill guidance, and Tier 1 notices.

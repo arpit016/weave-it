@@ -69,7 +69,7 @@ export async function buildStatus(options: BuildStatusOptions): Promise<StatusRe
   };
 }
 
-async function collectSkillRows(options: BuildStatusOptions): Promise<StatusSkillRow[]> {
+export async function collectSkillRows(options: BuildStatusOptions): Promise<StatusSkillRow[]> {
   const manifest = await loadAgentsManifest(options.cwd);
   const templates = await listDefaultSkills({ templatesDir: options.templatesDir }).catch(() => []);
   const templatesByName = new Map(templates.map((skill) => [skill.name, skill]));

@@ -183,6 +183,11 @@ describe("agent skills", () => {
     expect(skill.content).toContain("Apply the Silent Weave Command Output policy to the commands above.");
     expect(skill.content).not.toContain("Surface any Tier 1 notices from the commands above.");
     expect(skill.content).not.toContain("After the active change is resolved, run:");
+    expect(skill.content).toContain("Read `.weave/architecture-considerations.md` when present");
+    expect(skill.content).toContain("# Team Architecture Considerations");
+    expect(skill.content).toContain("Treat this file as user-owned advisory guidance");
+    expect(skill.content).toContain("Do not edit it.");
+    expect(skill.content).toContain("Apply relevant guidance silently while reasoning.");
     expect(skill.content).toContain("# Workspace Repo Context Protocol");
     expect(skill.content).toContain("Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.");
     expect(skill.content).toContain("Lightly inventory all registered repos. Deeply inspect only repos that appear relevant");
@@ -360,13 +365,17 @@ describe("agent skills", () => {
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
-  it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
-    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify", "weave-issues", "weave-knowledge", "weave-prepare", "weave-execute"]) {
+  it("keeps repo-installed Weave skill copies aligned except intentional weave-architect drift", async () => {
+    for (const skill of ["weave-explore", "weave-prd", "weave-capture", "weave-next", "weave-clarify", "weave-issues", "weave-knowledge", "weave-prepare", "weave-execute"]) {
       const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
 
       await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
       await expect(readFile(path.join(process.cwd(), ".claude", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
     }
+
+    const architectTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-architect", "SKILL.md"), "utf8");
+    await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-architect", "SKILL.md"), "utf8")).resolves.not.toBe(architectTemplate);
+    await expect(readFile(path.join(process.cwd(), ".claude", "skills", "weave-architect", "SKILL.md"), "utf8")).resolves.not.toBe(architectTemplate);
 
     const prdTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-prd", "prd-template.md"), "utf8");
     await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-prd", "prd-template.md"), "utf8")).resolves.toBe(prdTemplate);

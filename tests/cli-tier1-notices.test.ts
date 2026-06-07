@@ -63,6 +63,7 @@ async function setupWeaveRepo(): Promise<string> {
 const tier1JsonCommands: { name: string; args: string[] }[] = [
   { name: "workspace", args: ["workspace", "--json"] },
   { name: "status", args: ["status", "--json"] },
+  { name: "doctor", args: ["doctor", "--json"] },
   { name: "change-current", args: ["change", "current", "--json"] },
   { name: "change-status", args: ["change", "status", "--json"] },
 ];

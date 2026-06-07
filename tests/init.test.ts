@@ -53,6 +53,7 @@ describe("current session workflow", () => {
     await expect(stat(path.join(cwd, "wiki", "knowledge", "domains"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, "wiki", "knowledge", "shared"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".weave", "sync.yml"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".weave", "architecture-considerations.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".weave", "workspace.yml"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".git"))).rejects.toThrow();
     await expect(stat(path.join(cwd, "weave"))).rejects.toThrow();
@@ -64,6 +65,7 @@ describe("current session workflow", () => {
     const knowledgeReadme = await readFile(path.join(cwd, "wiki", "knowledge", "README.md"), "utf8");
     const domainsReadme = await readFile(path.join(cwd, "wiki", "knowledge", "domains", "README.md"), "utf8");
     const sharedReadme = await readFile(path.join(cwd, "wiki", "knowledge", "shared", "README.md"), "utf8");
+    const architectureConsiderations = await readFile(path.join(cwd, ".weave", "architecture-considerations.md"), "utf8");
     const session = await loadCurrentSession(sessionPath);
 
     expect(sync.documents["knowledge.index"].path).toBe("wiki/knowledge/index.md");
@@ -84,6 +86,9 @@ describe("current session workflow", () => {
     expect(knowledgeReadme).toContain("knowledge-delta.md");
     expect(domainsReadme).toContain("# Domains");
     expect(sharedReadme).toContain("# Shared Behavior");
+    expect(architectureConsiderations).toContain("# Architecture Considerations");
+    expect(architectureConsiderations).toContain("This file is user-owned. Weave creates it once and never overwrites it.");
+    expect(architectureConsiderations).toContain("## Patterns To Avoid");
     expect(session?.folders.frontend).toMatchObject({
       path: resolvedCwd,
       name: "Frontend",
@@ -101,6 +106,7 @@ describe("current session workflow", () => {
     const domainsReadme = path.join(wikiDir, "domains", "README.md");
     const sharedReadme = path.join(wikiDir, "shared", "README.md");
     const syncFile = path.join(metadataDir, "sync.yml");
+    const architectureConsiderations = path.join(metadataDir, "architecture-considerations.md");
     const workspaceFile = path.join(metadataDir, "workspace.yml");
     await mkdir(path.join(wikiDir, "domains"), { recursive: true });
     await mkdir(path.join(wikiDir, "shared"), { recursive: true });
@@ -110,6 +116,7 @@ describe("current session workflow", () => {
     await writeFile(domainsReadme, "existing domains readme\n");
     await writeFile(sharedReadme, "existing shared readme\n");
     await writeFile(syncFile, "existing: true\n");
+    await writeFile(architectureConsiderations, "existing architecture notes\n");
     await writeFile(workspaceFile, "existing: true\n");
 
     const result = await initWorkspace({ cwd, interactive: false, yes: true, sessionPath });
@@ -120,6 +127,7 @@ describe("current session workflow", () => {
     await expect(readFile(domainsReadme, "utf8")).resolves.toBe("existing domains readme\n");
     await expect(readFile(sharedReadme, "utf8")).resolves.toBe("existing shared readme\n");
     await expect(readFile(syncFile, "utf8")).resolves.toBe("existing: true\n");
+    await expect(readFile(architectureConsiderations, "utf8")).resolves.toBe("existing architecture notes\n");
     await expect(readFile(workspaceFile, "utf8")).resolves.toBe("existing: true\n");
   });
 
@@ -149,6 +157,7 @@ describe("current session workflow", () => {
     await expect(stat(path.join(workspacePath, ".gitignore"))).resolves.toMatchObject({});
     await expect(stat(path.join(workspacePath, "wiki", "changes"))).resolves.toMatchObject({});
     await expect(stat(path.join(workspacePath, ".weave", "sync.yml"))).resolves.toMatchObject({});
+    await expect(stat(path.join(workspacePath, ".weave", "architecture-considerations.md"))).resolves.toMatchObject({});
     expect(workspace).toMatchObject({
       version: 1,
       mode: "workspace",
@@ -303,6 +312,7 @@ describe("current session workflow", () => {
     });
     await expect(stat(path.join(backend, "wiki", "knowledge", "index.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(backend, ".weave", "sync.yml"))).resolves.toMatchObject({});
+    await expect(stat(path.join(backend, ".weave", "architecture-considerations.md"))).resolves.toMatchObject({});
   });
 
   it("prints current session as JSON for agents in repo mode", async () => {

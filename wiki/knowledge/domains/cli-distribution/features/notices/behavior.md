@@ -6,7 +6,7 @@ Surface package and skill staleness to both human developers and AI agents in a 
 
 ## Current Behavior
 
-Five Tier 1 commands compute notices in parallel with their normal work and return them in two channels:
+Six Tier 1 commands compute notices in parallel with their normal work and return them in two channels:
 
 - `--json` output gains a top-level `notices` array (always present, possibly empty).
 - Non-JSON interactive output prints a one-line summary footer to **stderr** after the normal stdout body, only when stdout is a TTY and no opt-out is set.
@@ -27,15 +27,16 @@ Notices are computed from local manifest state plus a cached npm registry lookup
 
 ## Tier 1 Commands
 
-The notice contract applies to exactly these five commands:
+The notice contract applies to exactly these six commands:
 
 - `weave workspace`
 - `weave change current`
 - `weave change status`
 - `weave change new`
 - `weave status`
+- `weave doctor`
 
-All five share the same implementation path: a `withNotices()` helper wraps the action, computes notices in parallel, and merges them into the rendered output. Adding a sixth Tier 1 command is a deliberate change; the rest of the CLI stays notice-free to keep `--json` payloads stable.
+All six share the same implementation path: a `withNotices()` helper wraps the action, computes notices in parallel, and merges them into the rendered output. Adding another Tier 1 command is a deliberate change; the rest of the CLI stays notice-free to keep `--json` payloads stable.
 
 ## Footer Suppression Rules
 
@@ -88,7 +89,7 @@ The npm cache file lives at `~/.weave/cache/npm-version.json` and has a 24-hour 
 - Notice types and gathering: `src/lib/notices.ts` (`gatherNotices`, `detectSkillDrift`, `isNewerVersion`)
 - npm version check + cache: `src/lib/npm-version.ts` (`getNpmVersionInfo`)
 - Tier 1 wiring: `src/lib/with-notices.ts` (`withNotices`)
-- Tier 1 commands: `src/commands/workspace.ts`, `src/commands/status.ts`, `src/commands/change.ts` (`new`, `current`, `status` subcommands)
+- Tier 1 commands: `src/commands/workspace.ts`, `src/commands/status.ts`, `src/commands/doctor.ts`, `src/commands/change.ts` (`new`, `current`, `status` subcommands)
 - Skill contract source: `EXPECTED_SILENT_COMMAND_OUTPUT` in `src/lib/skill-template-checks.ts`
 - Templates: `templates/skills/<name>/SKILL.md` (every shipped skill carries the block)
 - Tests: `tests/notices.test.ts`, `tests/with-notices.test.ts`, `tests/cli-status.test.ts`, `tests/cli-tier1-notices.test.ts`, `tests/agent-skills.test.ts` (byte-identity and old-notice-guidance absence)
@@ -97,6 +98,7 @@ The npm cache file lives at `~/.weave/cache/npm-version.json` and has a 24-hour 
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): notices introduced; Tier 1 set of five commands defined; `--json notices` contract and stderr footer rules established; `WEAVE_NO_NOTICES` and `NO_UPDATE_NOTIFIER` opt-outs added; `# Surface Weave Notices` byte-identical block embedded in all 10 bundled skills.
 - 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): bundled skills replaced `# Surface Weave Notices` with `# Silent Weave Command Output`; Tier 1 command JSON notices remain available for automation, but skills now suppress raw command output and summarize only user-relevant notices or blockers.
+- 2026-06-07 (change `260607-vuwa-architecture-skill-update`): `weave doctor` became the sixth Tier 1 command and includes notices in `--json` output through `withNotices()`.
 
 ## Open Questions
 

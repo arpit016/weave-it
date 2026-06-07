@@ -469,9 +469,40 @@ weave status
 weave status --json
 ```
 
+## `weave doctor`
+
+Inspects the current Weave project and optionally repairs missing safe scaffold files.
+
+```bash
+weave doctor [options]
+```
+
+Options:
+
+```text
+--fix       create missing safe scaffold files without overwriting existing files
+--json      print machine-readable JSON
+-h, --help  display help for command
+```
+
+`weave doctor` is read-only by default. It reports metadata health, missing safe scaffold files, installed skill drift, active change context, branch match status when available, and a summary status of `ok`, `warning`, or `error`.
+
+`weave doctor --fix` is intentionally narrow. It only creates missing safe scaffold directories and files through write-if-missing behavior, such as `.weave/architecture-considerations.md` and standard `wiki/knowledge/**` scaffold files. It never overwrites existing files, updates installed skills, changes branches, edits `status.yml`, mutates live artifacts, or runs migrations.
+
+Examples:
+
+```bash
+weave doctor
+weave doctor --json
+weave doctor --fix
+weave doctor --fix --json
+```
+
+Existing Weave projects can run `weave doctor --fix` after upgrading the package to receive newly-added safe scaffold files without restarting sessions or running `weave init` again.
+
 ## Notices
 
-The five Tier 1 commands surface a stable `notices` array in their `--json` output and, in interactive TTY mode, print a one-line stderr footer that tells the user there are notices and to run `weave status`:
+The Tier 1 commands surface a stable `notices` array in their `--json` output and, in interactive TTY mode, print a one-line stderr footer that tells the user there are notices and to run `weave status`:
 
 ```text
 weave workspace
@@ -479,6 +510,7 @@ weave change current
 weave change status
 weave change new
 weave status
+weave doctor
 ```
 
 Notice kinds:
@@ -748,6 +780,8 @@ wiki/knowledge/
   shared/
     README.md
     <shared-behavior>/behavior.md
+.weave/
+  architecture-considerations.md
 ```
 
 V1 provides scaffold/docs guidance and skill contract tests for this structure. It does not add a CLI validation command for knowledge folders.
@@ -779,6 +813,7 @@ src/
     add.ts
     agent.ts
     change.ts
+    doctor.ts
     init.ts
     skills.ts
     workspace.ts
@@ -786,6 +821,7 @@ src/
     add-folder.ts
     agent-skills.ts
     changes.ts
+    doctor.ts
     files.ts
     folders.ts
     git.ts
@@ -801,11 +837,13 @@ templates/
   skills/
 tests/
   agent-skills.test.ts
+  cli-doctor.test.ts
   cli-skills.test.ts
   changes.test.ts
   init.test.ts
 .weave/
   agents.yml
+  architecture-considerations.md
   sync.yml
 wiki/
   knowledge/

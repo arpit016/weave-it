@@ -66,11 +66,12 @@ weave init --mode repo --yes
 
 What happens:
 
-- Weave creates `wiki/knowledge/`, `wiki/changes/`, and `.weave/sync.yml` if missing.
+- Weave creates `wiki/knowledge/`, `wiki/changes/`, `.weave/sync.yml`, and `.weave/architecture-considerations.md` if missing.
 - Weave writes `.weave/workspace.yml` with `mode: repo` if missing.
 - Weave starts the current local session with the folder kind set to `app` by default.
 - Weave does not run `git init`.
 - Weave does not move files.
+- `.weave/architecture-considerations.md` is user-owned architecture guidance. Weave creates it once and never overwrites it.
 
 ### Workspace Mode In The Current Empty Directory
 
@@ -90,7 +91,7 @@ What happens:
 
 - The current directory becomes the workspace.
 - Weave initializes git in the current directory.
-- Weave creates `.gitignore`, `wiki/`, `.weave/sync.yml`, and `.weave/workspace.yml`.
+- Weave creates `.gitignore`, `wiki/`, `.weave/sync.yml`, `.weave/architecture-considerations.md`, and `.weave/workspace.yml`.
 - `.weave/workspace.yml` has `mode: workspace`.
 - The workspace has no registered repos yet.
 - Weave starts the current local session with `kind: workspace`.
@@ -112,7 +113,7 @@ What happens:
 - Weave creates the target workspace directory if it does not already exist.
 - Weave refuses unsafe existing target paths instead of overwriting user data.
 - Weave initializes git in the workspace directory.
-- Weave creates `.gitignore`, `wiki/`, `.weave/sync.yml`, and `.weave/workspace.yml`.
+- Weave creates `.gitignore`, `wiki/`, `.weave/sync.yml`, `.weave/architecture-considerations.md`, and `.weave/workspace.yml`.
 - Weave starts the current local session with `kind: workspace`.
 
 ### Workspace Mode From Inside A Git Repo
@@ -173,7 +174,7 @@ weave add ../backend --id backend --kind api
 What happens:
 
 - Weave resolves the target path.
-- Weave scaffolds `wiki/` and `.weave/sync.yml` in the target if missing.
+- Weave scaffolds `wiki/`, `.weave/sync.yml`, and `.weave/architecture-considerations.md` in the target if missing.
 - Weave adds the folder to `~/.cache/weave/current-session.yml` under `session.folders`.
 - Weave does not update `.weave/workspace.yml` or `.gitignore` in a parent workspace.
 
@@ -506,7 +507,7 @@ Expected outcome: Commander rejects the unknown option or subcommand. The recove
 - Change command library: `src/lib/changes.ts` (`createChange`, `currentChange`, `statusChange`, `progressChange`, `knowledgeChange`)
 - Artifact command library: `src/lib/artifact-context.ts` (`currentArtifact`, `setCurrentArtifact`, `clearCurrentArtifact`)
 - Task prepare library: `src/lib/tasks.ts`, `src/lib/task-prepare.ts`
-- CLI command definitions: `src/commands/change.ts`, `src/commands/artifact.ts`, `src/commands/task.ts`
+- CLI command definitions: `src/commands/change.ts`, `src/commands/artifact.ts`, `src/commands/task.ts`, `src/commands/doctor.ts`
 - Tests: `tests/changes.test.ts`, `tests/task-prepare.test.ts`, `tests/tasks.test.ts`, `tests/cli-change-progress.test.ts`, `tests/cli-change-staleness.test.ts`, `tests/cli-skills.test.ts`, `tests/cli-tier1-notices.test.ts`
 - Skill guidance: `templates/skills/weave-new/SKILL.md`, `templates/skills/weave-next/SKILL.md`
 
@@ -621,3 +622,4 @@ Weave clones `billing/`, gitignores it, registers it in `workspace.yml`, and `we
 - 2026-06-04: Documented mode-aware `weave add` and workspace-mode `weave workspace` repos listing.
 - 2026-06-04: Reworked `weave workspace` to dispatch on cwd (shared `findWorkspaceMode` helper). Workspace mode renders a workspace view (`workspace`/`repos` keys) and no longer requires an active session; repo mode renders session folders without crawling workspace.yml.
 - 2026-06-04: Added a Command Surface overview and per-command Options tables, dispatch decision table for `weave workspace`, sample text and JSON outputs for both modes, and an explicit `file://` URL scheme entry in `weave add`. Documented `git clone -- <url> <dest>` separator as an intentional injection guard.
+- 2026-06-07 (change `260607-vuwa-architecture-skill-update`): `ensureWeaveScaffold` now creates `.weave/architecture-considerations.md` as user-owned architecture guidance during init and scaffold repair paths.
