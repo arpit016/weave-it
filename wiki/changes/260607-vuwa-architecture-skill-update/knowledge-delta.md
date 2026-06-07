@@ -10,6 +10,7 @@
 - Bundled `weave-architect` now reads `.weave/architecture-considerations.md` when present and treats it as user-owned advisory team architecture guidance.
 - Installed skill copies are intentionally not updated by this change. Skill drift remains surfaced through status/doctor and repaired through explicit `weave agent update` or `weave agent reset` flows.
 - Npm latest refresh now targets the scoped package metadata URL for `@weave-tools/weave-it` instead of the unscoped `weave-it` registry URL.
+- `weave agent update all` now refreshes each agent's manifest entry when a shared installed skill path already matches the current bundled template, preventing false `modified` states after another agent updates the shared file.
 
 ## Affected Knowledge Areas
 
@@ -25,6 +26,7 @@
 - `wiki/knowledge/domains/change-workflow/features/weave-architect/behavior.md`
 - `wiki/knowledge/domains/cli-distribution/features/notices/behavior.md`
 - `wiki/knowledge/domains/cli-distribution/features/weave-status/behavior.md`
+- `wiki/knowledge/domains/cli-distribution/features/skill-versioning/behavior.md`
 
 ## No-Impact Rationale
 
@@ -36,6 +38,7 @@ Not applicable. This change introduced durable user-facing CLI behavior, scaffol
 - `wiki/changes/260607-vuwa-architecture-skill-update/tasks.md`
 - `src/lib/weave-scaffold.ts`
 - `src/lib/npm-version.ts`
+- `src/lib/agent-skills.ts`
 - `src/commands/doctor.ts`
 - `src/lib/doctor.ts`
 - `templates/skills/weave-architect/SKILL.md`
@@ -44,6 +47,7 @@ Not applicable. This change introduced durable user-facing CLI behavior, scaffol
 - `tests/agent-skills.test.ts`
 - `tests/cli-tier1-notices.test.ts`
 - `tests/npm-version.test.ts`
+- `tests/agent-skills.test.ts`
 
 ## Follow-Up Knowledge Work
 

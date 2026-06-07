@@ -365,17 +365,13 @@ describe("agent skills", () => {
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });
 
-  it("keeps repo-installed Weave skill copies aligned except intentional weave-architect drift", async () => {
-    for (const skill of ["weave-explore", "weave-prd", "weave-capture", "weave-next", "weave-clarify", "weave-issues", "weave-knowledge", "weave-prepare", "weave-execute"]) {
+  it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
+    for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify", "weave-issues", "weave-knowledge", "weave-prepare", "weave-execute"]) {
       const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
 
       await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
       await expect(readFile(path.join(process.cwd(), ".claude", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
     }
-
-    const architectTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-architect", "SKILL.md"), "utf8");
-    await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-architect", "SKILL.md"), "utf8")).resolves.not.toBe(architectTemplate);
-    await expect(readFile(path.join(process.cwd(), ".claude", "skills", "weave-architect", "SKILL.md"), "utf8")).resolves.not.toBe(architectTemplate);
 
     const prdTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-prd", "prd-template.md"), "utf8");
     await expect(readFile(path.join(process.cwd(), ".agents", "skills", "weave-prd", "prd-template.md"), "utf8")).resolves.toBe(prdTemplate);
@@ -850,6 +846,48 @@ describe("agent skills", () => {
 
     expect(update.results).toContainEqual(expect.objectContaining({ status: "updated" }));
     expect(installed).toContain("Updated");
+  });
+
+  it("refreshes every manifest entry when all agents share an updated skill path", async () => {
+    const cwd = await tempDir();
+    const templatesDir = path.join(cwd, "templates", "skills");
+    const commandTemplatesDir = path.join(cwd, "templates", "opencode", "commands");
+    const skillDir = path.join(templatesDir, "weave-explore");
+    await mkdir(skillDir, { recursive: true });
+    await mkdir(commandTemplatesDir, { recursive: true });
+    await writeFile(
+      skillDir + "/SKILL.md",
+      "---\nname: weave-explore\ndescription: Original\nlast_changed_in: 0.1.0\n---\n\nOriginal\n",
+    );
+
+    await installAgentSkills({ cwd, agent: "all", templatesDir, commandTemplatesDir });
+    await writeFile(
+      skillDir + "/SKILL.md",
+      "---\nname: weave-explore\ndescription: Updated\nlast_changed_in: 0.2.0\n---\n\nUpdated\n",
+    );
+
+    const update = await updateAgentSkills({ cwd, agent: "all", templatesDir, commandTemplatesDir });
+    const installed = await readFile(path.join(cwd, ".agents", "skills", "weave-explore", "SKILL.md"), "utf8");
+    const manifest = (await readManifest(cwd)) as {
+      installed: Record<string, { skills?: Record<string, { installed_hash: string; installed_from: string | null }> }>;
+    };
+
+    expect(update.results).not.toContainEqual(
+      expect.objectContaining({ kind: "skill", skill: "weave-explore", status: "modified" }),
+    );
+    expect(update.results).toContainEqual(expect.objectContaining({ agent: "codex", skill: "weave-explore", status: "updated" }));
+    expect(update.results).toContainEqual(expect.objectContaining({ agent: "cursor", skill: "weave-explore", status: "unchanged" }));
+    expect(update.results).toContainEqual(expect.objectContaining({ agent: "opencode", skill: "weave-explore", status: "unchanged" }));
+    expect(installed).toContain("Updated");
+    expect(manifest.installed.codex.skills?.["weave-explore"].installed_from).toBe("0.2.0");
+    expect(manifest.installed.cursor.skills?.["weave-explore"].installed_from).toBe("0.2.0");
+    expect(manifest.installed.opencode.skills?.["weave-explore"].installed_from).toBe("0.2.0");
+    expect(manifest.installed.cursor.skills?.["weave-explore"].installed_hash).toBe(
+      manifest.installed.codex.skills?.["weave-explore"].installed_hash,
+    );
+    expect(manifest.installed.opencode.skills?.["weave-explore"].installed_hash).toBe(
+      manifest.installed.codex.skills?.["weave-explore"].installed_hash,
+    );
   });
 
   it("updates untouched installed skill resources when the default source changes", async () => {

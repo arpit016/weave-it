@@ -52,6 +52,7 @@ Skill drift state derived for the per-skill view:
 - The parser refuses to load a bundled `SKILL.md` whose frontmatter omits `last_changed_in`. Error: `Skill frontmatter in <path> must include last_changed_in (the weave-it package version of the last skill change)`.
 - The parser is lenient on legacy `.weave/agents.yml` entries: a manifest entry without `installed_from` is loaded with `installed_from: null`. Such entries always report as `outdated` until reinstalled or updated.
 - `installed_from` is rewritten on every `install`, `update`, and `reset` operation that touches the skill, using the bundled `last_changed_in` at that moment.
+- When multiple agents share the same installed skill path, such as `.agents/skills/<skill>/SKILL.md`, `weave agent update all` refreshes each agent's manifest entry when the disk file already matches the current bundled template. This prevents one agent's update from making another agent's shared-path entry appear user-modified.
 - Independent per-skill semver is explicitly out of scope; the version is always the `weave-it` package version that last changed the skill.
 - Hand-editing `last_changed_in` in a bundled template is not the maintainer workflow; the release script owns it.
 
@@ -71,6 +72,7 @@ The script is invoked by the maintainer as part of cutting a release, before `np
 ## Integrations And Side Effects
 
 - `weave agent install`, `weave agent update`, `weave agent reset` all populate `installed_from` from the bundled `DefaultSkill.lastChangedIn`. Opencode command wrappers carry `installed_from: null` (commands are not versioned).
+- `weave agent update all` may process several agents that point to the same `.agents/skills` file. If an earlier agent updates the shared file, later agents with old hashes refresh their manifest entries when the on-disk file equals the current template instead of reporting `modified`.
 - `weave status` and the notices system both rely on the `installed_from` vs current `last_changed_in` comparison to decide `outdated` state.
 
 ## Source Anchors
@@ -84,6 +86,7 @@ The script is invoked by the maintainer as part of cutting a release, before `np
 ## Change History
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): `last_changed_in` frontmatter field added to all 10 bundled skills; `installed_from` manifest field introduced; legacy-tolerant manifest loader added; release script and npm script introduced; the existing hash-based modification detection is retained and complementary.
+- 2026-06-07 (change `260607-vuwa-architecture-skill-update`): shared installed skill paths no longer produce false `modified` states during `weave agent update all` when the disk file already matches the current bundled template; each agent's manifest entry is refreshed instead.
 
 ## Open Questions
 

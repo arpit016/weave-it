@@ -6,7 +6,7 @@ type: fix
 stage: issues
 branch: change/260607-vuwa-architecture-skill-update
 created_at: 2026-06-07T15:15:42.155Z
-updated_at: 2026-06-07T15:54:45.894Z
+updated_at: 2026-06-07T16:08:05.981Z
 artifacts:
   architecture:
     sources:
@@ -33,7 +33,7 @@ execution:
       verified_at: 2026-06-07T15:37:21.999Z
 knowledge:
   status: updated
-  updated_at: 2026-06-07T15:54:45.894Z
+  updated_at: 2026-06-07T16:08:05.981Z
   domains:
     - cli-commands
     - change-workflow
@@ -46,7 +46,7 @@ knowledge:
     - wiki/knowledge/domains/change-workflow/features/weave-architect/behavior.md
     - wiki/knowledge/domains/cli-distribution/features/notices/behavior.md
     - wiki/knowledge/domains/cli-distribution/features/weave-status/behavior.md
+    - wiki/knowledge/domains/cli-distribution/features/skill-versioning/behavior.md
   delta: wiki/changes/260607-vuwa-architecture-skill-update/knowledge-delta.md
-  reason: Updated current knowledge for weave doctor, architecture considerations
-    scaffold, architect skill guidance, Tier 1 notices, and scoped npm latest
-    lookup.
+  reason: Updated current knowledge for weave doctor, architecture considerations,
+    scoped npm latest lookup, and shared-path agent update behavior.

@@ -365,6 +365,11 @@ async function installArtifact(
 
   const currentHash = hashContent(await readFile(artifact.destination, "utf8"));
   const entry = getManifestEntry(manifest, agent, artifact.kind, artifact.name);
+  if (currentHash === artifact.hash) {
+    setManifestEntry(manifest, agent, artifact, relativePath, now);
+    return result(agent, artifact, relativePath, "unchanged", `${artifact.name} ${artifact.kind} already installed for ${agent}`);
+  }
+
   if (entry && currentHash !== entry.installed_hash) {
     return result(agent, artifact, relativePath, "modified", `Skipped modified ${artifact.name} ${artifact.kind} for ${agent}`);
   }
@@ -373,7 +378,7 @@ async function installArtifact(
     return result(agent, artifact, relativePath, "modified", `Skipped existing ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
-  if (entry && currentHash === entry.installed_hash && currentHash !== artifact.hash) {
+  if (entry && currentHash === entry.installed_hash) {
     await writeFile(artifact.destination, artifact.content);
     setManifestEntry(manifest, agent, artifact, relativePath, now);
     return result(agent, artifact, relativePath, "updated", `Updated ${artifact.name} ${artifact.kind} for ${agent}`);
@@ -405,13 +410,13 @@ async function updateArtifact(
   }
 
   const currentHash = hashContent(await readFile(artifact.destination, "utf8"));
-  if (!entry || currentHash !== entry.installed_hash) {
-    return result(agent, artifact, relativePath, "modified", `Skipped modified ${artifact.name} ${artifact.kind} for ${agent}`);
-  }
-
   if (currentHash === artifact.hash) {
     setManifestEntry(manifest, agent, artifact, relativePath, now);
     return result(agent, artifact, relativePath, "unchanged", `${artifact.name} ${artifact.kind} already up to date for ${agent}`);
+  }
+
+  if (!entry || currentHash !== entry.installed_hash) {
+    return result(agent, artifact, relativePath, "modified", `Skipped modified ${artifact.name} ${artifact.kind} for ${agent}`);
   }
 
   await writeFile(artifact.destination, artifact.content);
