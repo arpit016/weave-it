@@ -1,3 +1,8 @@
+---
+description: 
+alwaysApply: true
+---
+
 # Agent instructions
 
 ## Codebase context lookup
