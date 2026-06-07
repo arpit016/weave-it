@@ -8,7 +8,8 @@ import { skillCommand, skillsCommand } from "./commands/skills.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
 import { workspaceCommand } from "./commands/workspace.js";
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 export function createProgram(): Command {
   const program = new Command();
@@ -32,6 +33,21 @@ export function createProgram(): Command {
   return program;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+export function isDirectCliInvocation(
+  scriptPath = process.argv[1],
+  moduleUrl = import.meta.url,
+): boolean {
+  if (!scriptPath) {
+    return false;
+  }
+
+  try {
+    return realpathSync(scriptPath) === realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectCliInvocation()) {
   await createProgram().parseAsync(process.argv);
 }
