@@ -405,6 +405,16 @@ weave artifact current set <exploration|prd|architecture> [--json]
 weave artifact current clear [--json]
 ```
 
+`weave task` manages task-oriented local workflow commands for the active change:
+
+```bash
+weave task prepare T1 T3 [--json]
+weave task prepare --scope <scope> [--json]
+weave task prepare --all [--json]
+```
+
+`weave task prepare` is branch-readiness-only. It selects `T#` tasks from `tasks.md`, derives relevant repos from `Primary repo` and `Repos`, prepares local branches for `status.yml.branch`, and records readiness in `status.yml.execution.repos`. It does not implement, verify, mark tasks done, commit, push, open PRs, stash, discard changes, or create remote branches.
+
 ### Examples
 
 Workspace mode from a registered sub-repo:
@@ -487,8 +497,9 @@ Expected outcome: Commander rejects the unknown option or subcommand. The recove
 - Context resolver: `src/lib/workspace-mode.ts` (`findWorkspaceMode`, `resolveChangeContext`)
 - Change command library: `src/lib/changes.ts` (`createChange`, `currentChange`, `statusChange`, `progressChange`, `knowledgeChange`)
 - Artifact command library: `src/lib/artifact-context.ts` (`currentArtifact`, `setCurrentArtifact`, `clearCurrentArtifact`)
-- CLI command definitions: `src/commands/change.ts`, `src/commands/artifact.ts`
-- Tests: `tests/changes.test.ts`, `tests/cli-change-progress.test.ts`, `tests/cli-change-staleness.test.ts`, `tests/cli-skills.test.ts`, `tests/cli-tier1-notices.test.ts`
+- Task prepare library: `src/lib/tasks.ts`, `src/lib/task-prepare.ts`
+- CLI command definitions: `src/commands/change.ts`, `src/commands/artifact.ts`, `src/commands/task.ts`
+- Tests: `tests/changes.test.ts`, `tests/task-prepare.test.ts`, `tests/tasks.test.ts`, `tests/cli-change-progress.test.ts`, `tests/cli-change-staleness.test.ts`, `tests/cli-skills.test.ts`, `tests/cli-tier1-notices.test.ts`
 - Skill guidance: `templates/skills/weave-new/SKILL.md`, `templates/skills/weave-next/SKILL.md`
 
 ## Use Cases

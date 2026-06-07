@@ -341,6 +341,53 @@ describe("changes", () => {
     });
   });
 
+  it("sets folder-mode architecture artifact context to architecture/index.md", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Folder architecture context",
+      now: testNow,
+      randomId: () => "farch",
+      sessionPath: session,
+    });
+    await mkdir(path.join(cwd, "wiki", "changes", created.id, "architecture"));
+    await writeFile(path.join(cwd, "wiki", "changes", created.id, "architecture", "index.md"), "# Architecture\n\nDesign.\n");
+
+    const set = await setCurrentArtifact({ cwd, artifact: "architecture", sessionPath: session, now: testNow });
+
+    expect(set.targets[0]).toMatchObject({
+      artifact: {
+        artifact: "architecture",
+        change_id: created.id,
+        path: path.join("wiki", "changes", created.id, "architecture", "index.md"),
+      },
+    });
+  });
+
+  it("keeps legacy architecture.md artifact context when folder mode is absent", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({
+      cwd,
+      title: "Legacy architecture context",
+      now: testNow,
+      randomId: () => "larch",
+      sessionPath: session,
+    });
+    await writeFile(path.join(cwd, "wiki", "changes", created.id, "architecture.md"), "# Architecture\n\nDesign.\n");
+
+    const set = await setCurrentArtifact({ cwd, artifact: "architecture", sessionPath: session, now: testNow });
+
+    expect(set.targets[0]).toMatchObject({
+      artifact: {
+        artifact: "architecture",
+        change_id: created.id,
+        path: path.join("wiki", "changes", created.id, "architecture.md"),
+      },
+    });
+  });
+
   it("rejects invalid artifact context names", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);

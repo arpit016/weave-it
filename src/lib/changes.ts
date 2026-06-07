@@ -21,7 +21,7 @@ import {
   type SessionCurrentChange,
 } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
-import { resolveChangeContext } from "./workspace-mode.js";
+import { resolveChangeContext, type WorkspaceModeKind } from "./workspace-mode.js";
 
 const execFileAsync = promisify(execFile);
 const idChars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -177,6 +177,18 @@ export interface StatusChangeResult {
   status: "ok";
   targets: StatusChangeTargetResult[];
   message: string;
+}
+
+export interface ActiveChangeContext {
+  target: {
+    id?: string;
+    name?: string;
+    path: string;
+  };
+  change: ChangeSummary;
+  mode: WorkspaceModeKind;
+  branch?: string;
+  branchMatch: BranchMatch;
 }
 
 export interface SwitchChangeResult {
@@ -440,6 +452,37 @@ export async function statusChange(options: StatusChangeOptions): Promise<Status
     status: "ok",
     targets: results,
     message: formatStatusMessage(results),
+  };
+}
+
+export async function activeChangeContext(options: CurrentChangeOptions): Promise<ActiveChangeContext> {
+  const now = options.now ?? new Date();
+  const sessionPath = options.sessionPath ?? defaultSessionPath();
+  const session = await loadOrCreateSession(sessionPath, now);
+  const context = await resolveChangeContext(options.cwd, sessionPath);
+  if (!context) {
+    throw new ChangeCommandError("no_weave_context", "No Weave context found. Run `weave init` first.");
+  }
+
+  const target: ChangeTarget = {
+    id: context.folderId,
+    name: context.folderName,
+    path: context.rootPath,
+  };
+  const current = await currentContextForTarget(session, target, now, { saveInferred: true });
+  if (current.saved) {
+    await saveCurrentSession(session, sessionPath);
+  }
+  if (!current.current) {
+    throw new ChangeCommandError("no_current_change", "No active Weave change found. Run `weave change new` or `weave change switch` first.");
+  }
+
+  return {
+    target: { id: target.id, name: target.name, path: target.path },
+    change: current.current,
+    mode: context.mode,
+    branch: current.branch,
+    branchMatch: current.branchMatch,
   };
 }
 

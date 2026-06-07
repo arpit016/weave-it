@@ -6,6 +6,7 @@ import { changeCommand } from "./commands/change.js";
 import { initCommand } from "./commands/init.js";
 import { skillCommand, skillsCommand } from "./commands/skills.js";
 import { statusCommand } from "./commands/status.js";
+import { taskCommand } from "./commands/task.js";
 import { workspaceCommand } from "./commands/workspace.js";
 import { pathToFileURL } from "node:url";
 
@@ -26,6 +27,7 @@ export function createProgram(): Command {
   program.addCommand(skillsCommand());
   program.addCommand(skillCommand());
   program.addCommand(statusCommand());
+  program.addCommand(taskCommand());
 
   return program;
 }

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { resolveArchitectureArtifact } from "./architecture-artifact.js";
 import { artifactFileName, isArtifactName, type ArtifactName } from "./artifact-metadata.js";
 import { ChangeCommandError, currentChange } from "./changes.js";
 import {
@@ -94,7 +95,7 @@ export async function setCurrentArtifact(options: ArtifactCurrentSetOptions): Pr
   const artifactState = {
     artifact,
     change_id: target.current.id,
-    path: path.join(target.current.path, artifactFileName(artifact)),
+    path: await resolveArtifactContextPath(target.current.path, target.current.changePath, artifact),
   };
 
   setCurrentArtifactForPath(session, target.path, artifactState, now);
@@ -168,6 +169,19 @@ function parseArtifact(value: string): ArtifactName {
   }
 
   throw new ChangeCommandError("invalid_artifact", `Unsupported artifact: ${value}. Expected exploration, prd, or architecture.`);
+}
+
+async function resolveArtifactContextPath(changeRelativePath: string, changeAbsolutePath: string, artifact: ArtifactName): Promise<string> {
+  if (artifact !== "architecture") {
+    return path.join(changeRelativePath, artifactFileName(artifact));
+  }
+
+  const architecture = await resolveArchitectureArtifact(changeAbsolutePath);
+  if ((architecture.status === "folder" || architecture.status === "conflict") && architecture.indexExists) {
+    return path.join(changeRelativePath, "architecture", "index.md");
+  }
+
+  return path.join(changeRelativePath, "architecture.md");
 }
 
 function formatCurrentArtifactMessage(targets: ArtifactCurrentTargetResult[]): string {

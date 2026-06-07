@@ -1,0 +1,44 @@
+version: 1
+id: 260607-eac5-task-prepare-workflow
+slug: task-prepare-workflow
+title: Task Prepare Workflow
+type: feat
+stage: issues
+branch: change/260607-eac5-task-prepare-workflow
+created_at: 2026-06-07T08:58:42.259Z
+updated_at: 2026-06-07T09:36:42.753Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+    updated_at: 2026-06-07T09:02:39.781Z
+  prd:
+    sources:
+      - exploration
+      - sessions
+    updated_at: 2026-06-07T09:02:40.161Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-06-07T09:08:49.054Z
+  issues:
+    sources:
+      - prd
+      - architecture
+      - codebase
+    updated_at: 2026-06-07T09:20:49.372Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-07T09:36:42.753Z
+  domains:
+    - change-workflow
+    - cli-commands
+  shared: []
+  files:
+    - wiki/knowledge/domains/change-workflow/index.md
+    - wiki/knowledge/domains/change-workflow/features/weave-prepare/behavior.md
+    - wiki/knowledge/domains/change-workflow/domain-wide/architecture-artifacts.md
+    - wiki/knowledge/domains/cli-commands/features/core-command-reference/behavior.md
+  delta: wiki/changes/260607-eac5-task-prepare-workflow/knowledge-delta.md
+  reason: Documented task prepare workflow and architecture artifact context behavior.

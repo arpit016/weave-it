@@ -52,6 +52,7 @@ Markdown substance ignores frontmatter, headings, blank lines, and the scaffold 
 - `weave-capture` writes new architecture artifacts in folder mode by default and uses available architecture templates when appropriate.
 - `weave-clarify architecture` can restructure folder-mode architecture and can migrate legacy `architecture.md` to folder mode only when explicitly requested.
 - Reader skills such as `weave-issues`, `weave-next`, and `weave-knowledge` consume both legacy file mode and folder mode.
+- `weave artifact current set architecture` stores `architecture/index.md` in local session state when a folder-mode architecture with an index exists; otherwise it stores the legacy/default `architecture.md` path. This command writes local session state only, not repo-tracked artifacts.
 
 ## Source Anchors
 
@@ -63,6 +64,7 @@ Markdown substance ignores frontmatter, headings, blank lines, and the scaffold 
 ## Change History
 
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): introduced folder-mode architecture artifacts, the shared resolver, direct child facet files, conflict detection, partial folder-mode substance, and lifecycle source inference for folder-mode architecture.
+- 2026-06-07 (change `260607-eac5-task-prepare-workflow`): `weave artifact current set architecture` now records `architecture/index.md` when folder-mode architecture exists, preserving legacy `architecture.md` behavior when folder mode is absent.
 
 ## Open Questions
 
