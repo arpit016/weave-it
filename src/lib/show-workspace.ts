@@ -1,4 +1,5 @@
 import path from "node:path";
+import { pathExists } from "./files.js";
 import { defaultSessionPath, loadCurrentSession, type CurrentSession } from "./session-state.js";
 import { findWorkspaceMode, isWorkspaceMode } from "./workspace-mode.js";
 import { listReposForDisplay, readWorkspaceMetadata, type WorkspaceMetadata } from "./workspace-repos.js";
@@ -13,6 +14,7 @@ export type ShowWorkspaceRepo = {
   id: string;
   path: string;
   kind: string;
+  availability: "present" | "missing";
   remote?: string;
 };
 
@@ -73,7 +75,7 @@ async function buildWorkspaceModeResult(input: {
 }): Promise<ShowWorkspaceResult> {
   const metadata = await readWorkspaceMetadata(input.workspacePath);
   const summary = workspaceSummary(input.workspacePath, metadata);
-  const repos = metadata ? listReposForDisplay(metadata) : [];
+  const repos = metadata ? await reposWithAvailability(input.workspacePath, listReposForDisplay(metadata)) : [];
 
   const json: ShowWorkspaceJson = {
     session: sessionJson(input.session),
@@ -158,13 +160,25 @@ function workspaceSummary(workspacePath: string, metadata: WorkspaceMetadata | u
   };
 }
 
+async function reposWithAvailability(
+  workspacePath: string,
+  repos: Array<Omit<ShowWorkspaceRepo, "availability">>,
+): Promise<ShowWorkspaceRepo[]> {
+  return Promise.all(
+    repos.map(async (repo) => ({
+      ...repo,
+      availability: (await pathExists(path.join(workspacePath, repo.path))) ? "present" : "missing",
+    })),
+  );
+}
+
 function workspaceText(summary: ShowWorkspaceSummary, repos: ShowWorkspaceRepo[]): string {
   const repoLines = repos.length === 0
     ? "  (no repos registered yet)"
     : repos
         .map((repo) => {
           const remoteSuffix = repo.remote ? `  ${repo.remote}` : "";
-          return `  ${repo.id}  ${repo.path}  ${repo.kind}${remoteSuffix}`;
+          return `  ${repo.id}  ${repo.path}  ${repo.kind}  ${repo.availability}${remoteSuffix}`;
         })
         .join("\n");
 

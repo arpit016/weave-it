@@ -1,0 +1,43 @@
+version: 1
+id: 260607-1mo4-fixes-around-existing-commands
+slug: fixes-around-existing-commands
+title: fixes around existing commands
+type: feat
+stage: issues
+branch: change/260607-1mo4-fixes-around-existing-commands
+created_at: 2026-06-07T12:02:30.866Z
+updated_at: 2026-06-07T12:58:41.890Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+    updated_at: 2026-06-07T12:14:11.978Z
+  prd:
+    sources:
+      - exploration
+      - sessions
+    updated_at: 2026-06-07T12:29:26.922Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-06-07T12:51:57.088Z
+  issues:
+    sources:
+      - prd
+      - architecture
+      - codebase
+    updated_at: 2026-06-07T12:55:51.429Z
+execution:
+  version: 1
+  branch: change/260607-1mo4-fixes-around-existing-commands
+  repos:
+    root:
+      path: .
+      mode: repo
+      branch: change/260607-1mo4-fixes-around-existing-commands
+      state: prepared
+      branch_status: already_active
+      prepared_head: 88e3a65df660c75a7020b7be8ef7979805f4c137
+      prepared_at: 2026-06-07T12:57:07.485Z
+      verified_at: 2026-06-07T12:58:41.890Z

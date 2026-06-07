@@ -13,8 +13,8 @@ import {
 } from "../src/lib/agent-skills.js";
 import {
   EXPECTED_LIFECYCLE_SYNC_PROTOCOL,
-  EXPECTED_NOTICE_BOILERPLATE,
   EXPECTED_PLAN_MODE_GUARD,
+  EXPECTED_SILENT_COMMAND_OUTPUT,
 } from "../src/lib/skill-template-checks.js";
 
 const bundledSkillNames = [
@@ -148,6 +148,9 @@ describe("agent skills", () => {
     expect(skill.content).not.toContain("# Plan Mode Protocol");
     expect(skill.content).toContain("This skill is a read-only architecture thinking partner");
     expect(skill.content).toContain("It never creates, edits, renames, deletes, or progresses repo-tracked artifacts.");
+    expect(skill.content).toContain(
+      "It may update local Weave session state only to record that the active artifact lane is `architecture` via `weave artifact current set architecture --json`; this local lane commit is not a repo-tracked artifact write.",
+    );
     expect(skill.content).toContain("It does not read architecture template resources");
     expect(skill.content).toContain("Treat `prd.md` as the preferred product contract when it exists and is useful");
     expect(skill.content).toContain("do not require it before architecture thinking");
@@ -166,12 +169,19 @@ describe("agent skills", () => {
         "weave change current --json",
         "weave change status --json",
         "weave artifact current set architecture --json",
+        "weave artifact current --json",
         "```",
       ].join("\n"),
     );
     expect(skill.content).toContain(
-      "Setting local artifact context with `weave artifact current set architecture --json` is allowed in Plan Mode because it writes local session state, not repo-tracked change artifacts. Run it as part of this initial discovery sequence, not as a conditional follow-up.",
+      "Setting local artifact context with `weave artifact current set architecture --json` is allowed in Plan Mode because it writes local session state, not repo-tracked change artifacts. Run it as part of this initial discovery sequence, not as a conditional follow-up. Then verify the stored lane with `weave artifact current --json`.",
     );
+    expect(skill.content).toContain("If the lane verification succeeds, keep successful lane entry silent.");
+    expect(skill.content).toContain(
+      "I could not update the stored artifact lane to `architecture`, so `weave-capture` may ask you to confirm the capture target later.",
+    );
+    expect(skill.content).toContain("Apply the Silent Weave Command Output policy to the commands above.");
+    expect(skill.content).not.toContain("Surface any Tier 1 notices from the commands above.");
     expect(skill.content).not.toContain("After the active change is resolved, run:");
     expect(skill.content).toContain("# Workspace Repo Context Protocol");
     expect(skill.content).toContain("Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.");
@@ -406,9 +416,30 @@ describe("agent skills", () => {
     }
   });
 
-  it("ships every bundled SKILL.md template with the byte-identical Surface Weave Notices block", async () => {
+  it("ships every bundled SKILL.md template with the byte-identical Silent Weave Command Output block", async () => {
     for (const skill of bundledSkillNames) {
-      await assertSkillBlockPresence(skill, EXPECTED_NOTICE_BOILERPLATE);
+      await assertSkillBlockPresence(skill, EXPECTED_SILENT_COMMAND_OUTPUT);
+    }
+  });
+
+  it("does not ship the old verbatim notice surfacing guidance in bundled skill files", async () => {
+    for (const skill of bundledSkillNames) {
+      const templatePath = path.join(process.cwd(), "templates", "skills", skill, "SKILL.md");
+      const templateContents = await readFile(templatePath, "utf8");
+      expect(templateContents).not.toContain("# Surface Weave Notices");
+      expect(templateContents).not.toContain("surface them to the user verbatim");
+
+      for (const dest of installedAgentDestinations) {
+        const installedPath = path.join(process.cwd(), dest.dir, skill, "SKILL.md");
+        try {
+          const installedContents = await readFile(installedPath, "utf8");
+          expect(installedContents).not.toContain("# Surface Weave Notices");
+          expect(installedContents).not.toContain("surface them to the user verbatim");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+          throw error;
+        }
+      }
     }
   });
 

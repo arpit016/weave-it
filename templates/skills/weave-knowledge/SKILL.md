@@ -129,22 +129,33 @@ Knowledge status: <pending|stale|updated|none>
 
 ---
 
-# Surface Weave Notices
+# Silent Weave Command Output
 
-Every Weave skill discovery phase calls at least one Tier 1 command
-(`weave workspace`, `weave change current`, `weave change status`,
-`weave change new`, or `weave status`). Tier 1 commands return a stable
-`notices` array in their `--json` output describing outdated packages,
-modified skills, and skills that need updating.
+Weave skills run Weave CLI commands silently by default. Use command results
+as internal context, not response content.
 
-When you run any Tier 1 command (with or without `--json`) and the result
-contains a non-empty `notices` array, surface them to the user verbatim
-near the start of your response. Do not edit notice text. Do not suppress
-notices unless the user explicitly asks. Do not invent notices.
+Do not show raw stdout, JSON payloads, command echoes, lifecycle payloads,
+internal state-write confirmations, or verbatim notice text unless the user
+explicitly asks for diagnostic output.
 
-If notices recommend `weave status`, suggest the user run it. If notices
-recommend `weave agent update`, suggest that. Do not run `npm i -g` or
-any package manager command yourself; let the user run it.
+Surface only information that changes what the user or agent should do next:
+blockers, failures, missing relevant repos, branch or task outcomes,
+lifecycle failures, package-outdated notices, relevant outdated or modified
+skills, and user-required actions.
 
-If `WEAVE_NO_NOTICES=1` is set in the environment, the notices array will
-be empty by design and you should not warn about it.
+Notice handling:
+
+- `package_outdated`: show only when present. Say exactly:
+  `A newer Weave version is available. Run \`weave status\` for details, then upgrade Weave when convenient.`
+- `skills_outdated`: suppress unrelated skills. If the invoked skill is outdated, say:
+  `The installed \`<skill-name>\` skill appears older than the bundled template. Run \`weave status\` for details, then \`weave agent update --all\` when you want to refresh installed skills.`
+- `skills_outdated`: if multiple skills used in this workflow are outdated, say:
+  `Some installed skills used in this workflow appear older than the bundled templates: \`<skill-a>\`, \`<skill-b>\`. Run \`weave status\` for details, then \`weave agent update --all\` when you want to refresh them.`
+- `skills_modified`: suppress unless the invoked skill is modified locally or the user is asking about skill updates. If the invoked skill is modified, say:
+  `The installed \`<skill-name>\` skill has local edits, so its behavior may differ from the bundled template. Run \`weave status\` or \`weave agent diff\` if you want to inspect the difference.`
+- `skills_modified`: if the user asks to update skills and installed skills have local edits, say:
+  `Some installed skills have local edits. \`weave agent update\` may skip or protect them; run \`weave status\` or \`weave agent diff\` before updating.`
+
+Do not say `Notices: ...`, `The command returned notices`, raw
+`notices[].message`, full notice JSON, or full skill lists unless the user
+asks for diagnostics.

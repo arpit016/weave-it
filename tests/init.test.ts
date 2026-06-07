@@ -457,11 +457,72 @@ describe("current session workflow", () => {
         id: "app-repo",
         path: "app-repo",
         kind: "app",
+        availability: "present",
         remote: "git@example.com:peoplebox/app-repo.git",
       },
     ]);
     expect(result.text).toContain("Repos:");
     expect(result.text).toContain("app-repo");
+    expect(result.text).toContain("present");
+  });
+
+  it("shows missing registered workspace repos without throwing", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const presentRepo = path.join(workspacePath, "present-app");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+    await mkdir(presentRepo, { recursive: true });
+    await writeFile(
+      path.join(workspacePath, ".weave", "workspace.yml"),
+      YAML.stringify({
+        version: 1,
+        mode: "workspace",
+        name: "platform",
+        repos: {
+          "present-app": {
+            path: "present-app",
+            kind: "app",
+          },
+          "missing-api": {
+            path: "missing-api",
+            kind: "api",
+            remote: "git@example.com:peoplebox/missing-api.git",
+          },
+        },
+      }),
+    );
+
+    const result = await showWorkspace({ cwd: workspacePath, json: true, sessionPath });
+    const output = JSON.parse(result.message);
+
+    expect(output.repos).toEqual([
+      {
+        id: "present-app",
+        path: "present-app",
+        kind: "app",
+        availability: "present",
+      },
+      {
+        id: "missing-api",
+        path: "missing-api",
+        kind: "api",
+        availability: "missing",
+        remote: "git@example.com:peoplebox/missing-api.git",
+      },
+    ]);
+    expect(result.text).toContain("present-app");
+    expect(result.text).toContain("present");
+    expect(result.text).toContain("missing-api");
+    expect(result.text).toContain("missing");
   });
 
   it("registers an in-workspace path via weave add in workspace mode", async () => {
