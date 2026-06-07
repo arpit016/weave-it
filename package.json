@@ -29,7 +29,7 @@
     "knowledge-base"
   ],
   "bin": {
-    "weave": "./dist/cli.js"
+    "weave": "dist/cli.js"
   },
   "files": [
     "dist",
