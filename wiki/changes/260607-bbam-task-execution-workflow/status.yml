@@ -1,0 +1,56 @@
+version: 1
+id: 260607-bbam-task-execution-workflow
+slug: task-execution-workflow
+title: task execution workflow
+type: feat
+stage: issues
+branch: change/260607-bbam-task-execution-workflow
+created_at: 2026-06-07T09:52:57.429Z
+updated_at: 2026-06-07T11:40:00.730Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+    updated_at: 2026-06-07T10:52:28.275Z
+  prd:
+    sources:
+      - exploration
+      - discussion
+    updated_at: 2026-06-07T10:58:59.948Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+      - discussion
+    updated_at: 2026-06-07T11:18:01.630Z
+  issues:
+    sources:
+      - prd
+      - architecture
+      - sessions
+      - codebase
+    updated_at: 2026-06-07T11:32:54.020Z
+execution:
+  version: 1
+  branch: change/260607-bbam-task-execution-workflow
+  repos:
+    root:
+      path: .
+      mode: repo
+      branch: change/260607-bbam-task-execution-workflow
+      state: prepared
+      branch_status: already_active
+      prepared_head: 8a635ed7a1a910bfb69e3152e12a9c085ab394e6
+      prepared_at: 2026-06-07T11:34:39.419Z
+      verified_at: 2026-06-07T11:34:39.419Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-07T11:40:00.730Z
+  domains:
+    - change-workflow
+  shared: []
+  files:
+    - wiki/knowledge/domains/change-workflow/features/weave-execute/behavior.md
+    - wiki/knowledge/domains/change-workflow/features/weave-architect/behavior.md
+    - wiki/knowledge/domains/change-workflow/index.md
+  delta: wiki/changes/260607-bbam-task-execution-workflow/knowledge-delta.md

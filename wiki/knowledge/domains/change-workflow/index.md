@@ -1,6 +1,6 @@
 # Change Workflow
 
-This domain captures the current behavior of Weave's change lifecycle and the agent skills that participate in it: exploration, PRD, architecture, issues/tasks, task preparation, knowledge, capture, clarify, next, and new.
+This domain captures the current behavior of Weave's change lifecycle and the agent skills that participate in it: exploration, PRD, architecture, issues/tasks, task preparation, task execution, knowledge, capture, clarify, next, and new.
 
 A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture`, `issues`, `knowledge`) tracked in `wiki/changes/<change-id>/status.yml`. Each lane has an owning skill that creates or revises a single durable artifact and records lifecycle progress via `weave change progress <lane>`. Feature changes start at `stage: exploration` with a scaffolded `exploration.md`; non-feature changes start at the non-lane `stage: started` with no scaffolded artifact.
 
@@ -10,6 +10,7 @@ A Weave change moves through artifact lanes (`exploration`, `prd`, `architecture
 - [weave-clarify](features/weave-clarify/behavior.md): focused artifact clarification, including explicit architecture folder/facet restructuring.
 - [weave-issues](features/weave-issues/behavior.md): local task breakdown into `tasks.md` with categorized sections for implementation tasks (`T#`), QA findings (`QF#`), and refactors (`R#`).
 - [weave-prepare](features/weave-prepare/behavior.md): local branch-readiness preparation for selected `T#` tasks, including repo/workspace mode branch safety and `status.yml.execution.repos` storage.
+- [weave-execute](features/weave-execute/behavior.md): agent-first local execution of selected `T#` tasks, including prepare delegation, dependency handling, HITL pauses, verification, and narrow `tasks.md` evidence updates.
 - [weave-capture](features/weave-capture/behavior.md): two-mode capture (artifact vs session-only) of the current discussion, including the Defensive Lane Verification step that catches stored artifact context drift.
 
 ## Domain-Wide Behavior

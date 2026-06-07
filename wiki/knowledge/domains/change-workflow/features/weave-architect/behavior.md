@@ -8,13 +8,16 @@
 
 `weave-architect` must run in Plan Mode and carries the byte-identical Plan Mode Guard shared with `weave-explore`.
 
-After resolving the active change, it commits local artifact context with:
+During initial discovery, it resolves the workspace and active change, checks change status, and commits local artifact context in one inlined sequence:
 
 ```bash
+weave workspace --json
+weave change current --json
+weave change status --json
 weave artifact current set architecture --json
 ```
 
-This writes local session state only. It does not write repo-tracked artifacts.
+The artifact-context command writes local session state only. It does not write repo-tracked artifacts, and it is part of the required initial discovery sequence rather than a conditional follow-up.
 
 The skill reads product context, existing architecture context, architecture session notes, code, tests, docs, ADRs, and knowledge specs as needed. It supports broad architecture review and focused deep dives on topics such as schema design, API contracts, frontend/backend integration, rollout, observability, or a named existing facet file.
 
@@ -39,6 +42,7 @@ The skill reads product context, existing architecture context, architecture ses
 ## Change History
 
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-architect` became strictly read-only; architecture writes moved to `weave-capture`, structural changes moved to `weave-clarify`, and architecture context loading became folder-shape-aware.
+- 2026-06-07 (change `260607-bbam-task-execution-workflow`): inlined `weave artifact current set architecture --json` into the initial discovery command block and clarified that it is Plan-Mode-safe local session state, preventing agents from skipping the lane commit because the skill is otherwise read-only.
 
 ## Open Questions
 

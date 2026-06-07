@@ -45,29 +45,21 @@ Do not write repo-tracked artifacts directly. Produce the plan, decisions, quest
 
 # Resolve Context
 
-Start by discovering the current Weave session:
+Start by discovering the current Weave session and committing the architecture lane to local Weave session state:
 
 ```bash
 weave workspace --json
-```
-
-Resolve the active change:
-
-```bash
 weave change current --json
 weave change status --json
+weave artifact current set architecture --json
 ```
 
-If no active change exists, stop and say:
+Setting local artifact context with `weave artifact current set architecture --json` is allowed in Plan Mode because it writes local session state, not repo-tracked change artifacts. Run it as part of this initial discovery sequence, not as a conditional follow-up.
+
+If `weave change current --json` reports no active change, stop and say:
 
 ```text
 No active Weave change found. Run `weave change new` or `weave change switch`, then run `weave-architect` again.
-```
-
-After the active change is resolved, run:
-
-```bash
-weave artifact current set architecture --json
 ```
 
 Surface any Tier 1 notices from the commands above.
