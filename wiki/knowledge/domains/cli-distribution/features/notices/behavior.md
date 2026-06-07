@@ -61,16 +61,21 @@ When either is set:
 - `gatherNotices()` returns `[]` before any drift detection runs.
 - The footer is not rendered.
 
-## Skill Contract: `# Surface Weave Notices`
+## Skill Contract: `# Silent Weave Command Output`
 
-Every bundled `SKILL.md` contains a byte-identical `# Surface Weave Notices` section that tells the agent:
+Every bundled `SKILL.md` contains a byte-identical `# Silent Weave Command Output` section. The block tells agents to treat Weave CLI command output as internal context by default and to avoid showing raw stdout, JSON payloads, command echoes, lifecycle payloads, internal state-write confirmations, or verbatim notice text unless the user explicitly asks for diagnostic output.
 
-- Tier 1 commands return notices in `--json`; surface them verbatim near the top of the response when non-empty.
-- Do not edit, suppress, or invent notices.
-- Recommend `weave status` or `weave agent update` per the notice text; never run `npm i -g` or any package manager command directly.
-- Treat empty `notices` under `WEAVE_NO_NOTICES=1` as intentional silence.
+Skills surface only information that changes what the user or agent should do next: blockers, failures, missing relevant repos, branch or task outcomes, lifecycle failures, package-outdated notices, relevant outdated or modified skills, and user-required actions.
 
-Byte identity is enforced by a test against `EXPECTED_NOTICE_BOILERPLATE` in `src/lib/skill-template-checks.ts`.
+Notice handling in skill responses is intentionally not the same as the raw CLI notice message:
+
+- `package_outdated`: show only when present, with the user-facing copy `A newer Weave version is available. Run \`weave status\` for details, then upgrade Weave when convenient.`
+- `skills_outdated`: suppress unrelated skills. Mention only the invoked skill or multiple skills used in the current workflow, with user-facing copy that points to `weave status` and `weave agent update --all`.
+- `skills_modified`: suppress unless the invoked skill is modified locally or the user is asking about skill updates. Mention local edits with user-facing copy that points to `weave status` or `weave agent diff`.
+
+Skills should not say `Notices: ...`, `The command returned notices`, raw `notices[].message`, full notice JSON, or full skill lists unless the user asks for diagnostics.
+
+Byte identity is enforced by a test against `EXPECTED_SILENT_COMMAND_OUTPUT` in `src/lib/skill-template-checks.ts`. The same tests assert that shipped skills no longer contain `# Surface Weave Notices` or instructions to surface notices verbatim.
 
 ## Concurrency And Performance
 
@@ -84,13 +89,14 @@ The npm cache file lives at `~/.weave/cache/npm-version.json` and has a 24-hour 
 - npm version check + cache: `src/lib/npm-version.ts` (`getNpmVersionInfo`)
 - Tier 1 wiring: `src/lib/with-notices.ts` (`withNotices`)
 - Tier 1 commands: `src/commands/workspace.ts`, `src/commands/status.ts`, `src/commands/change.ts` (`new`, `current`, `status` subcommands)
-- Skill contract source: `EXPECTED_NOTICE_BOILERPLATE` in `src/lib/skill-template-checks.ts`
+- Skill contract source: `EXPECTED_SILENT_COMMAND_OUTPUT` in `src/lib/skill-template-checks.ts`
 - Templates: `templates/skills/<name>/SKILL.md` (every shipped skill carries the block)
-- Tests: `tests/notices.test.ts`, `tests/with-notices.test.ts`, `tests/cli-status.test.ts`, `tests/cli-tier1-notices.test.ts`, `tests/agent-skills.test.ts` (byte-identity)
+- Tests: `tests/notices.test.ts`, `tests/with-notices.test.ts`, `tests/cli-status.test.ts`, `tests/cli-tier1-notices.test.ts`, `tests/agent-skills.test.ts` (byte-identity and old-notice-guidance absence)
 
 ## Change History
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): notices introduced; Tier 1 set of five commands defined; `--json notices` contract and stderr footer rules established; `WEAVE_NO_NOTICES` and `NO_UPDATE_NOTIFIER` opt-outs added; `# Surface Weave Notices` byte-identical block embedded in all 10 bundled skills.
+- 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): bundled skills replaced `# Surface Weave Notices` with `# Silent Weave Command Output`; Tier 1 command JSON notices remain available for automation, but skills now suppress raw command output and summarize only user-relevant notices or blockers.
 
 ## Open Questions
 

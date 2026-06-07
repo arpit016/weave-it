@@ -98,7 +98,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - After writing or reconciling `tasks.md`, `weave-issues` calls `weave change progress issues --source <ids>` with the source IDs that actually informed the file. Supported source IDs are `exploration`, `prd`, `architecture`, `discussion`, `sessions`, `codebase`. Unsupported IDs (`external`, `reference`, `local_path`) must not be used; concrete external/local references belong in `## Source Context`.
 - `weave-issues` participates in the [Lifecycle Staleness Verification Protocol](../../domain-wide/lifecycle-progress-and-staleness.md). Before calling `progress`, it checks structural dependents and may pass `--no-invalidate` or `--invalidate=<lanes>` based on per-lane content-sync verification, or follow up with `weave change clear-stale <lane> --reason ...` for previously-stale dependents now in sync.
 - If `status.yml.stale.architecture` exists, `weave-issues` warns that architecture is stale from its recorded sources and asks for explicit confirmation before creating or reconciling tasks; without explicit confirmation it stops and recommends `weave-architect`.
-- `weave-issues` carries the byte-identical `# Surface Weave Notices` block; any notices returned by its Tier 1 discovery commands are surfaced verbatim to the user.
+- `weave-issues` follows the shared `# Silent Weave Command Output` contract: discovery command output is internal by default, and only blockers, failures, relevant notices, lifecycle failures, or user-required actions are summarized.
 
 ## Edge Cases
 
@@ -134,9 +134,10 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 
 - 2026-06-01 (change `260602-943x-fix-issues-skill-with-creating-tasks`): `weave-issues` was rewritten around local `tasks.md` creation and reconciliation; external publishing was removed; the canonical `tasks.md` shape (frontmatter, source context, status legend, active task index, T# details, invalid tasks, verification) was established; test-suite-aware verification guidance was added.
 - 2026-06-03 (change `260602-of9s-add-ability-to-bug-fix`): added the classification step (`QF#`/`R#`/`T#`); added `## QA Findings` and `## Refactors` as flat siblings of the task index, both defaulting to `None.`; added optional `Origin` and `Related finding` fields on `T#` tasks; extended append-first/stable-ID/independent-namespace reconciliation rules to `QF#` and `R#`; deferred `R#` entries may exist without a `T#`.
-- 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): embedded the byte-identical `# Surface Weave Notices` and `# Lifecycle Staleness Verification` blocks; `last_changed_in: 0.1.0` added to the skill frontmatter. The `tasks.md` shape and core `weave-issues` behavior are unchanged.
+- 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): embedded the original notice-surfacing and `# Lifecycle Staleness Verification` blocks; `last_changed_in: 0.1.0` added to the skill frontmatter. The `tasks.md` shape and core `weave-issues` behavior are unchanged.
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-issues` became tolerant of optional PRD/architecture sources while acting as a downstream coverage and consistency gate; it now reads folder-mode architecture (`architecture/index.md` plus facets) and records PRD/architecture coverage in `tasks.md`.
 - 2026-06-07 (change `260607-ycuo-workspace-aware-issues`): `weave-issues` became scope-aware at the skill level. It now treats `weave-issues <scope>` as a free-form planning/ownership label, preserves tracer-bullet semantics under scoped generation, permits `Scope: full-stack` when behavior crosses backend/frontend boundaries, adds task metadata for scope and repo-location guidance, and forbids per-repo task artifacts.
+- 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): replaced verbatim notice surfacing with the shared `# Silent Weave Command Output` contract.
 
 ## Open Questions
 

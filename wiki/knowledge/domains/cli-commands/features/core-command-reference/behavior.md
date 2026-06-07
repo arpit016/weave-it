@@ -291,8 +291,8 @@ Path:
   /Users/arpit/work/peoplebox-platform
 
 Repos:
-  billing    billing    app    git@github.com:peoplebox/billing.git
-  audit      audit      app
+  billing    billing    app    present    git@github.com:peoplebox/billing.git
+  audit      audit      app    missing
 
 Next:
   weave add <path|url>
@@ -316,15 +316,23 @@ JSON (`--json`):
       "id": "billing",
       "path": "billing",
       "kind": "app",
+      "availability": "present",
       "remote": "git@github.com:peoplebox/billing.git"
     },
-    { "id": "audit", "path": "audit", "kind": "app" }
+    { "id": "audit", "path": "audit", "kind": "app", "availability": "missing" }
   ],
   "folders": []
 }
 ```
 
 The `session` key is `null` if no Weave session exists. The `folders` array is always `[]` in workspace mode (the workspace itself is the source of truth, not `session.folders`).
+
+Each workspace-mode repo row includes runtime-only `availability`:
+
+- `present`: the registered repo path exists locally under the workspace root.
+- `missing`: the registered repo path does not exist locally.
+
+Availability is computed when `weave workspace` renders the workspace view. It is not written back to `.weave/workspace.yml`, and missing repos do not cause `weave workspace` to fail or clone anything automatically.
 
 ### Repo mode output
 
@@ -564,7 +572,7 @@ It runs:
 weave workspace --json
 ```
 
-If the agent is inside a Weave workspace, the JSON response describes the workspace and its registered repos (committed truth). Otherwise it lists the session folders.
+If the agent is inside a Weave workspace, the JSON response describes the workspace, its registered repos, and each repo's local availability. Otherwise it lists the session folders.
 
 ### Use Case: Teammate Joins From A Fresh Clone
 
@@ -578,7 +586,7 @@ cd peoplebox-platform
 weave workspace --json
 ```
 
-The command reads `.weave/workspace.yml` directly and returns the workspace name, root path, and registered repos. No `weave init` is required first.
+The command reads `.weave/workspace.yml` directly and returns the workspace name, root path, registered repos, and whether each registered repo is present or missing locally. No `weave init` is required first. Missing repos are informational in this command; Weave does not clone or pull them automatically.
 
 ### Use Case: Grow A Workspace After Init
 
@@ -604,8 +612,8 @@ Weave clones `billing/`, gitignores it, registers it in `workspace.yml`, and `we
 - `src/lib/workspace-repos.ts`: workspace.yml repos registry, idempotent `.gitignore` append (`/<path>/`), URL helpers (`isGitUrl` supports `git@`, `https://`, `http://`, `ssh://`, `git://`, `file://`), `registerRepoIntoWorkspace` (the single write path used by both init and add).
 - `src/lib/git.ts`: `cloneRepo` runs `git clone -- <url> <dest>` (the `--` separator is intentional to block URL-as-flag injection); `getGitRemote` reads `remote.origin.url`.
 - `src/commands/workspace.ts`: defines `weave workspace` and passes `process.cwd()` to `showWorkspace`.
-- `src/lib/show-workspace.ts`: `showWorkspace({ cwd })` dispatches on `findWorkspaceMode(cwd)`; emits stable top-level JSON keys (`session`, `workspace`, `repos`, `folders`).
-- `tests/init.test.ts`: covers init modes, repo-mode add, workspace-mode add (path inside, path outside adoption, URL clone, non-git folder, duplicate, refused destination, slug from `--id`), `weave workspace` workspace-mode view (root and from a subdirectory), `weave workspace` workspace-mode without a session, `weave workspace` repo-mode view, and graceful fall-through on malformed workspace.yml.
+- `src/lib/show-workspace.ts`: `showWorkspace({ cwd })` dispatches on `findWorkspaceMode(cwd)`; emits stable top-level JSON keys (`session`, `workspace`, `repos`, `folders`) and computes workspace repo `availability` at render time.
+- `tests/init.test.ts`: covers init modes, repo-mode add, workspace-mode add (path inside, path outside adoption, URL clone, non-git folder, duplicate, refused destination, slug from `--id`), `weave workspace` workspace-mode view (root and from a subdirectory), present/missing workspace repo availability, `weave workspace` workspace-mode without a session, `weave workspace` repo-mode view, and graceful fall-through on malformed workspace.yml.
 
 ## Change History
 

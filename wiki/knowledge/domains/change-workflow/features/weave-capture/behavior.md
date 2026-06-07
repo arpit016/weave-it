@@ -57,7 +57,7 @@ This step is a defensive recovery for a missed lane-commit upstream: if a plan-m
 
 - After a successful artifact-capture write, `weave-capture` calls `weave change progress <lane> --source <ids>` honoring the Lifecycle Staleness Verification Protocol: it may pass `--no-invalidate` or `--invalidate=<lanes>` based on content-sync verification, and may follow up with `weave change clear-stale <lane> --reason ...` for previously-stale dependents now in sync.
 - Session-only mode never calls lifecycle progress.
-- Both modes surface notices from the discovery commands per the `# Surface Weave Notices` contract.
+- Both modes follow the shared `# Silent Weave Command Output` contract: discovery command output is internal by default, and only blockers, failures, relevant notices, lifecycle failures, or user-required actions are summarized.
 
 ## Source Anchors
 
@@ -72,8 +72,9 @@ This step is a defensive recovery for a missed lane-commit upstream: if a plan-m
 
 ## Change History
 
-- 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): added the `# Defensive Lane Verification` step (lane vs conversation-substance comparison with explicit user ask on mismatch); embedded the byte-identical `# Lifecycle Staleness Verification` and `# Surface Weave Notices` blocks.
+- 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): added the `# Defensive Lane Verification` step (lane vs conversation-substance comparison with explicit user ask on mismatch); embedded the byte-identical `# Lifecycle Staleness Verification` and original notice-surfacing blocks.
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): architecture capture learned folder-mode architecture, `facets` session frontmatter, direct child architecture template resources, and no-template facet creation only on explicit user request.
+- 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): replaced verbatim notice surfacing with the shared `# Silent Weave Command Output` contract.
 
 ## Open Questions
 

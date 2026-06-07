@@ -15,15 +15,23 @@ weave workspace --json
 weave change current --json
 weave change status --json
 weave artifact current set architecture --json
+weave artifact current --json
 ```
 
-The artifact-context command writes local session state only. It does not write repo-tracked artifacts, and it is part of the required initial discovery sequence rather than a conditional follow-up.
+The artifact-context set command writes local session state only. It does not write repo-tracked artifacts, and it is part of the required initial discovery sequence rather than a conditional follow-up. `weave-architect` then verifies the stored lane with `weave artifact current --json`.
+
+Successful lane entry is silent. If verification fails or the stored lane is still not `architecture`, the skill continues the architecture discussion and warns:
+
+```text
+I could not update the stored artifact lane to `architecture`, so `weave-capture` may ask you to confirm the capture target later.
+```
 
 The skill reads product context, existing architecture context, architecture session notes, code, tests, docs, ADRs, and knowledge specs as needed. It supports broad architecture review and focused deep dives on topics such as schema design, API contracts, frontend/backend integration, rollout, observability, or a named existing facet file.
 
 ## Behavioral Rules
 
 - `weave-architect` never creates, edits, renames, deletes, or progresses repo-tracked artifacts.
+- It may update local Weave session state only to record that the active artifact lane is `architecture`; this local lane commit is not a repo-tracked artifact write.
 - It does not call `weave change progress architecture`.
 - It does not read architecture template resources; templates are writer inputs for `weave-capture` and restructuring inputs for `weave-clarify`.
 - It supports both legacy `architecture.md` and folder-mode `architecture/index.md` plus direct child facet files.
@@ -43,6 +51,7 @@ The skill reads product context, existing architecture context, architecture ses
 
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-architect` became strictly read-only; architecture writes moved to `weave-capture`, structural changes moved to `weave-clarify`, and architecture context loading became folder-shape-aware.
 - 2026-06-07 (change `260607-bbam-task-execution-workflow`): inlined `weave artifact current set architecture --json` into the initial discovery command block and clarified that it is Plan-Mode-safe local session state, preventing agents from skipping the lane commit because the skill is otherwise read-only.
+- 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): clarified the top-level read-only contract to explicitly allow the local architecture lane commit, added non-blocking lane verification with `weave artifact current --json`, and kept successful lane entry silent.
 
 ## Open Questions
 
