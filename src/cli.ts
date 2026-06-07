@@ -8,8 +8,20 @@ import { skillCommand, skillsCommand } from "./commands/skills.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
 import { workspaceCommand } from "./commands/workspace.js";
-import { realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+export function readPackageVersion(moduleUrl = import.meta.url): string {
+  const packageJsonPath = path.join(path.dirname(fileURLToPath(moduleUrl)), "..", "package.json");
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version?: unknown };
+
+  if (typeof packageJson.version !== "string") {
+    throw new Error(`Missing version in ${packageJsonPath}`);
+  }
+
+  return packageJson.version;
+}
 
 export function createProgram(): Command {
   const program = new Command();
@@ -17,7 +29,7 @@ export function createProgram(): Command {
   program
     .name("weave")
     .description("Repo-local LLM wiki and temporary multi-folder AI session tooling.")
-    .version("0.1.0");
+    .version(readPackageVersion());
 
   program.addCommand(initCommand());
   program.addCommand(addCommand());
