@@ -11,7 +11,7 @@ A single read-only command that gives the full picture of installed `weave-it` p
 `weave status` (and `weave status --json`) is one of the five Tier 1 commands. It:
 
 - Reads `package.json.version` from the installed `weave-it` package by walking up from the CLI's own module path.
-- Reads the cached npm-registry latest version from `~/.weave/cache/npm-version.json` (no blocking fetch; honors opt-out env vars).
+- Reads the cached npm-registry latest version for `@weave-tools/weave-it` from `~/.weave/cache/npm-version.json` (no blocking fetch; honors opt-out env vars).
 - Walks `.weave/agents.yml` for the current cwd; for each installed skill it stats the file on disk, hashes it, and compares against the manifest `installed_hash` and the bundled `last_changed_in`.
 - Composes a `notices` array using the standard `gatherNotices()` path (so notices match what other Tier 1 commands return).
 - Renders either a human table (default) or a structured JSON document (`--json`).
@@ -50,7 +50,7 @@ Human output groups installed skills in a fixed-width table (`agent`, `skill`, `
 - `state` is computed in this priority order: `missing` > `modified` > `outdated` > `current`. A `modified` skill never shows `outdated`.
 - `current` reports `unknown` when the bundled templates directory cannot be reached (e.g., a corrupted install). The CLI does not crash.
 - `inRepo` is `false` when `.weave/agents.yml` is absent; in that case `skills` is `[]`.
-- The npm cache value (`npmLatest`) is taken from the cache file only; `weave status` never triggers a synchronous fetch. The first run on a cold machine reports `npm latest (cached): unknown` and triggers a background refresh.
+- The npm cache value (`npmLatest`) is taken from the cache file only; `weave status` never triggers a synchronous fetch. The first run on a cold machine reports `npm latest (cached): unknown` and triggers a background refresh from `https://registry.npmjs.org/@weave-tools%2fweave-it/latest`.
 - `weave status` honors `WEAVE_NO_NOTICES=1` and `NO_UPDATE_NOTIFIER=1`: `notices` becomes `[]` and `npmLatest` becomes `null`.
 
 ## Integrations And Side Effects
@@ -70,6 +70,7 @@ Human output groups installed skills in a fixed-width table (`agent`, `skill`, `
 ## Change History
 
 - 2026-06-03 (change `260603-piln-npm-and-skill-versioning-and-updates`): `weave status` introduced as the fifth Tier 1 command and the canonical detailed view of package, skill, and notice state.
+- 2026-06-07 (change `260607-vuwa-architecture-skill-update`): npm latest refresh targets the scoped package metadata for `@weave-tools/weave-it` instead of the unscoped `weave-it` package name.
 
 ## Open Questions
 

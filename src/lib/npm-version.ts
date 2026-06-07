@@ -1,7 +1,7 @@
 import { readJsonCache, writeJsonCache } from "./files.js";
 import { getNpmVersionCachePath } from "./user-paths.js";
 
-const NPM_REGISTRY_URL = "https://registry.npmjs.org/weave-it/latest";
+const NPM_REGISTRY_URL = "https://registry.npmjs.org/@weave-tools%2fweave-it/latest";
 const FETCH_TIMEOUT_MS = 3_000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1_000;
 

@@ -73,6 +73,31 @@ describe("getNpmVersionInfo", () => {
     await waitForCacheLatest(cachePath, "0.2.0");
   });
 
+  it("fetches the scoped package metadata from npm", async () => {
+    const cachePath = await tempCachePath();
+    const fetchImpl = vi.fn(async () => {
+      return {
+        ok: true,
+        json: async () => ({ version: "0.2.0" }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+
+    await getNpmVersionInfo({
+      cachePath,
+      now: new Date(),
+      fetchImpl,
+      packageVersion: "0.1.0",
+    });
+
+    await waitForCacheLatest(cachePath, "0.2.0");
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://registry.npmjs.org/@weave-tools%2fweave-it/latest",
+      expect.objectContaining({
+        headers: { "user-agent": "weave-it/0.1.0" },
+      }),
+    );
+  });
+
   it("triggers a background refresh when the cache is older than 24 hours", async () => {
     const cachePath = await tempCachePath();
     await mkdir(path.dirname(cachePath), { recursive: true });
