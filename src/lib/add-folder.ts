@@ -125,13 +125,14 @@ async function addFolderToWorkspace(input: {
     relativePath = destName;
     repoAbsolutePath = path.join(workspacePath, destName);
 
-    if (await pathExists(repoAbsolutePath)) {
-      throw new Error(`Destination already exists: ${repoAbsolutePath}`);
+    const existingId = findRegisteredRepoByPath(metadata, relativePath);
+    const repoExists = await pathExists(repoAbsolutePath);
+    if (existingId && repoExists) {
+      return workspaceAlreadyRegisteredMessage(existingId, relativePath, workspacePath);
     }
 
-    const existingId = findRegisteredRepoByPath(metadata, relativePath);
-    if (existingId) {
-      return workspaceAlreadyRegisteredMessage(existingId, relativePath, workspacePath);
+    if (!existingId && repoExists) {
+      throw new Error(`Destination already exists: ${repoAbsolutePath}`);
     }
 
     try {
@@ -139,6 +140,10 @@ async function addFolderToWorkspace(input: {
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to clone repository: ${detail}`);
+    }
+
+    if (existingId) {
+      return workspaceMaterializedMessage(existingId, relativePath, workspacePath);
     }
 
     remote = url;
@@ -149,6 +154,11 @@ async function addFolderToWorkspace(input: {
     if (await isInsideWorkspace(workspacePath, candidate)) {
       repoAbsolutePath = await realpath(candidate);
       relativePath = relativeRepoPath(workspacePath, repoAbsolutePath);
+
+      const existingId = findRegisteredRepoByPath(metadata, relativePath);
+      if (existingId) {
+        return workspaceAlreadyRegisteredMessage(existingId, relativePath, workspacePath);
+      }
     } else {
       const sourcePath = await realpath(candidate);
       const destName = path.basename(sourcePath);
@@ -165,11 +175,11 @@ async function addFolderToWorkspace(input: {
         const detail = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to adopt folder into workspace: ${detail}`);
       }
-    }
 
-    const existingId = findRegisteredRepoByPath(metadata, relativePath);
-    if (existingId) {
-      return workspaceAlreadyRegisteredMessage(existingId, relativePath, workspacePath);
+      const existingId = findRegisteredRepoByPath(metadata, relativePath);
+      if (existingId) {
+        return workspaceMaterializedMessage(existingId, relativePath, workspacePath);
+      }
     }
 
     remote = await getGitRemote(repoAbsolutePath);
@@ -199,6 +209,17 @@ function workspaceAlreadyRegisteredMessage(
   return {
     status: "already_exists",
     message: `Repo already registered in workspace: ${id}\n\nPath:\n  ${relativePath}\n\nWorkspace:\n  ${workspacePath}`,
+  };
+}
+
+function workspaceMaterializedMessage(
+  id: string,
+  relativePath: string,
+  workspacePath: string,
+): AddFolderCommandResult {
+  return {
+    status: "added",
+    message: `Materialized registered repo in workspace: ${id}\n\nPath:\n  ${relativePath}\n\nWorkspace:\n  ${workspacePath}\n\nNext:\n  weave workspace`,
   };
 }
 

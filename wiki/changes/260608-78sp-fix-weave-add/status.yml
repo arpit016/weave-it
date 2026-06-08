@@ -1,0 +1,44 @@
+version: 1
+id: 260608-78sp-fix-weave-add
+slug: fix-weave-add
+title: fix weave add
+type: fix
+stage: issues
+branch: change/260608-78sp-fix-weave-add
+created_at: 2026-06-08T12:53:37.512Z
+updated_at: 2026-06-08T14:17:03.710Z
+artifacts:
+  architecture:
+    sources:
+      - discussion
+      - codebase
+    updated_at: 2026-06-08T14:07:21.454Z
+  issues:
+    sources:
+      - architecture
+      - sessions
+      - codebase
+    updated_at: 2026-06-08T14:11:45.153Z
+execution:
+  version: 1
+  branch: change/260608-78sp-fix-weave-add
+  repos:
+    root:
+      path: .
+      mode: repo
+      branch: change/260608-78sp-fix-weave-add
+      state: prepared
+      branch_status: already_active
+      prepared_head: 4b92c7f4849416100d0900c3f9316a2f0cd451ea
+      prepared_at: 2026-06-08T14:12:29.634Z
+      verified_at: 2026-06-08T14:12:29.634Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-08T14:17:03.710Z
+  domains:
+    - cli-commands
+  shared: []
+  files:
+    - wiki/knowledge/domains/cli-commands/features/core-command-reference/behavior.md
+  delta: wiki/changes/260608-78sp-fix-weave-add/knowledge-delta.md
+  reason: Updated workspace weave add materialization behavior.

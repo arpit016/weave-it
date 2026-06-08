@@ -638,6 +638,59 @@ describe("current session workflow", () => {
     });
   });
 
+  it("materializes a missing registered workspace repo from a local path without rewriting metadata", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const external = path.join(root, "external-tooling");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    await mkdir(external, { recursive: true });
+    await git(external, ["init"]);
+    await writeFile(path.join(external, "marker.txt"), "keep\n");
+
+    const workspaceYmlPath = path.join(workspacePath, ".weave", "workspace.yml");
+    const gitignorePath = path.join(workspacePath, ".gitignore");
+    await writeFile(
+      workspaceYmlPath,
+      YAML.stringify({
+        version: 1,
+        mode: "workspace",
+        name: "platform",
+        repos: {
+          "external-tooling": {
+            path: "external-tooling",
+            kind: "app",
+            remote: "git@example.com:peoplebox/external-tooling.git",
+          },
+        },
+      }),
+    );
+    await writeFile(gitignorePath, ".DS_Store\nnode_modules/\n/external-tooling/\n");
+
+    const workspaceBefore = await readFile(workspaceYmlPath, "utf8");
+    const gitignoreBefore = await readFile(gitignorePath, "utf8");
+
+    const added = await addFolder({ cwd: workspacePath, targetPath: "../external-tooling", sessionPath });
+    const movedPath = path.join(workspacePath, "external-tooling");
+
+    expect(added.status).toBe("added");
+    expect(added.message).toContain("Materialized registered repo");
+    await expect(stat(external)).rejects.toThrow();
+    await expect(readFile(path.join(movedPath, "marker.txt"), "utf8")).resolves.toBe("keep\n");
+    await expect(readFile(workspaceYmlPath, "utf8")).resolves.toBe(workspaceBefore);
+    await expect(readFile(gitignorePath, "utf8")).resolves.toBe(gitignoreBefore);
+  });
+
   it("clones and registers a repo by git URL via weave add", async () => {
     const root = await tempDir();
     const workspacePath = path.join(root, "platform");
@@ -682,6 +735,64 @@ describe("current session workflow", () => {
       remote: fileUrl,
     });
     expect(gitignore).toContain("/billing/");
+  });
+
+  it("materializes a missing registered workspace repo from a git URL without rewriting metadata", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const source = path.join(root, "source-repo");
+    const bare = path.join(root, "billing.git");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await mkdir(source, { recursive: true });
+    await git(source, ["init"]);
+    await writeFile(path.join(source, "README.md"), "# billing\n");
+    await git(source, ["add", "README.md"]);
+    await git(source, ["commit", "-m", "init"]);
+    await git(source, ["clone", "--bare", source, bare]);
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const workspaceYmlPath = path.join(workspacePath, ".weave", "workspace.yml");
+    const gitignorePath = path.join(workspacePath, ".gitignore");
+    await writeFile(
+      workspaceYmlPath,
+      YAML.stringify({
+        version: 1,
+        mode: "workspace",
+        name: "platform",
+        repos: {
+          billing: {
+            path: "billing",
+            kind: "app",
+            remote: "git@example.com:peoplebox/billing.git",
+          },
+        },
+      }),
+    );
+    await writeFile(gitignorePath, ".DS_Store\nnode_modules/\n/billing/\n");
+
+    const workspaceBefore = await readFile(workspaceYmlPath, "utf8");
+    const gitignoreBefore = await readFile(gitignorePath, "utf8");
+    const bareUrl = (await realpath(bare)).replace(/\\/g, "/");
+    const fileUrl = `file://${bareUrl}`;
+
+    const added = await addFolder({ cwd: workspacePath, targetPath: fileUrl, sessionPath });
+
+    expect(added.status).toBe("added");
+    expect(added.message).toContain("Materialized registered repo");
+    await expect(stat(path.join(workspacePath, "billing"))).resolves.toMatchObject({});
+    await expect(readFile(path.join(workspacePath, "billing", "README.md"), "utf8")).resolves.toBe("# billing\n");
+    await expect(readFile(workspaceYmlPath, "utf8")).resolves.toBe(workspaceBefore);
+    await expect(readFile(gitignorePath, "utf8")).resolves.toBe(gitignoreBefore);
   });
 
   it("treats duplicate workspace add as already registered", async () => {

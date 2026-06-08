@@ -203,18 +203,21 @@ What happens for a **path outside the workspace**:
 
 - Weave moves the folder (including `.git/`) into the workspace root using the basename as the destination directory.
 - Weave refuses if the destination already exists.
-- Weave then registers and gitignores it as above.
+- If the destination path is not already registered, Weave then registers and gitignores it as above.
+- If the destination path is already registered but missing locally, Weave materializes the registered repo by moving the folder into that path and does not rewrite `.weave/workspace.yml` or `.gitignore`.
 
 What happens for a **git URL**:
 
 - Weave runs `git clone -- <url> <basename>` into the workspace root using the URL repo basename as the directory name.
 - The `--` separator defends against URLs that start with `-` (option-injection).
-- Weave sets `repos.<id>.remote` to the URL used for the clone.
-- Weave refuses when the destination directory already exists, and does not write `.gitignore` or `workspace.yml`.
+- If the destination path is not already registered, Weave sets `repos.<id>.remote` to the URL used for the clone.
+- If the destination path is already registered but missing locally, Weave materializes the registered repo by cloning into that path and does not rewrite `.weave/workspace.yml` or `.gitignore`.
+- Weave refuses when an unregistered destination directory already exists, and does not write `.gitignore` or `workspace.yml`.
 
 What happens on **duplicate add**:
 
-- If the resolved relative path is already present in `workspace.yml.repos`, Weave prints "already registered" and exits successfully without changing files. Passing a different `--id` for an already-registered path is still a no-op.
+- If the resolved relative path is already present in `workspace.yml.repos` and the repo directory is also present locally, Weave prints "already registered" and exits successfully without changing files. Passing a different `--id` for an already-registered present path is still a no-op.
+- A registered path that is missing locally is not treated as a duplicate. It is a materialization target for `weave add <git-url>` or `weave add <local-path>`.
 
 Example run inside a workspace:
 
@@ -603,6 +606,26 @@ weave workspace
 
 Weave clones `billing/`, gitignores it, registers it in `workspace.yml`, and `weave workspace` lists it under `Repos:`.
 
+### Use Case: Teammate Materializes A Missing Registered Repo
+
+A teammate clones a committed workspace where `.weave/workspace.yml` already lists `billing`, but `/billing/` is gitignored and missing locally.
+
+They run either:
+
+```bash
+cd peoplebox-platform
+weave add git@github.com:peoplebox/billing.git
+```
+
+or, if they already have a local checkout elsewhere:
+
+```bash
+cd peoplebox-platform
+weave add ../billing
+```
+
+Expected outcome: Weave recognizes that `billing` is registered but missing locally. The git URL form clones into `peoplebox-platform/billing`; the local path form moves the local folder into `peoplebox-platform/billing`. In both cases, Weave does not rewrite `.weave/workspace.yml` or `.gitignore`.
+
 ## Source Anchors
 
 - `src/commands/init.ts`: defines `weave init` and its options (`--mode`, `--workspace-name`, `--workspace-path`, `--id`, `--kind`, `--yes`).
@@ -614,7 +637,7 @@ Weave clones `billing/`, gitignores it, registers it in `workspace.yml`, and `we
 - `src/lib/git.ts`: `cloneRepo` runs `git clone -- <url> <dest>` (the `--` separator is intentional to block URL-as-flag injection); `getGitRemote` reads `remote.origin.url`.
 - `src/commands/workspace.ts`: defines `weave workspace` and passes `process.cwd()` to `showWorkspace`.
 - `src/lib/show-workspace.ts`: `showWorkspace({ cwd })` dispatches on `findWorkspaceMode(cwd)`; emits stable top-level JSON keys (`session`, `workspace`, `repos`, `folders`) and computes workspace repo `availability` at render time.
-- `tests/init.test.ts`: covers init modes, repo-mode add, workspace-mode add (path inside, path outside adoption, URL clone, non-git folder, duplicate, refused destination, slug from `--id`), `weave workspace` workspace-mode view (root and from a subdirectory), present/missing workspace repo availability, `weave workspace` workspace-mode without a session, `weave workspace` repo-mode view, and graceful fall-through on malformed workspace.yml.
+- `tests/init.test.ts`: covers init modes, repo-mode add, workspace-mode add (path inside, path outside adoption, URL clone, missing registered repo materialization from both local path and git URL, non-git folder, duplicate, refused destination, slug from `--id`), `weave workspace` workspace-mode view (root and from a subdirectory), present/missing workspace repo availability, `weave workspace` workspace-mode without a session, `weave workspace` repo-mode view, and graceful fall-through on malformed workspace.yml.
 
 ## Change History
 
@@ -623,3 +646,4 @@ Weave clones `billing/`, gitignores it, registers it in `workspace.yml`, and `we
 - 2026-06-04: Reworked `weave workspace` to dispatch on cwd (shared `findWorkspaceMode` helper). Workspace mode renders a workspace view (`workspace`/`repos` keys) and no longer requires an active session; repo mode renders session folders without crawling workspace.yml.
 - 2026-06-04: Added a Command Surface overview and per-command Options tables, dispatch decision table for `weave workspace`, sample text and JSON outputs for both modes, and an explicit `file://` URL scheme entry in `weave add`. Documented `git clone -- <url> <dest>` separator as an intentional injection guard.
 - 2026-06-07 (change `260607-vuwa-architecture-skill-update`): `ensureWeaveScaffold` now creates `.weave/architecture-considerations.md` as user-owned architecture guidance during init and scaffold repair paths.
+- 2026-06-08 (change `260608-78sp-fix-weave-add`): Workspace `weave add` now treats registered-but-missing repo paths as local materialization targets for both git URLs and local paths instead of duplicate adds.
