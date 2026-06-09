@@ -1,7 +1,7 @@
 ---
 name: weave-clarify
 description: Clarify and revise one existing Weave change artifact without advancing the workflow. Use when scope, requirements, assumptions, or decisions change midstream and an existing exploration.md, prd.md, findings.md, or architecture.md needs amendment.
-last_changed_in: 0.1.6
+last_changed_in: 0.1.7
 ---
 
 # Weave Clarify
