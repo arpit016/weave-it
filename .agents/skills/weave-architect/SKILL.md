@@ -1,7 +1,7 @@
 ---
 name: weave-architect
 description: Read-only thinking partner for active Weave architecture work. Use when the user wants engineering architecture, technical design, implementation strategy, tradeoff analysis, risk review, or a deep dive into an existing architecture facet.
-last_changed_in: 0.1.6
+last_changed_in: 0.1.7
 ---
 
 # Weave Architect

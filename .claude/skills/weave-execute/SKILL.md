@@ -1,7 +1,7 @@
 ---
 name: weave-execute
 description: Execute selected local Weave tasks for an active change by preparing branches, implementing tasks, running verification, and updating tasks.md evidence without committing, pushing, or opening PRs.
-last_changed_in: 0.1.6
+last_changed_in: 0.1.7
 ---
 
 # Weave Execute

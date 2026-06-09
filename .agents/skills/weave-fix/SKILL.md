@@ -1,7 +1,7 @@
 ---
 name: weave-fix
 description: Chat-driven bug-fix entry point that creates a fix-type change, writes findings.md, and scaffolds a single task-slice folder.
-last_changed_in: 0.1.6
+last_changed_in: 0.1.7
 ---
 
 # Weave Fix

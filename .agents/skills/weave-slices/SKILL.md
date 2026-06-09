@@ -1,7 +1,7 @@
 ---
 name: weave-slices
 description: Scaffold task-slices folders from upstream artifacts using tracer-bullet vertical slices, per-slice tasks, and slice-level technical contracts.
-last_changed_in: 0.1.6
+last_changed_in: 0.1.7
 ---
 
 # Weave Slices

@@ -1,7 +1,7 @@
 ---
 name: weave-capture
 description: Capture the current discussion into a structured session note for a Weave change, optionally updating the active change artifact.
-last_changed_in: 0.1.6
+last_changed_in: 0.1.7
 ---
 
 # Purpose
