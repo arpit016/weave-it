@@ -68,7 +68,7 @@ describe("skills CLI", () => {
     await createProgram().parseAsync(["skill", "show", "weave-prd"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-architect"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-clarify"], { from: "user" });
-    await createProgram().parseAsync(["skill", "show", "weave-issues"], { from: "user" });
+    await createProgram().parseAsync(["skill", "show", "weave-slices"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-next"], { from: "user" });
     await createProgram().parseAsync(["skill", "show", "weave-knowledge"], { from: "user" });
 
@@ -77,7 +77,7 @@ describe("skills CLI", () => {
     expect(output).toContain("weave-prd");
     expect(output).toContain("weave-architect");
     expect(output).toContain("weave-clarify");
-    expect(output).toContain("weave-issues");
+    expect(output).toContain("weave-slices");
     expect(output).toContain("weave-next");
     expect(output).toContain("weave-knowledge");
     expect(output).toContain("weave workspace --json");
@@ -131,21 +131,21 @@ describe("skills CLI", () => {
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-prd", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-architect", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-clarify", "SKILL.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(cwd, ".agents", "skills", "weave-issues", "SKILL.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".agents", "skills", "weave-slices", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-next", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".agents", "skills", "weave-knowledge", "SKILL.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-explore.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-prd.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-architect.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-clarify.md"))).resolves.toMatchObject({});
-    await expect(stat(path.join(cwd, ".opencode", "commands", "weave-issues.md"))).resolves.toMatchObject({});
+    await expect(stat(path.join(cwd, ".opencode", "commands", "weave-slices.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-next.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(cwd, ".opencode", "commands", "weave-knowledge.md"))).resolves.toMatchObject({});
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-explore command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-prd command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-architect command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-clarify command for opencode"));
-    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-issues command for opencode"));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-slices command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-next command for opencode"));
     expect(write).toHaveBeenCalledWith(expect.stringContaining("Installed weave-knowledge command for opencode"));
   });

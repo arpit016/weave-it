@@ -1,7 +1,7 @@
 ---
 name: weave-capture
 description: Capture the current discussion into a structured session note for a Weave change, optionally updating the active change artifact.
-last_changed_in: 0.1.0
+last_changed_in: 0.1.6
 ---
 
 # Purpose
@@ -13,7 +13,7 @@ Use this when the user wants to preserve discussion rationale, decisions, option
 There are two capture modes:
 
 - Artifact capture: bare `weave-capture` creates a structured session note, promotes pending session context for the selected lane, and updates the selected live artifact.
-- Session-only capture: `weave-capture session [exploration|prd|architecture]` creates a lane-aware structured session note and does not create or update any live artifact.
+- Session-only capture: `weave-capture session [exploration|prd|findings|architecture]` creates a lane-aware structured session note and does not create or update any live artifact.
 
 The session file is a continuation aid. Live artifacts remain the durable current truth.
 
@@ -44,6 +44,7 @@ In session-only mode, an explicit lane wins over stored artifact context:
 ```text
 exploration
 prd
+findings
 architecture
 ```
 
@@ -58,7 +59,7 @@ Use the current artifact context only when it is valid for the active change.
 If no valid lane exists, stop before writing and ask:
 
 ```text
-Which lane should I capture this session under: exploration, prd, or architecture?
+Which lane should I capture this session under: exploration, prd, findings, or architecture?
 ```
 
 If the user did not invoke session-only mode, use artifact capture behavior.
@@ -70,6 +71,7 @@ If the user explicitly named an artifact target, use it for this invocation. Sup
 ```text
 exploration
 prd
+findings
 architecture
 ```
 
@@ -84,7 +86,7 @@ Use the current artifact context only when it is valid for the active change.
 If no valid context exists, stop before writing and ask:
 
 ```text
-Which artifact should I capture this into: exploration, prd, or architecture?
+Which artifact should I capture this into: exploration, prd, findings, or architecture?
 ```
 
 # Defensive Lane Verification

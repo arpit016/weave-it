@@ -1,7 +1,7 @@
 ---
 name: weave-architect
 description: Read-only thinking partner for active Weave architecture work. Use when the user wants engineering architecture, technical design, implementation strategy, tradeoff analysis, risk review, or a deep dive into an existing architecture facet.
-last_changed_in: 0.1.3
+last_changed_in: 0.1.6
 ---
 
 # Weave Architect
@@ -44,7 +44,8 @@ Do not write repo-tracked artifacts directly. Produce the plan, decisions, quest
 - Support both legacy `wiki/changes/<change-id>/architecture.md` and folder-mode `wiki/changes/<change-id>/architecture/index.md` plus `architecture/*.md` facets.
 - If both `architecture.md` and `architecture/` exist, call out the conflict and ask the user to resolve it with `weave-clarify` or `weave-capture` before relying on either as canonical.
 - Ask focused product questions only when technical design exposes ambiguity not settled by existing artifacts.
-- Do not create implementation issues; use `weave-issues` after the design is captured and ready.
+- Do not create implementation slices; use `weave-slices` after the design is captured and ready.
+- For `--type fix` changes, read `findings.md` as upstream product context when present.
 
 # Resolve Context
 

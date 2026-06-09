@@ -7,6 +7,7 @@ import { doctorCommand } from "./commands/doctor.js";
 import { initCommand } from "./commands/init.js";
 import { skillCommand, skillsCommand } from "./commands/skills.js";
 import { statusCommand } from "./commands/status.js";
+import { sliceCommand } from "./commands/slice.js";
 import { taskCommand } from "./commands/task.js";
 import { workspaceCommand } from "./commands/workspace.js";
 import { readFileSync, realpathSync } from "node:fs";
@@ -43,6 +44,7 @@ export function createProgram(): Command {
   program.addCommand(skillCommand());
   program.addCommand(statusCommand());
   program.addCommand(taskCommand());
+  program.addCommand(sliceCommand());
 
   return program;
 }

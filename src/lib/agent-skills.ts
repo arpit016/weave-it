@@ -655,7 +655,7 @@ function validateSkillName(name: string): void {
 }
 
 function validateSkillResourceName(name: string): void {
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*\.md$/.test(name)) {
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*\.(md|ya?ml)$/.test(name)) {
     throw new Error(`Invalid skill resource name: ${name}`);
   }
 }

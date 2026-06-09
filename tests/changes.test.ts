@@ -659,7 +659,7 @@ describe("changes", () => {
     expect(status.stale).toBeUndefined();
   });
 
-  it("infers architecture as issues source from substantive folder-mode architecture", async () => {
+  it("infers architecture as slices source from substantive folder-mode architecture", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);
     const created = await createChange({
@@ -676,7 +676,7 @@ describe("changes", () => {
 
     const progressed = await progressChange({
       cwd,
-      stage: "issues",
+      stage: "slices",
       sessionPath: session,
       now: testNow,
     });
@@ -684,10 +684,10 @@ describe("changes", () => {
 
     expect(progressed.sources).toEqual(["architecture"]);
     expect(progressed.note).toBeUndefined();
-    expect(status.artifacts.issues.sources).toEqual(["architecture"]);
+    expect(status.artifacts.slices.sources).toEqual(["architecture"]);
   });
 
-  it("does not infer architecture as issues source from scaffold-only folder-mode architecture", async () => {
+  it("does not infer architecture as slices source from scaffold-only folder-mode architecture", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);
     const created = await createChange({
@@ -704,15 +704,15 @@ describe("changes", () => {
 
     const progressed = await progressChange({
       cwd,
-      stage: "issues",
+      stage: "slices",
       sessionPath: session,
       now: testNow,
     });
     const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
 
     expect(progressed.sources).toEqual([]);
-    expect(progressed.note).toContain("No sources recorded for issues");
-    expect(status.artifacts.issues.sources).toEqual([]);
+    expect(progressed.note).toContain("No sources recorded for slices");
+    expect(status.artifacts.slices.sources).toEqual([]);
   });
 
   it("does not stale direct architecture when PRD progresses", async () => {
@@ -764,7 +764,7 @@ describe("changes", () => {
     await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
 
     await progressChange({ cwd, stage: "architecture", sources: ["prd", "codebase"], sessionPath: session, now: testNow });
-    await progressChange({ cwd, stage: "issues", sessionPath: session, now: new Date(2026, 4, 22, 10, 30, 0) });
+    await progressChange({ cwd, stage: "slices", sessionPath: session, now: new Date(2026, 4, 22, 10, 30, 0) });
     const progressed = await progressChange({
       cwd,
       stage: "prd",
@@ -774,12 +774,12 @@ describe("changes", () => {
     });
     const status = YAML.parse(await readFile(path.join(changePath, "status.yml"), "utf8"));
 
-    expect(progressed.change.stage).toBe("issues");
+    expect(progressed.change.stage).toBe("slices");
     expect(progressed.change.stale).toMatchObject({
       architecture: { invalidated_by: "prd", invalidated_at: new Date(2026, 4, 22, 11, 0, 0).toISOString() },
-      issues: { invalidated_by: "prd", invalidated_at: new Date(2026, 4, 22, 11, 0, 0).toISOString() },
+      slices: { invalidated_by: "prd", invalidated_at: new Date(2026, 4, 22, 11, 0, 0).toISOString() },
     });
-    expect(status.artifacts.issues.sources).toEqual(["architecture"]);
+    expect(status.artifacts.slices.sources).toEqual(["architecture"]);
   });
 
   it("records a no-source note when progress has no sources or default", async () => {
@@ -838,7 +838,7 @@ describe("changes", () => {
     await writeFile(path.join(changePath, "tasks.md"), "# Tasks\n\n- [ ] Build it.\n");
 
     await progressChange({ cwd, stage: "architecture", sources: ["prd"], sessionPath: session, now: testNow });
-    await progressChange({ cwd, stage: "issues", sessionPath: session, now: new Date(2026, 4, 22, 10, 30, 0) });
+    await progressChange({ cwd, stage: "slices", sessionPath: session, now: new Date(2026, 4, 22, 10, 30, 0) });
     await progressChange({ cwd, stage: "prd", sources: ["exploration"], sessionPath: session, now: new Date(2026, 4, 22, 11, 0, 0) });
     const refreshed = await progressChange({
       cwd,
@@ -849,12 +849,12 @@ describe("changes", () => {
     });
     const status = await statusChange({ cwd, sessionPath: session });
 
-    expect(refreshed.change.stage).toBe("issues");
+    expect(refreshed.change.stage).toBe("slices");
     expect(refreshed.change.stale.prd).toBeUndefined();
     expect(refreshed.change.stale.architecture).toBeUndefined();
-    expect(refreshed.change.stale.issues).toMatchObject({ invalidated_by: "architecture" });
-    expect(status.message).toContain("Stage: issues");
-    expect(status.message).toContain("Stale: issues (invalidated by architecture)");
+    expect(refreshed.change.stale.slices).toMatchObject({ invalidated_by: "architecture" });
+    expect(status.message).toContain("Stage: slices");
+    expect(status.message).toContain("Stale: slices (invalidated by architecture)");
   });
 
   it("records knowledge lifecycle metadata without changing stage", async () => {

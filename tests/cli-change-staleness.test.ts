@@ -46,7 +46,7 @@ async function setupChangeWithDownstream(cwd: string): Promise<string> {
   await progressChange({ cwd, stage: "architecture", sources: ["prd"], sessionPath: session, now: testNow });
   await progressChange({
     cwd,
-    stage: "issues",
+    stage: "slices",
     sources: ["architecture"],
     sessionPath: session,
     now: new Date(2026, 4, 22, 10, 30, 0),
@@ -75,7 +75,7 @@ describe("progressChange staleness flags", () => {
     const status = await readStatus(changePath);
     expect(status.stale).toMatchObject({
       architecture: { invalidated_by: "prd" },
-      issues: { invalidated_by: "prd" },
+      slices: { invalidated_by: "prd" },
     });
   });
 
@@ -108,12 +108,12 @@ describe("progressChange staleness flags", () => {
       sources: ["exploration"],
       sessionPath: session,
       now: new Date(2026, 4, 22, 11, 0, 0),
-      invalidateOnly: ["issues"],
+      invalidateOnly: ["slices"],
     });
 
     const status = await readStatus(changePath);
     expect(status.stale ?? {}).toMatchObject({
-      issues: { invalidated_by: "prd" },
+      slices: { invalidated_by: "prd" },
     });
     expect((status.stale ?? {}).architecture).toBeUndefined();
   });
@@ -148,7 +148,7 @@ describe("progressChange staleness flags", () => {
         sessionPath: session,
         now: new Date(2026, 4, 22, 11, 0, 0),
         noInvalidate: true,
-        invalidateOnly: ["issues"],
+        invalidateOnly: ["slices"],
       }),
     ).rejects.toMatchObject({ code: "conflicting_stale_flags" });
   });
@@ -176,7 +176,7 @@ describe("clearChangeStaleness", () => {
     });
 
     expect(result.change.stale.architecture).toBeUndefined();
-    expect(result.change.stale.issues).toBeDefined();
+    expect(result.change.stale.slices).toBeDefined();
     expect(result.history_entry).toMatchObject({
       lane: "architecture",
       invalidated_by: "prd",
@@ -218,7 +218,7 @@ describe("clearChangeStaleness", () => {
 
     const result = await clearChangeStaleness({
       cwd,
-      lane: "issues",
+      lane: "slices",
       sessionPath: session,
       now: new Date(2026, 4, 22, 11, 30, 0),
     });
@@ -247,7 +247,7 @@ describe("clearChangeStaleness", () => {
     });
     await clearChangeStaleness({
       cwd,
-      lane: "issues",
+      lane: "slices",
       sessionPath: session,
       reason: "second",
       now: new Date(2026, 4, 22, 12, 0, 0),
@@ -257,6 +257,6 @@ describe("clearChangeStaleness", () => {
     const history = (status as { stale_history: unknown[] }).stale_history;
     expect(history).toHaveLength(2);
     expect(history[0]).toMatchObject({ lane: "architecture", reason: "first" });
-    expect(history[1]).toMatchObject({ lane: "issues", reason: "second" });
+    expect(history[1]).toMatchObject({ lane: "slices", reason: "second" });
   });
 });

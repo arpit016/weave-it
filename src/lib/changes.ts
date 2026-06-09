@@ -39,7 +39,8 @@ export type StaleChangeLanes = Partial<Record<ChangeStage, StaleChangeLaneMetada
 export type ChangeArtifactsMetadata = Partial<Record<ChangeStage, ChangeArtifactMetadata>>;
 
 export const changeTypes: ChangeType[] = ["feat", "fix", "refactor", "docs", "test", "ci", "chore"];
-export const changeStages = ["exploration", "prd", "architecture", "issues"] as const;
+export const changeStages = ["exploration", "prd", "findings", "architecture", "slices"] as const;
+export const legacyChangeStageAliases: Record<string, ChangeStage> = { issues: "slices" };
 // `started` is a stored stage but NOT an artifact lane: non-feature changes begin at
 // `started` before any durable artifact lane has been reached. It never appears in
 // `changeStages`, so staleness/dependency logic operates only on the four real lanes.
@@ -866,7 +867,7 @@ async function readChangeMetadata(changePath: string, fallbackId: string): Promi
   const title = typeof parsed?.title === "string" ? parsed.title : titleFromSlug(slug);
   const type = isChangeType(parsed?.type) ? parsed.type : "feat";
   const branch = typeof parsed?.branch === "string" ? parsed.branch : changeBranch(id);
-  const stage = isStoredChangeStage(parsed?.stage) ? parsed.stage : "exploration";
+  const stage = normalizeStoredStage(parsed?.stage);
   return {
     id,
     slug,
@@ -895,10 +896,13 @@ function parseStaleHistory(value: unknown): StaleHistoryEntry[] {
     if (!isRecord(entry)) continue;
     const lane = entry.lane;
     const clearedAt = entry.cleared_at;
-    if (!isChangeStage(lane) || typeof clearedAt !== "string") continue;
+    const normalizedLane = typeof lane === "string" ? normalizeChangeStage(lane) : undefined;
+    if (!normalizedLane || typeof clearedAt !== "string") continue;
+    const normalizedInvalidatedBy =
+      typeof entry.invalidated_by === "string" ? normalizeChangeStage(entry.invalidated_by) : undefined;
     out.push({
-      lane,
-      invalidated_by: isChangeStage(entry.invalidated_by) ? entry.invalidated_by : null,
+      lane: normalizedLane,
+      invalidated_by: normalizedInvalidatedBy ?? null,
       invalidated_at: typeof entry.invalidated_at === "string" ? entry.invalidated_at : null,
       cleared_at: clearedAt,
       reason: typeof entry.reason === "string" ? entry.reason : null,
@@ -914,16 +918,19 @@ function parseStaleLanes(value: unknown): StaleChangeLanes {
 
   const stale: StaleChangeLanes = {};
   for (const [lane, metadata] of Object.entries(value)) {
-    if (!isChangeStage(lane) || !isRecord(metadata)) {
+    const normalizedLane = normalizeChangeStage(lane);
+    if (!normalizedLane || !isRecord(metadata)) {
       continue;
     }
     const invalidatedBy = metadata.invalidated_by;
     const invalidatedAt = metadata.invalidated_at;
-    if (!isChangeStage(invalidatedBy) || typeof invalidatedAt !== "string") {
+    const normalizedInvalidatedBy =
+      typeof invalidatedBy === "string" ? normalizeChangeStage(invalidatedBy) : undefined;
+    if (!normalizedInvalidatedBy || typeof invalidatedAt !== "string") {
       continue;
     }
-    stale[lane] = {
-      invalidated_by: invalidatedBy,
+    stale[normalizedLane] = {
+      invalidated_by: normalizedInvalidatedBy,
       invalidated_at: invalidatedAt,
     };
   }
@@ -937,14 +944,15 @@ function parseArtifactsMetadata(value: unknown): ChangeArtifactsMetadata {
 
   const artifacts: ChangeArtifactsMetadata = {};
   for (const [lane, metadata] of Object.entries(value)) {
-    if (!isChangeStage(lane) || !isRecord(metadata)) {
+    const normalizedLane = normalizeChangeStage(lane);
+    if (!normalizedLane || !isRecord(metadata)) {
       continue;
     }
     const updatedAt = metadata.updated_at;
     if (typeof updatedAt !== "string") {
       continue;
     }
-    artifacts[lane] = {
+    artifacts[normalizedLane] = {
       sources: parseArtifactSources(metadata.sources),
       updated_at: updatedAt,
     };
@@ -1089,7 +1097,11 @@ async function resolveProgressSources(
     return { sources };
   }
 
-  if (options.stage === "issues" && (await resolveArchitectureArtifact(changePath)).substantive) {
+  if (options.stage === "findings" && (await hasSubstantiveMarkdown(path.join(changePath, "findings.md")))) {
+    return { sources: ["discussion"] };
+  }
+
+  if (options.stage === "slices" && (await resolveArchitectureArtifact(changePath)).substantive) {
     return { sources: ["architecture"] };
   }
 
@@ -1676,7 +1688,33 @@ function isChangeType(value: unknown): value is ChangeType {
 }
 
 export function isChangeStage(value: unknown): value is ChangeStage {
-  return typeof value === "string" && (changeStages as readonly string[]).includes(value);
+  if (typeof value !== "string") {
+    return false;
+  }
+  if ((changeStages as readonly string[]).includes(value)) {
+    return true;
+  }
+  return value in legacyChangeStageAliases;
+}
+
+function normalizeChangeStage(value: string): ChangeStage | undefined {
+  if ((changeStages as readonly string[]).includes(value)) {
+    return value as ChangeStage;
+  }
+  return legacyChangeStageAliases[value];
+}
+
+function normalizeStoredStage(value: unknown): StoredChangeStage {
+  if (typeof value === "string" && value === "started") {
+    return "started";
+  }
+  if (typeof value === "string") {
+    const normalized = normalizeChangeStage(value);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "exploration";
 }
 
 export function isStoredChangeStage(value: unknown): value is StoredChangeStage {

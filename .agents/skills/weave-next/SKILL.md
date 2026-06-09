@@ -1,7 +1,7 @@
 ---
 name: weave-next
 description: Answer what to do next for the active Weave change by inspecting artifact state, current artifact context, and resume notes without mutating files.
-last_changed_in: 0.1.0
+last_changed_in: 0.1.6
 ---
 
 # Weave Next
@@ -16,7 +16,7 @@ Use this skill when the user wants to know what command to run next for an activ
 - Do not write repo-tracked artifacts.
 - Do not create, revise, capture, approve, or advance artifacts.
 - Do not set or clear artifact context.
-- Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-issues`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.
+- Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-slices`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.
 - Do not document or rely on formal target arguments such as `weave-next prd` in v1.
 - Use live artifacts as canonical current truth.
 - Use session notes only for resume points, rationale, unresolved context, and newer explicit user decisions.
@@ -71,7 +71,12 @@ wiki/changes/<change-id>/architecture.md
 wiki/changes/<change-id>/architecture/index.md
 wiki/changes/<change-id>/architecture/*.md
 wiki/changes/<change-id>/tasks.md
+wiki/changes/<change-id>/task-slices/
+wiki/changes/<change-id>/task-slices/dependency-graph.md
+wiki/changes/<change-id>/findings.md
 ```
+
+**Dual mode:** when `task-slices/` exists, walk slice `status.yml` files, compute ready set from `depends_on`, and suggest next slice + task (bias toward critical-path slices). Support `/weave-next afk` to surface ready `Execution: afk` tasks across slices. When only flat `tasks.md` exists, use legacy flat-mode recommendations.
 
 Architecture may be legacy file mode or folder mode. If `architecture/` exists, treat `architecture/index.md` as the entry point and direct child facet files as part of the architecture lane. If both `architecture.md` and `architecture/` exist, mention the conflict before recommending the next step.
 
@@ -119,7 +124,7 @@ Source-aware stale-first recommendation:
 - If `status.yml.stale` contains one or more lanes, recommend refreshing stale lanes before forward progress.
 - stale `prd` -> run `weave-prd`
 - stale `architecture` -> run `weave-architect`
-- stale `issues` -> run `weave-issues`
+- stale `slices` -> run `weave-slices`
 - Explain which upstream lane invalidated the recommendation when `invalidated_by` is present.
 - Treat stale entries as source-aware dependency invalidation from `status.yml.artifacts`, not proof that every earlier pipeline lane was completed.
 
@@ -135,7 +140,7 @@ Type-aware forward recommendation:
 - missing, scaffold-only, or not-ready `exploration.md` -> run `weave-explore`
 - ready `exploration.md` plus missing `prd.md` -> run `weave-prd`
 - usable `prd.md` plus missing `architecture.md` -> run `weave-architect`
-- usable `architecture.md` plus no issue evidence -> run `weave-issues`
+- usable `architecture.md` plus no slice evidence -> run `weave-slices`
 - populated `tasks.md` or obvious issue references -> implementation handoff ready
 - For `fix`, `refactor`, `docs`, `test`, `ci`, and `chore`, prefer architecture or issues when product behavior is already clear; do not require PRD just to advance.
 - For `feat`, prefer exploration or PRD when product behavior, scope, requirements, or acceptance remain unclear.

@@ -136,7 +136,7 @@ export function changeCommand(): Command {
   command
     .command("progress")
     .description("Record lifecycle progress for the active change.")
-    .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
+    .argument("<lane>", "lane: exploration, prd, findings, architecture, or slices", parseChangeStage)
     .option("--source <source>", "source dependency: exploration, prd, architecture, discussion, sessions, or codebase", collectValues, [])
     .option("--no-invalidate", "suppress all downstream stale propagation")
     .option(
@@ -161,7 +161,7 @@ export function changeCommand(): Command {
   command
     .command("clear-stale")
     .description("Explicitly clear a stale lane flag after content-sync verification.")
-    .argument("<lane>", "lane: exploration, prd, architecture, or issues", parseChangeStage)
+    .argument("<lane>", "lane: exploration, prd, findings, architecture, or slices", parseChangeStage)
     .option("--reason <reason>", "one-sentence verification rationale recorded in stale_history")
     .option("--json", "print machine-readable JSON")
     .action(async (lane: ChangeStage, options: ChangeClearStaleOptions) => {
@@ -229,11 +229,14 @@ function parseKnowledgeStatus(value: string): KnowledgeStatus {
 }
 
 function parseChangeStage(value: string): ChangeStage {
-  if (isChangeStage(value)) {
-    return value;
+  if ((changeStages as readonly string[]).includes(value)) {
+    return value as ChangeStage;
+  }
+  if (value === "issues") {
+    return "slices";
   }
 
-  throw new InvalidArgumentError(`Unsupported change stage: ${value}. Expected ${changeStages.join(", ")}`);
+  throw new InvalidArgumentError(`Unsupported change stage: ${value}. Expected ${changeStages.join(", ")} (issues is accepted as an alias for slices)`);
 }
 
 function parseInvalidateList(raw: string | undefined): ChangeStage[] | undefined {
@@ -241,14 +244,17 @@ function parseInvalidateList(raw: string | undefined): ChangeStage[] | undefined
   const trimmed = raw.trim();
   if (trimmed.length === 0) return [];
   const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean);
+  const normalized: ChangeStage[] = [];
   for (const part of parts) {
-    if (!isChangeStage(part)) {
+    const lane = part === "issues" ? "slices" : (changeStages as readonly string[]).includes(part) ? (part as ChangeStage) : undefined;
+    if (!lane) {
       throw new InvalidArgumentError(
         `Unsupported lane in --invalidate: ${part}. Expected ${changeStages.join(", ")}`,
       );
     }
+    normalized.push(lane);
   }
-  return parts as ChangeStage[];
+  return normalized;
 }
 
 function parseChangeType(value: string): ChangeType {

@@ -1,7 +1,7 @@
 ---
 name: weave-execute
 description: Execute selected local Weave tasks for an active change by preparing branches, implementing tasks, running verification, and updating tasks.md evidence without committing, pushing, or opening PRs.
-last_changed_in: 0.1.0
+last_changed_in: 0.1.6
 ---
 
 # Weave Execute
@@ -55,13 +55,18 @@ weave change status --json
 
 If there is no active change, stop and say that the user needs `weave change new` or `weave change switch` first.
 
-Read the active change's task artifact:
+Detect task mode before reading tasks:
 
 ```text
-wiki/changes/<change-id>/tasks.md
+wiki/changes/<change-id>/task-slices/   -> slice mode
+wiki/changes/<change-id>/tasks.md       -> flat mode (legacy)
 ```
 
-If `tasks.md` is missing, stop and tell the user to run `weave-issues` first.
+**Slice mode:** read `task-slices/<slice-id>/tasks.md`. Accept `<slice-id> <task-id>` selectors (e.g. `/weave-execute 01 T1`). Enforce within-slice-only `Blocked by:` deps. Call `weave slice rollup --all --json` at episode boundaries (end, HITL pause, error exit).
+
+**Flat mode:** read change-root `tasks.md`. Use legacy selectors (`T#`, `all`, scope). Today's behavior unchanged.
+
+If neither mode has tasks, stop and tell the user to run `weave-slices` first.
 
 # Selector Handling
 
@@ -75,11 +80,13 @@ Supported invocation shapes:
 /weave-execute T1 T3 T7
 /weave-execute backend
 /weave-execute all
+/weave-execute 01 T1
 ```
 
 Map user input as follows:
 
-- `all` -> all executable `T#` tasks in the active `tasks.md`
+- `all` -> all executable `T#` tasks in the active task artifact (flat `tasks.md` or selected slice)
+- Slice mode: `<slice-id> <task-id>` -> that task in the named slice
 - Task ids such as `T1` or `T1 T3` -> those explicit task ids
 - A single non-task, non-`all` value such as `backend` -> tasks whose `Scope` matches that value
 

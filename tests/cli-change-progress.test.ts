@@ -61,7 +61,7 @@ async function setupWithDownstream(): Promise<{ cwd: string; session: string; ch
   await progressChange({ cwd: fixture.cwd, stage: "architecture", sources: ["prd"], sessionPath: fixture.session, now: testNow });
   await progressChange({
     cwd: fixture.cwd,
-    stage: "issues",
+    stage: "slices",
     sources: ["architecture"],
     sessionPath: fixture.session,
     now: new Date(2026, 4, 22, 10, 30, 0),
@@ -120,7 +120,7 @@ describe("change progress CLI flag wiring", () => {
 
     expect(result.status).toBe("ok");
     const status = await readStatus(changePath);
-    expect(status.stale as Record<string, unknown>).toMatchObject({ issues: { invalidated_by: "prd" } });
+    expect(status.stale as Record<string, unknown>).toMatchObject({ slices: { invalidated_by: "prd" } });
     expect((status.stale as Record<string, unknown>).architecture).toBeUndefined();
   });
 });

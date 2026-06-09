@@ -1,14 +1,14 @@
 ---
 name: weave-clarify
-description: Clarify and revise one existing Weave change artifact without advancing the workflow. Use when scope, requirements, assumptions, or decisions change midstream and an existing exploration.md, prd.md, or architecture.md needs amendment.
-last_changed_in: 0.1.0
+description: Clarify and revise one existing Weave change artifact without advancing the workflow. Use when scope, requirements, assumptions, or decisions change midstream and an existing exploration.md, prd.md, findings.md, or architecture.md needs amendment.
+last_changed_in: 0.1.6
 ---
 
 # Weave Clarify
 
 This skill refines one existing Weave change artifact without advancing the change workflow.
 
-Use it when the user needs to amend `exploration.md`, `prd.md`, or `architecture.md` because scope changed, requirements changed, an assumption needs confirmation, or a previous requirement is no longer valid.
+Use it when the user needs to amend `exploration.md`, `prd.md`, `findings.md`, or `architecture.md` because scope changed, requirements changed, an assumption needs confirmation, or a previous requirement is no longer valid.
 
 This is not a generation skill. Do not create a new change, create issues, generate a PRD from scratch, generate architecture from scratch, or cascade-update multiple artifacts.
 

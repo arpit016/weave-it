@@ -28,7 +28,7 @@ export type TaskSelection = {
 export async function loadTasksForChange(changePath: string): Promise<ParsedTask[]> {
   const tasksPath = path.join(changePath, "tasks.md");
   if (!(await pathExists(tasksPath))) {
-    throw new ChangeCommandError("tasks_missing", "No tasks.md found for the active change. Run `weave-issues` first.", { path: tasksPath });
+    throw new ChangeCommandError("tasks_missing", "No tasks.md found for the active change. Run `weave-slices` first.", { path: tasksPath });
   }
 
   return parseTasksMarkdown(await readFile(tasksPath, "utf8"));

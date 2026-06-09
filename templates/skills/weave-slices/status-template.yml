@@ -1,0 +1,13 @@
+version: 1
+id: <slice-id>
+title: <slice title>
+status: pending
+owner: ""
+repos: []
+depends_on: []
+task_summary:
+  total: 0
+  done: 0
+  blocked: 0
+created_at: <iso>
+updated_at: <iso>
