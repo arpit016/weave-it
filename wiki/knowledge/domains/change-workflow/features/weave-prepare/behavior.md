@@ -1,8 +1,10 @@
 # weave-prepare
 
+> **Deprecated (0.1.6+):** `/weave-prepare` is deprecated; branch preparation is built into [weave-execute](../weave-execute/behavior.md). The deterministic CLI `weave task prepare` remains the shared prepare implementation used by `weave-execute`.
+
 ## Purpose
 
-`weave-prepare` and `weave task prepare` prepare local branches for implementation tasks in an active Weave change. The workflow bridges the canonical `tasks.md` artifact to implementation repo branch readiness, especially in workspace mode where the artifact root and implementation repos are different git checkouts.
+`weave-prepare` and `weave task prepare` prepare local branches for implementation tasks in an active Weave change. The workflow bridges task artifacts (`tasks.md` at change root or inside a slice) to implementation repo branch readiness, especially in workspace mode where the artifact root and implementation repos are different git checkouts.
 
 ## Current Behavior
 
@@ -90,6 +92,7 @@ Re-running prepare for a repo on the same branch preserves `prepared_at`, refres
 ## Change History
 
 - 2026-06-07 (change `260607-eac5-task-prepare-workflow`): introduced `weave task prepare` and `/weave-prepare`, task selector parsing, repo/workspace branch safety, two-phase preflight/apply, non-git skipped records, durable `status.yml.execution.repos` readiness storage, and packaging tests.
+- 2026-06-09 (change `260609-rrsq-weave-slice`): `/weave-prepare` skill deprecated; `weave-execute` calls `weave task prepare` directly. CLI unchanged.
 
 ## Open Questions
 

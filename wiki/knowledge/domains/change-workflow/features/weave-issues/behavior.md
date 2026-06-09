@@ -1,8 +1,10 @@
 # weave-issues
 
+> **Superseded (0.1.6+):** Bundled templates no longer ship `weave-issues`. Use [weave-slices](../weave-slices/behavior.md) for new changes (`task-slices/` model) or flat legacy `tasks.md` via dual-mode skills. The `issues` lifecycle lane is renamed to `slices` (CLI alias kept). This document describes the **legacy flat-mode** behavior for in-flight changes and historical reference.
+
 ## Purpose
 
-`weave-issues` breaks a Weave change's plan into independently-grabbable local tasks recorded in `wiki/changes/<change-id>/tasks.md`. It is the owning skill for the `issues` lane in the change lifecycle.
+`weave-issues` broke a Weave change's plan into independently-grabbable local tasks recorded in `wiki/changes/<change-id>/tasks.md`. It was the owning skill for the `issues` lane in the change lifecycle.
 
 `tasks.md` is local-only; `weave-issues` does not publish, close, comment on, label, or otherwise mutate external issue trackers. External issue URLs, issue numbers, and local paths may be used as read-only source context.
 
@@ -138,6 +140,7 @@ All other in-flight work (chore, perf, docs, tech-debt) stays a normal `T#` task
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-issues` became tolerant of optional PRD/architecture sources while acting as a downstream coverage and consistency gate; it now reads folder-mode architecture (`architecture/index.md` plus facets) and records PRD/architecture coverage in `tasks.md`.
 - 2026-06-07 (change `260607-ycuo-workspace-aware-issues`): `weave-issues` became scope-aware at the skill level. It now treats `weave-issues <scope>` as a free-form planning/ownership label, preserves tracer-bullet semantics under scoped generation, permits `Scope: full-stack` when behavior crosses backend/frontend boundaries, adds task metadata for scope and repo-location guidance, and forbids per-repo task artifacts.
 - 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): replaced verbatim notice surfacing with the shared `# Silent Weave Command Output` contract.
+- 2026-06-09 (change `260609-rrsq-weave-slice`): superseded by `weave-slices`; bundled skill removed; `slices` lane replaces `issues`. Flat-mode `tasks.md` execution continues via dual-mode `weave-execute`.
 
 ## Open Questions
 
