@@ -1,7 +1,7 @@
 ---
 name: weave-next
 description: Answer what to do next for the active Weave change by inspecting artifact state and resume notes without mutating files.
-last_changed_in: 0.1.7
+last_changed_in: 0.1.9
 ---
 
 # Weave Next
