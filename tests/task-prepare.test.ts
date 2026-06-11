@@ -45,16 +45,15 @@ async function initGit(cwd: string): Promise<void> {
   await git(cwd, ["commit", "-m", "initial"]);
 }
 
-async function createRepoModeChange(cwd: string, tasks: string): Promise<{ id: string; branch: string; changePath: string; sessionPath: string }> {
+async function createRepoModeChange(cwd: string): Promise<{ id: string; branch: string; changePath: string; sessionPath: string }> {
   await writeWorkspaceMetadata(cwd, "repo");
   const sessionPath = path.join(cwd, ".session.yml");
   const created = await createChange({ cwd, title: "Task prepare", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "prep", sessionPath });
   const changePath = path.join(cwd, "wiki", "changes", created.id);
-  await writeFile(path.join(changePath, "tasks.md"), tasks);
   return { id: created.id, branch: created.branch, changePath, sessionPath };
 }
 
-async function createWorkspaceChange(workspace: string, tasks: string): Promise<{ id: string; branch: string; changePath: string; sessionPath: string }> {
+async function createWorkspaceChange(workspace: string): Promise<{ id: string; branch: string; changePath: string; sessionPath: string }> {
   await writeWorkspaceMetadata(workspace, "workspace", {
     api: { path: "api" },
     web: { path: "web" },
@@ -66,16 +65,7 @@ async function createWorkspaceChange(workspace: string, tasks: string): Promise<
   const sessionPath = path.join(workspace, ".session.yml");
   const created = await createChange({ cwd: workspace, title: "Workspace prepare", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "work", sessionPath });
   const changePath = path.join(workspace, "wiki", "changes", created.id);
-  await writeFile(path.join(changePath, "tasks.md"), tasks);
   return { id: created.id, branch: created.branch, changePath, sessionPath };
-}
-
-function tasksMarkdown(entries: string): string {
-  return `# Tasks\n\n${entries}`;
-}
-
-function task(id: string, input: { title?: string; scope?: string; primary?: string; repos?: string; status?: string } = {}): string {
-  return `## ${id}: ${input.title ?? `Task ${id}`}\nStatus: ${input.status ?? "todo"}\n\nType: AFK\n\nScope: ${input.scope ?? "cli"}\n\nPrimary repo: ${input.primary ?? "None"}\n\nRepos: ${input.repos ?? "None"}\n\n`;
 }
 
 async function readStatus(changePath: string): Promise<Record<string, unknown>> {
@@ -85,10 +75,10 @@ async function readStatus(changePath: string): Promise<Record<string, unknown>> 
 describe("task prepare", () => {
   it("records repo-mode root readiness and preserves prepared_at", async () => {
     const cwd = await rawTempDir();
-    const change = await createRepoModeChange(cwd, tasksMarkdown(task("T1", { primary: "None" })));
+    const change = await createRepoModeChange(cwd);
 
-    const first = await prepareTasks({ cwd, selector: { type: "all" }, now: new Date("2026-06-07T10:01:00.000Z"), sessionPath: change.sessionPath });
-    const second = await prepareTasks({ cwd, selector: { type: "all" }, now: new Date("2026-06-07T10:02:00.000Z"), sessionPath: change.sessionPath });
+    const first = await prepareTasks({ cwd, now: new Date("2026-06-07T10:01:00.000Z"), sessionPath: change.sessionPath });
+    const second = await prepareTasks({ cwd, now: new Date("2026-06-07T10:02:00.000Z"), sessionPath: change.sessionPath });
     const status = await readStatus(change.changePath);
 
     expect(first.status).toBe("ok");
@@ -112,39 +102,20 @@ describe("task prepare", () => {
     const cwd = await rawTempDir();
     await writeWorkspaceMetadata(cwd, "repo");
     await initGit(cwd);
-    const change = await createRepoModeChange(cwd, tasksMarkdown(task("T1")));
+    const change = await createRepoModeChange(cwd);
     await git(cwd, ["add", "."]);
     await git(cwd, ["commit", "-m", "change"]);
     await git(cwd, ["checkout", "-b", "other"]);
 
-    const result = await prepareTasks({ cwd, selector: { type: "all" }, sessionPath: change.sessionPath });
+    const result = await prepareTasks({ cwd, sessionPath: change.sessionPath });
 
     expect(result.status).toBe("blocked");
     expect(result.blockers[0].reason).toContain(`expected ${change.branch}`);
   });
 
-  it("reports no matching scope without moving branches", async () => {
-    const cwd = await rawTempDir();
-    const change = await createRepoModeChange(cwd, tasksMarkdown(task("T1", { scope: "cli" })));
-
-    const result = await prepareTasks({ cwd, selector: { type: "scope", scope: "backend" }, sessionPath: change.sessionPath });
-    const status = await readStatus(change.changePath);
-
-    expect(result.status).toBe("blocked");
-    expect(result.blockers).toContainEqual({ target: "backend", reason: "No tasks matched the requested scope." });
-    expect(status.execution).toBeUndefined();
-  });
-
-  it("prepares selected workspace repos and skips non-git folders", async () => {
+  it("prepares all registered workspace repos and skips non-git folders without tasks.md", async () => {
     const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(
-      workspace,
-      tasksMarkdown(
-        task("T1", { scope: "backend", primary: "api" }) +
-          task("T2", { scope: "frontend", primary: "web" }) +
-          task("T3", { scope: "docs", primary: "docs" }),
-      ),
-    );
+    const change = await createWorkspaceChange(workspace);
     const api = path.join(workspace, "api");
     const web = path.join(workspace, "web");
     await initGit(api);
@@ -153,7 +124,7 @@ describe("task prepare", () => {
     await git(web, ["checkout", "-b", change.branch]);
     await git(web, ["checkout", webBaseBranch]);
 
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, now: new Date("2026-06-07T10:03:00.000Z"), sessionPath: change.sessionPath });
+    const result = await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:03:00.000Z"), sessionPath: change.sessionPath });
     const status = await readStatus(change.changePath);
 
     expect(result.status).toBe("ok");
@@ -176,55 +147,36 @@ describe("task prepare", () => {
     });
   });
 
-  it("preserves execution repo records across separate workspace selections", async () => {
+  it("preserves execution repo prepared_at across repeated workspace readiness checks", async () => {
     const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(
-      workspace,
-      tasksMarkdown(task("T1", { scope: "backend", primary: "api" }) + task("T2", { scope: "docs", primary: "docs" })),
-    );
+    const change = await createWorkspaceChange(workspace);
     await initGit(path.join(workspace, "api"));
 
-    await prepareTasks({ cwd: workspace, selector: { type: "tasks", ids: ["T1"] }, now: new Date("2026-06-07T10:04:00.000Z"), sessionPath: change.sessionPath });
-    await prepareTasks({ cwd: workspace, selector: { type: "tasks", ids: ["T2"] }, now: new Date("2026-06-07T10:05:00.000Z"), sessionPath: change.sessionPath });
+    await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:04:00.000Z"), sessionPath: change.sessionPath });
+    await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:05:00.000Z"), sessionPath: change.sessionPath });
     const status = await readStatus(change.changePath);
 
     expect(status.execution).toMatchObject({
       repos: {
-        api: { path: "api", prepared_at: "2026-06-07T10:04:00.000Z" },
-        docs: { path: "docs", prepared_at: "2026-06-07T10:05:00.000Z" },
+        api: { path: "api", prepared_at: "2026-06-07T10:04:00.000Z", verified_at: "2026-06-07T10:05:00.000Z" },
+        docs: { path: "docs", prepared_at: "2026-06-07T10:04:00.000Z", verified_at: "2026-06-07T10:05:00.000Z" },
       },
     });
   });
 
-  it("blocks workspace prepare with missing repo metadata", async () => {
-    const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(workspace, tasksMarkdown(task("T1", { primary: "None" })));
-
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, sessionPath: change.sessionPath });
-
-    expect(result.status).toBe("blocked");
-    expect(result.blockers).toContainEqual({ target: "T1", reason: "Task has no concrete repo metadata for workspace prepare." });
-  });
-
-  it("blocks workspace prepare for unknown repo ids and missing registered paths", async () => {
+  it("blocks workspace prepare for missing registered repo paths", async () => {
     const workspace = await rawTempDir();
     await writeWorkspaceMetadata(workspace, "workspace", {
       missing: { path: "missing" },
     });
     const sessionPath = path.join(workspace, ".session.yml");
     const created = await createChange({ cwd: workspace, title: "Bad repo metadata", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "badm", sessionPath });
-    const changePath = path.join(workspace, "wiki", "changes", created.id);
-    await writeFile(path.join(changePath, "tasks.md"), tasksMarkdown(task("T1", { primary: "unknown", repos: "missing" })));
 
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, sessionPath });
+    const result = await prepareTasks({ cwd: workspace, sessionPath });
 
     expect(result.status).toBe("blocked");
-    expect(result.blockers).toEqual(
-      expect.arrayContaining([
-        { target: "unknown", reason: "Task references a repo id that is not registered in workspace metadata." },
-        { target: "missing", reason: "Registered repo path does not exist: missing" },
-      ]),
-    );
+    expect(result.blockers).toContainEqual({ target: "missing", reason: "Registered repo path does not exist: missing" });
+    expect(created.id).toBeDefined();
   });
 
   it("blocks workspace implementation repo actions when the artifact root branch differs", async () => {
@@ -234,8 +186,6 @@ describe("task prepare", () => {
     await initGit(workspace);
     const sessionPath = path.join(workspace, ".session.yml");
     const created = await createChange({ cwd: workspace, title: "Workspace root mismatch", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "wmix", sessionPath });
-    const changePath = path.join(workspace, "wiki", "changes", created.id);
-    await writeFile(path.join(changePath, "tasks.md"), tasksMarkdown(task("T1", { primary: "api" })));
     await git(workspace, ["add", "."]);
     await git(workspace, ["commit", "-m", "change"]);
     await git(workspace, ["checkout", "-b", "other"]);
@@ -243,7 +193,7 @@ describe("task prepare", () => {
     await initGit(api);
     const apiBaseBranch = await git(api, ["branch", "--show-current"]);
 
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, sessionPath });
+    const result = await prepareTasks({ cwd: workspace, sessionPath });
 
     expect(result.status).toBe("blocked");
     expect(result.blockers[0].reason).toContain(`expected ${created.branch}`);
@@ -252,12 +202,12 @@ describe("task prepare", () => {
 
   it("blocks detached HEAD implementation repos", async () => {
     const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(workspace, tasksMarkdown(task("T1", { primary: "api" })));
+    const change = await createWorkspaceChange(workspace);
     const api = path.join(workspace, "api");
     await initGit(api);
     await git(api, ["checkout", "--detach", "HEAD"]);
 
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, sessionPath: change.sessionPath });
+    const result = await prepareTasks({ cwd: workspace, sessionPath: change.sessionPath });
 
     expect(result.status).toBe("blocked");
     expect(result.blockers).toContainEqual({ target: "api", reason: "Repo is in detached HEAD or has no current branch." });
@@ -265,34 +215,32 @@ describe("task prepare", () => {
 
   it("refreshes selected repos when execution.branch is stale", async () => {
     const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(workspace, tasksMarkdown(task("T1", { primary: "api" }) + task("T2", { primary: "docs" })));
+    const change = await createWorkspaceChange(workspace);
     const api = path.join(workspace, "api");
     await initGit(api);
-    await prepareTasks({ cwd: workspace, selector: { type: "all" }, now: new Date("2026-06-07T10:06:00.000Z"), sessionPath: change.sessionPath });
+    await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:06:00.000Z"), sessionPath: change.sessionPath });
     const statusPath = path.join(change.changePath, "status.yml");
     const status = YAML.parse(await readFile(statusPath, "utf8"));
     status.branch = "change/new-readiness-branch";
     await writeFile(statusPath, YAML.stringify(status));
 
-    await prepareTasks({ cwd: workspace, selector: { type: "tasks", ids: ["T1"] }, now: new Date("2026-06-07T10:07:00.000Z"), sessionPath: change.sessionPath });
+    await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:07:00.000Z"), sessionPath: change.sessionPath });
     const nextStatus = await readStatus(change.changePath);
 
     expect(nextStatus.execution).toMatchObject({
       branch: "change/new-readiness-branch",
       repos: {
         api: { branch: "change/new-readiness-branch", prepared_at: "2026-06-07T10:07:00.000Z" },
+        web: { branch: "change/new-readiness-branch", prepared_at: "2026-06-07T10:07:00.000Z" },
+        docs: { branch: "change/new-readiness-branch", prepared_at: "2026-06-07T10:07:00.000Z" },
       },
     });
-    expect((nextStatus.execution as { repos: Record<string, unknown> }).repos.docs).toBeUndefined();
     await expect(git(api, ["branch", "--show-current"])).resolves.toBe("change/new-readiness-branch");
   });
 
   it("blocks all workspace branch movement when one selected repo is dirty on another branch", async () => {
     const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(
-      workspace,
-      tasksMarkdown(task("T1", { primary: "api", repos: "web" })),
-    );
+    const change = await createWorkspaceChange(workspace);
     const api = path.join(workspace, "api");
     const web = path.join(workspace, "web");
     await initGit(api);
@@ -300,7 +248,7 @@ describe("task prepare", () => {
     const apiBaseBranch = await git(api, ["branch", "--show-current"]);
     await writeFile(path.join(web, "dirty.txt"), "dirty\n");
 
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, sessionPath: change.sessionPath });
+    const result = await prepareTasks({ cwd: workspace, sessionPath: change.sessionPath });
 
     expect(result.status).toBe("blocked");
     expect(result.blockers[0].reason).toContain("uncommitted changes");
@@ -309,27 +257,25 @@ describe("task prepare", () => {
 
   it("allows dirty workspace repos already on the expected branch", async () => {
     const workspace = await rawTempDir();
-    const change = await createWorkspaceChange(workspace, tasksMarkdown(task("T1", { primary: "api" })));
+    const change = await createWorkspaceChange(workspace);
     const api = path.join(workspace, "api");
     await initGit(api);
     await git(api, ["checkout", "-b", change.branch]);
     await writeFile(path.join(api, "dirty.txt"), "dirty\n");
 
-    const result = await prepareTasks({ cwd: workspace, selector: { type: "all" }, sessionPath: change.sessionPath });
+    const result = await prepareTasks({ cwd: workspace, sessionPath: change.sessionPath });
 
     expect(result.status).toBe("ok");
     expect(result.repos[0]).toMatchObject({ id: "api", branch_status: "already_active" });
   });
 
-  it("exposes deterministic CLI selector validation and help", () => {
+  it("exposes deterministic CLI help without task selectors", () => {
     const cwd = os.tmpdir();
     const help = spawnSync(process.execPath, [tsxBinary, cliEntry, "task", "prepare", "--help"], { cwd, encoding: "utf8" });
-    const invalid = spawnSync(process.execPath, [tsxBinary, cliEntry, "task", "prepare", "--json"], { cwd, encoding: "utf8" });
 
     expect(help.status).toBe(0);
-    expect(help.stdout).toContain("--scope <scope>");
-    expect(help.stdout).toContain("--all");
-    expect(invalid.status).toBe(1);
-    expect(JSON.parse(invalid.stdout)).toMatchObject({ status: "error", code: "invalid_arguments" });
+    expect(help.stdout).toContain("--json");
+    expect(help.stdout).not.toContain("--scope <scope>");
+    expect(help.stdout).not.toContain("--all");
   });
 });

@@ -1,14 +1,14 @@
 ---
 name: weave-prepare
 description: Prepare task execution branches for an active Weave change without implementing, verifying, committing, pushing, or opening PRs.
-last_changed_in: 0.1.7
+last_changed_in: 0.1.8
 ---
 
 > **Deprecated:** Branch preparation is now part of `/weave-execute`. Use `/weave-execute` for combined branch checkout and task implementation.
 
 # Weave Prepare
 
-Use this skill when the user wants to prepare local branches for selected `T#` tasks in an active Weave change.
+Use this skill when the user wants to prepare local branches for an active Weave change.
 
 Prepare means branch readiness only. It does not implement code, run verification, change task statuses, commit, push, open PRs, stash, discard changes, or create remote branches.
 
@@ -55,30 +55,24 @@ weave change status --json
 
 If there is no active change, stop and say that the user needs `weave change new` or `weave change switch` first.
 
-# Selector Handling
+# Prepare Handling
 
 The CLI owns all branch movement and `status.yml` writes. Do not hand-edit `status.yml` and do not run git checkout commands yourself for this workflow.
 
-Map user input as follows:
-
-- `all` -> `weave task prepare --all --json`
-- Task ids such as `T1` or `T1 T3` -> `weave task prepare T1 T3 --json`
-- A single non-task, non-`all` value such as `backend` -> `weave task prepare --scope backend --json`
-
-If the user invokes `/weave-prepare` without arguments, ask what to prepare. Derive suggestions from `wiki/changes/<change-id>/tasks.md`: include `all`, available `Scope` values, and available `T#` task ids. Do not default to `all`.
+Ignore task, scope, or slice selectors for branch preparation. Prepare applies to the active repo in repo mode, or to every registered repo in workspace mode. If the user provides a selector, explain that slice/task selection belongs to `/weave-execute`; `/weave-prepare` only checks branch readiness.
 
 # Run Prepare
 
-Run exactly one prepare command after resolving the selector:
+Run exactly one prepare command:
 
 ```bash
-weave task prepare <selector> --json
+weave task prepare --json
 ```
 
 If the global `weave` command is unavailable in this repo, use the local development form:
 
 ```bash
-npm run dev -- task prepare <selector> --json
+npm run dev -- task prepare --json
 ```
 
 # Summarize Results
@@ -86,11 +80,10 @@ npm run dev -- task prepare <selector> --json
 Summarize the JSON result in user terms:
 
 - Change id and branch.
-- Selected tasks.
 - Prepared repos and branch actions: `created`, `checked_out`, `already_active`.
 - Skipped non-git repos with `skipped_not_git`.
-- Blockers, if any, with the repo/task target and reason.
+- Blockers, if any, with the repo target and reason.
 
-If status is `blocked`, state that no selected implementation repo branches were moved by the prepare command. Remind the user that dirty work on the expected branch is allowed, but dirty work on another branch must be resolved by the user.
+If status is `blocked`, state that no implementation repo branches were moved by the prepare command. Remind the user that dirty work on the expected branch is allowed, but dirty work on another branch must be resolved by the user.
 
 Always close by stating that prepare did not implement, verify, commit, push, open a PR, stash, discard changes, or update task statuses.

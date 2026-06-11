@@ -1,7 +1,7 @@
 ---
 name: weave-execute
 description: Execute selected local Weave tasks for an active change by preparing branches, implementing tasks, running verification, and updating tasks.md evidence without committing, pushing, or opening PRs.
-last_changed_in: 0.1.7
+last_changed_in: 0.1.8
 ---
 
 # Weave Execute
@@ -137,21 +137,20 @@ If a task fails, continue independent later tasks. Skip downstream tasks whose d
 
 # Run Prepare Before Implementation
 
-Run exactly one prepare command for the final selected task set before implementing anything.
+Run exactly one prepare command before implementing anything.
 
-Use the deterministic prepare CLI. The CLI owns branch readiness and `status.yml.execution` writes. Do not hand-edit `status.yml` and do not run git checkout commands yourself for this workflow.
+Use the deterministic prepare CLI. The CLI owns branch readiness and `status.yml.execution` writes for the active repo or workspace. Do not hand-edit `status.yml` and do not run git checkout commands yourself for this workflow.
 
-Map the final selected tasks to prepare like this:
+Task and slice selection stays inside `/weave-execute`; prepare is only a branch-readiness preflight. Always call:
 
-- all executable tasks selected from `all` -> `weave task prepare --all --json`
-- explicit task ids -> `weave task prepare T1 T3 --json`
-- scope selectors -> `weave task prepare --scope backend --json`
-- dependency-expanded selections that no longer map cleanly to one scope -> `weave task prepare T1 T3 --json`
+```bash
+weave task prepare --json
+```
 
 If the global `weave` command is unavailable in this repo, use the local development form:
 
 ```bash
-npm run dev -- task prepare <selector> --json
+npm run dev -- task prepare --json
 ```
 
 If prepare reports blockers, stop before implementation. State that no selected implementation repo branches were moved when the prepare result is blocked.
