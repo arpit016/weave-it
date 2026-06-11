@@ -1,0 +1,15 @@
+version: 1
+id: 02-remove-artifact-lane-state
+title: Remove Artifact Lane State
+status: pending
+owner: ""
+repos:
+  - weave-it
+depends_on:
+  - 01-branch-derived-active-change
+task_summary:
+  total: 3
+  done: 0
+  blocked: 0
+created_at: 2026-06-10T19:18:40.000Z
+updated_at: 2026-06-10T19:19:08.487Z

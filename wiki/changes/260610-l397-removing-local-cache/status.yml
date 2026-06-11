@@ -1,0 +1,30 @@
+version: 1
+id: 260610-l397-removing-local-cache
+slug: removing-local-cache
+title: Removing local cache
+type: feat
+stage: slices
+branch: change/260610-l397-removing-local-cache
+created_at: 2026-06-10T05:55:20.536Z
+updated_at: 2026-06-10T19:18:40.969Z
+artifacts:
+  exploration:
+    sources:
+      - discussion
+      - sessions
+    updated_at: 2026-06-10T18:23:08.301Z
+  prd:
+    sources:
+      - exploration
+      - sessions
+    updated_at: 2026-06-10T18:48:10.903Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+      - sessions
+    updated_at: 2026-06-10T19:08:23.921Z
+  slices:
+    sources:
+      - architecture
+    updated_at: 2026-06-10T19:18:40.969Z

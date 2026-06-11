@@ -1,0 +1,15 @@
+version: 1
+id: 03-update-skill-and-knowledge-contracts
+title: Update Skill And Knowledge Contracts
+status: pending
+owner: ""
+repos:
+  - weave-it
+depends_on:
+  - 02-remove-artifact-lane-state
+task_summary:
+  total: 3
+  done: 0
+  blocked: 0
+created_at: 2026-06-10T19:18:40.000Z
+updated_at: 2026-06-10T19:19:08.487Z
