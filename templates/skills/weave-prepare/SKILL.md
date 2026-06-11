@@ -1,7 +1,7 @@
 ---
 name: weave-prepare
 description: Prepare task execution branches for an active Weave change without implementing, verifying, committing, pushing, or opening PRs.
-last_changed_in: 0.1.7
+last_changed_in: 0.1.8
 ---
 
 > **Deprecated:** Branch preparation is now part of `/weave-execute`. Use `/weave-execute` for combined branch checkout and task implementation.
