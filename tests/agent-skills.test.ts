@@ -37,6 +37,13 @@ const installedAgentDestinations = [
   { dir: ".agents/skills" },
 ] as const;
 
+// `last_changed_in` is bumped only in templates by the release version script;
+// installed copies under .agents/.claude are unpublished dogfood artifacts, so
+// compare skill bodies and ignore this release-version metadata line.
+function stripVolatileSkillMetadata(content: string): string {
+  return content.replace(/^last_changed_in:\s*.*$/m, "last_changed_in: <ignored>");
+}
+
 async function assertSkillBlockPresence(
   skill: string,
   expectedBlock: string,
@@ -356,10 +363,10 @@ describe("agent skills", () => {
 
   it("keeps repo-installed Weave skill copies aligned for artifact capture flow", async () => {
     for (const skill of ["weave-explore", "weave-prd", "weave-architect", "weave-capture", "weave-next", "weave-clarify", "weave-slices", "weave-knowledge", "weave-prepare", "weave-execute"]) {
-      const template = await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8");
+      const template = stripVolatileSkillMetadata(await readFile(path.join(process.cwd(), "templates", "skills", skill, "SKILL.md"), "utf8"));
 
-      await expect(readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
-      await expect(readFile(path.join(process.cwd(), ".claude", "skills", skill, "SKILL.md"), "utf8")).resolves.toBe(template);
+      expect(stripVolatileSkillMetadata(await readFile(path.join(process.cwd(), ".agents", "skills", skill, "SKILL.md"), "utf8"))).toBe(template);
+      expect(stripVolatileSkillMetadata(await readFile(path.join(process.cwd(), ".claude", "skills", skill, "SKILL.md"), "utf8"))).toBe(template);
     }
 
     const prdTemplate = await readFile(path.join(process.cwd(), "templates", "skills", "weave-prd", "prd-template.md"), "utf8");
