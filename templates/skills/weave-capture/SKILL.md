@@ -39,7 +39,7 @@ weave-capture session architecture
 
 use session-only behavior for this invocation.
 
-In session-only mode, an explicit lane wins over stored artifact context:
+In session-only mode, an explicit lane wins for this invocation:
 
 ```text
 exploration
@@ -48,15 +48,7 @@ findings
 architecture
 ```
 
-If the user invoked `weave-capture session` without a lane, run:
-
-```bash
-weave artifact current --json
-```
-
-Use the current artifact context only when it is valid for the active change.
-
-If no valid lane exists, stop before writing and ask:
+If the user invoked `weave-capture session` without a lane, stop before writing and ask:
 
 ```text
 Which lane should I capture this session under: exploration, prd, findings, or architecture?
@@ -75,15 +67,7 @@ findings
 architecture
 ```
 
-If the user did not name a target, run:
-
-```bash
-weave artifact current --json
-```
-
-Use the current artifact context only when it is valid for the active change.
-
-If no valid context exists, stop before writing and ask:
+If the user did not name a target, stop before writing and ask:
 
 ```text
 Which artifact should I capture this into: exploration, prd, findings, or architecture?
@@ -95,17 +79,17 @@ Before writing any session note or artifact, defensively verify that the resolve
 
 Compare:
 
-- the resolved lane (from explicit user input, `weave artifact current --json`, or `weave-capture session <lane>`)
+- the resolved lane (from explicit user input or `weave-capture session <lane>`)
 - and the dominant subject of the discussion being captured (exploration: product discovery and stress-tested requirements; prd: user-facing requirements, acceptance criteria, scope, open questions; architecture: engineering design, module boundaries, tradeoffs, technical risks)
 
-If the resolved lane and the dominant subject clearly disagree (for example, the stored artifact context is `prd` but the conversation is heavily architectural; or the user invoked `weave-capture session exploration` after a long architectural discussion), do not write. Stop and ask:
+If the resolved lane and the dominant subject clearly disagree (for example, the user explicitly selected `prd` but the conversation is heavily architectural; or the user invoked `weave-capture session exploration` after a long architectural discussion), do not write. Stop and ask:
 
 ```text
-Stored artifact context is <lane>, but the conversation reads as <observed-lane>.
-Capture this into: <lane> (keep stored context), <observed-lane> (switch), or another lane?
+Selected lane is <lane>, but the conversation reads as <observed-lane>.
+Capture this into: <lane>, <observed-lane>, or another lane?
 ```
 
-Wait for the user's choice. Use the user's reply as the resolved lane for the rest of this invocation. Do not silently override the stored context.
+Wait for the user's choice. Use the user's reply as the resolved lane for the rest of this invocation. Do not silently override the explicit selection.
 
 If the lane and the conversation substance are aligned (or if the conversation is too short or mixed to judge), proceed with the resolved lane without asking.
 
@@ -254,10 +238,9 @@ Run only the command matching the selected artifact and pass only sources that a
 ## Session-Only Capture
 
 - Session-only mode is selected by invocations like `weave-capture session`, `weave-capture session exploration`, `weave-capture session prd`, or `weave-capture session architecture`.
-- Explicit session-only lane wins over stored artifact context for this invocation.
+- Explicit session-only lane wins for this invocation.
 - Supported lanes are `exploration`, `prd`, and `architecture`.
-- `weave-capture session` without an explicit lane uses stored artifact context only when it points to the active change.
-- If no valid lane exists, ask which lane to use before writing.
+- `weave-capture session` without an explicit lane asks which lane to use before writing.
 - Session-only capture requires a valid active change.
 - Session-only capture does not require the selected live artifact to exist.
 - Session-only capture does not enforce upstream prerequisite artifacts.
@@ -265,11 +248,11 @@ Run only the command matching the selected artifact and pass only sources that a
 
 ## Artifact Capture
 
-- An explicit user target wins over stored artifact context for this invocation.
+- An explicit user target wins for this invocation.
 - `weave-explore` maps to `exploration`.
 - `weave-prd` maps to `prd`.
 - `weave-architect` maps to `architecture`.
-- Stored context must point to the active change. If it points elsewhere, treat it as invalid and ask for a target.
+- If no explicit target is provided, ask for a target before writing.
 - If the selected live artifact does not exist, create it only when the active change, target context, and selected-lane context are sufficient:
   - missing `exploration.md`: create it for the valid active change
   - missing `prd.md`: create it from current discussion, PRD sessions, and useful exploration context when enough product truth exists
@@ -288,7 +271,7 @@ Creating a missing live artifact is allowed only for the selected capture target
 
 # Behavior Rules
 
-- The CLI owns active change lookup and artifact context lookup.
+- The CLI owns active change lookup. The skill owns explicit target resolution.
 - The skill owns discussion synthesis, session note writing, and live artifact merging.
 - Bare `weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts.
 - Do not create a new change unless the user explicitly asks for a new change.

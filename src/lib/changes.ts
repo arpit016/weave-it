@@ -5,21 +5,11 @@ import path from "node:path";
 import { promisify } from "node:util";
 import YAML from "yaml";
 import { architectureMarkdownPaths, hasSubstantiveMarkdown, resolveArchitectureArtifact } from "./architecture-artifact.js";
-import { artifactFileName, artifactFrontmatter, type ArtifactName } from "./artifact-metadata.js";
+import { artifactFrontmatter } from "./artifact-metadata.js";
 import { pathExists } from "./files.js";
 import { findGitRoot } from "./git.js";
 import { slugify, titleFromSlug } from "./ids.js";
-import {
-  clearCurrentArtifactForPath,
-  defaultSessionPath,
-  findFolderByPath,
-  loadCurrentSession,
-  saveCurrentSession,
-  setCurrentArtifactForPath,
-  setCurrentChangeForPath,
-  type CurrentSession,
-  type SessionCurrentChange,
-} from "./session-state.js";
+import { defaultSessionPath, type SessionCurrentChange } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
 import { resolveChangeContext, type WorkspaceModeKind } from "./workspace-mode.js";
 
@@ -29,7 +19,8 @@ const idChars = "abcdefghijklmnopqrstuvwxyz0123456789";
 export type BranchStatus = "created" | "checked_out" | "already_active" | "skipped_not_git";
 export type ChangeType = "feat" | "fix" | "refactor" | "docs" | "test" | "ci" | "chore";
 export type BranchMatch = "match" | "mismatch" | "not_git" | "unknown";
-export type CurrentSource = "session" | "inferred_saved" | "none";
+export type CurrentSource = "branch" | "none";
+export type ActiveChangeResolutionState = "branch_active" | "no_active_change" | "invalid_active_branch" | "non_git_no_active_change";
 export type ChangeStage = (typeof changeStages)[number];
 export type StoredChangeStage = (typeof storedStages)[number];
 export type ArtifactSourceId = (typeof artifactSourceIds)[number];
@@ -143,6 +134,7 @@ export interface CurrentChangeTargetResult {
   name?: string;
   path: string;
   source: CurrentSource;
+  resolution: ActiveChangeResolutionState;
   saved: boolean;
   current?: ChangeSummary;
   branch?: string;
@@ -167,6 +159,7 @@ export interface StatusChangeTargetResult {
   path: string;
   active: boolean;
   source: CurrentSource | "explicit";
+  resolution: ActiveChangeResolutionState | "explicit";
   saved: boolean;
   change?: ChangeSummary;
   branch?: string;
@@ -325,6 +318,7 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
   const id = await generateChangeId(targets, slug, now, options.randomId ?? randomChangeIdPart);
   const branch = changeBranch(id);
 
+  await assertGitTargets(targets);
   await assertChangeMissing(targets, id);
 
   const results: ChangeTargetResult[] = [];
@@ -344,28 +338,15 @@ export async function createChange(options: CreateChangeOptions): Promise<Change
     results.push({ path: target.path, changePath, branch, branchStatus, current: true });
   }
 
-  await saveCurrentForTargets(
-    options.sessionPath,
-    results.map((target) => ({
-      root: target.path,
-      changeId: id,
-      changePath: target.changePath,
-      branch,
-      artifact: type === "feat" ? "exploration" : undefined,
-    })),
-    now,
-  );
-
   return summarizeChangeOperation({ id, slug, title, type, branch, targets: results, verb: "Created" });
 }
 
 export async function listChanges(options: ListChangesOptions): Promise<ChangeListResult> {
-  const session = await loadCurrentSession(options.sessionPath ?? defaultSessionPath());
   const targets = [await resolveTarget(options.cwd, options.sessionPath)];
   const summaries: ChangeTargetSummary[] = [];
 
   for (const target of targets) {
-    const activeId = activeChangeForTarget(session, target)?.id;
+    const activeId = await branchChangeIdForTarget(target.path);
     const changes = await readChanges(target.path, activeId);
     summaries.push({ id: target.id, name: target.name, path: target.path, changes });
   }
@@ -378,21 +359,13 @@ export async function listChanges(options: ListChangesOptions): Promise<ChangeLi
 }
 
 export async function currentChange(options: CurrentChangeOptions): Promise<CurrentChangeResult> {
-  const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(sessionPath, now);
   const targets = [await resolveTarget(options.cwd, sessionPath)];
   const results: CurrentChangeTargetResult[] = [];
-  let mutated = false;
 
   for (const target of targets) {
-    const context = await currentContextForTarget(session, target, now, { saveInferred: true });
-    mutated ||= context.saved;
+    const context = await currentContextForTarget(target);
     results.push(context);
-  }
-
-  if (mutated) {
-    await saveCurrentSession(session, sessionPath);
   }
 
   return {
@@ -403,16 +376,13 @@ export async function currentChange(options: CurrentChangeOptions): Promise<Curr
 }
 
 export async function statusChange(options: StatusChangeOptions): Promise<StatusChangeResult> {
-  const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(sessionPath, now);
   const targets = [await resolveTarget(options.cwd, sessionPath)];
   const results: StatusChangeTargetResult[] = [];
-  let mutated = false;
 
   for (const target of targets) {
     if (options.change) {
-      const changes = await readChanges(target.path, activeChangeForTarget(session, target)?.id);
+      const changes = await readChanges(target.path, await branchChangeIdForTarget(target.path));
       const change = resolveChangeReference(changes, options.change);
       const branch = await currentBranch(target.path);
       results.push({
@@ -421,6 +391,7 @@ export async function statusChange(options: StatusChangeOptions): Promise<Status
         path: target.path,
         active: change.active,
         source: "explicit",
+        resolution: "explicit",
         saved: false,
         change,
         branch,
@@ -429,24 +400,20 @@ export async function statusChange(options: StatusChangeOptions): Promise<Status
       continue;
     }
 
-    const context = await currentContextForTarget(session, target, now, { saveInferred: true });
-    mutated ||= context.saved;
+    const context = await currentContextForTarget(target);
     results.push({
       id: context.id,
       name: context.name,
       path: context.path,
       active: Boolean(context.current),
       source: context.source,
+      resolution: context.resolution,
       saved: context.saved,
       change: context.current,
       branch: context.branch,
       branchMatch: context.branchMatch,
       mismatch: context.mismatch,
     });
-  }
-
-  if (mutated) {
-    await saveCurrentSession(session, sessionPath);
   }
 
   return {
@@ -457,9 +424,7 @@ export async function statusChange(options: StatusChangeOptions): Promise<Status
 }
 
 export async function activeChangeContext(options: CurrentChangeOptions): Promise<ActiveChangeContext> {
-  const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(sessionPath, now);
   const context = await resolveChangeContext(options.cwd, sessionPath);
   if (!context) {
     throw new ChangeCommandError("no_weave_context", "No Weave context found. Run `weave init` first.");
@@ -470,10 +435,7 @@ export async function activeChangeContext(options: CurrentChangeOptions): Promis
     name: context.folderName,
     path: context.rootPath,
   };
-  const current = await currentContextForTarget(session, target, now, { saveInferred: true });
-  if (current.saved) {
-    await saveCurrentSession(session, sessionPath);
-  }
+  const current = await currentContextForTarget(target);
   if (!current.current) {
     throw new ChangeCommandError("no_current_change", "No active Weave change found. Run `weave change new` or `weave change switch` first.");
   }
@@ -488,27 +450,12 @@ export async function activeChangeContext(options: CurrentChangeOptions): Promis
 }
 
 export async function switchChange(options: SwitchChangeOptions): Promise<SwitchChangeResult> {
-  const now = options.now ?? new Date();
   const target = await resolveTarget(options.cwd, options.sessionPath);
   await assertCleanGitTargets([target]);
 
-  const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(sessionPath, now);
-  const changes = await readChanges(target.path, activeChangeForTarget(session, target)?.id);
+  const changes = await readChanges(target.path, await branchChangeIdForTarget(target.path));
   const change = resolveChangeReference(changes, options.change);
   const branchStatus = await ensureChangeBranch(target.path, change.branch);
-
-  setCurrentChangeForPath(
-    session,
-    target.path,
-    { id: change.id, path: change.path, branch: change.branch },
-    now,
-  );
-  const activeArtifact = activeArtifactForTarget(session, target);
-  if (activeArtifact && activeArtifact.change_id !== change.id) {
-    clearCurrentArtifactForPath(session, target.path, now);
-  }
-  await saveCurrentSession(session, sessionPath);
 
   return {
     status: "ok",
@@ -530,21 +477,13 @@ export async function switchChange(options: SwitchChangeOptions): Promise<Switch
 
 export async function progressChange(options: ProgressChangeOptions): Promise<ProgressChangeResult> {
   const now = options.now ?? new Date();
-  const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(sessionPath, now);
-  const target = await resolveTarget(options.cwd, sessionPath);
-  const context = await currentContextForTarget(session, target, now, { saveInferred: true });
-  if (context.saved) {
-    await saveCurrentSession(session, sessionPath);
-  }
-  if (!context.current) {
-    throw new ChangeCommandError("no_current_change", "No active Weave change found. Run `weave change new` or `weave change switch` first.");
-  }
+  const context = await activeChangeContext(options);
+  const target = context.target;
 
-  const statusPath = path.join(context.current.changePath, "status.yml");
+  const statusPath = path.join(context.change.changePath, "status.yml");
   const raw = await readStatusFile(statusPath);
-  const existing = await readChangeMetadata(context.current.changePath, context.current.id);
-  const sourceResolution = await resolveProgressSources(options, context.current.changePath);
+  const existing = await readChangeMetadata(context.change.changePath, context.change.id);
+  const sourceResolution = await resolveProgressSources(options, context.change.changePath);
 
   const nextStage = maxStage([existing.stage, options.stage]);
   const artifacts: ChangeArtifactsMetadata = {
@@ -588,22 +527,22 @@ export async function progressChange(options: ProgressChangeOptions): Promise<Pr
   }
 
   await writeFile(statusPath, YAML.stringify(nextStatus));
-  const updated = await readChangeMetadata(context.current.changePath, context.current.id);
+  const updated = await readChangeMetadata(context.change.changePath, context.change.id);
   const change: ChangeSummary = {
     ...updated,
-    path: context.current.path,
-    changePath: context.current.changePath,
+    path: context.change.path,
+    changePath: context.change.changePath,
     active: true,
   };
 
   return {
     status: "ok",
-    target: { id: target.id, name: target.name, path: target.path },
+    target,
     change,
     progressed: options.stage,
     sources: sourceResolution.sources,
     note: sourceResolution.note,
-    message: formatProgressMessage({ id: target.id, name: target.name, path: target.path }, change, options.stage, sourceResolution.note),
+    message: formatProgressMessage(target, change, options.stage, sourceResolution.note),
   };
 }
 
@@ -632,25 +571,12 @@ export async function clearChangeStaleness(
   options: ClearChangeStalenessOptions,
 ): Promise<ClearChangeStalenessResult> {
   const now = options.now ?? new Date();
-  const session = await loadOrCreateSession(
-    options.sessionPath ?? defaultSessionPath(),
-    now,
-  );
-  const target = await resolveTarget(options.cwd, options.sessionPath);
-  const context = await currentContextForTarget(session, target, now, { saveInferred: true });
-  if (context.saved) {
-    await saveCurrentSession(session, options.sessionPath ?? defaultSessionPath());
-  }
-  if (!context.current) {
-    throw new ChangeCommandError(
-      "no_current_change",
-      "No active Weave change found. Run `weave change new` or `weave change switch` first.",
-    );
-  }
+  const context = await activeChangeContext(options);
+  const target = context.target;
 
-  const statusPath = path.join(context.current.changePath, "status.yml");
+  const statusPath = path.join(context.change.changePath, "status.yml");
   const raw = await readStatusFile(statusPath);
-  const existing = await readChangeMetadata(context.current.changePath, context.current.id);
+  const existing = await readChangeMetadata(context.change.changePath, context.change.id);
 
   const currentStale = existing.stale[options.lane];
   if (!currentStale) {
@@ -685,17 +611,17 @@ export async function clearChangeStaleness(
   }
 
   await writeFile(statusPath, YAML.stringify(nextStatus));
-  const updated = await readChangeMetadata(context.current.changePath, context.current.id);
+  const updated = await readChangeMetadata(context.change.changePath, context.change.id);
   const change: ChangeSummary = {
     ...updated,
-    path: context.current.path,
-    changePath: context.current.changePath,
+    path: context.change.path,
+    changePath: context.change.changePath,
     active: true,
   };
 
   return {
     status: "ok",
-    target: { id: target.id, name: target.name, path: target.path },
+    target,
     change,
     cleared: options.lane,
     history_entry: historyEntry,
@@ -705,21 +631,13 @@ export async function clearChangeStaleness(
 
 export async function knowledgeChange(options: KnowledgeChangeOptions): Promise<KnowledgeChangeResult> {
   const now = options.now ?? new Date();
-  const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(sessionPath, now);
-  const target = await resolveTarget(options.cwd, sessionPath);
-  const context = await currentContextForTarget(session, target, now, { saveInferred: true });
-  if (context.saved) {
-    await saveCurrentSession(session, sessionPath);
-  }
-  if (!context.current) {
-    throw new ChangeCommandError("no_current_change", "No active Weave change found. Run `weave change new` or `weave change switch` first.");
-  }
+  const context = await activeChangeContext(options);
+  const target = context.target;
 
   const invalidatedBy = options.invalidatedBy ? normalizeKnowledgeInvalidationSource(options.invalidatedBy) : undefined;
-  const statusPath = path.join(context.current.changePath, "status.yml");
+  const statusPath = path.join(context.change.changePath, "status.yml");
   const raw = await readStatusFile(statusPath);
-  const existing = await readChangeMetadata(context.current.changePath, context.current.id);
+  const existing = await readChangeMetadata(context.change.changePath, context.change.id);
   const knowledge = mergeKnowledgeMetadata(raw.knowledge, existing.knowledge, {
     status: options.status,
     updatedAt: now.toISOString(),
@@ -737,11 +655,11 @@ export async function knowledgeChange(options: KnowledgeChangeOptions): Promise<
     updated_at: now.toISOString(),
   };
   await writeFile(statusPath, YAML.stringify(nextStatus));
-  const updated = await readChangeMetadata(context.current.changePath, context.current.id);
+  const updated = await readChangeMetadata(context.change.changePath, context.change.id);
   const change: ChangeSummary = {
     ...updated,
-    path: context.current.path,
-    changePath: context.current.changePath,
+    path: context.change.path,
+    changePath: context.change.changePath,
     active: true,
   };
 
@@ -751,10 +669,10 @@ export async function knowledgeChange(options: KnowledgeChangeOptions): Promise<
 
   return {
     status: "ok",
-    target: { id: target.id, name: target.name, path: target.path },
+    target,
     change,
     knowledge: change.knowledge,
-    message: formatKnowledgeMessage({ id: target.id, name: target.name, path: target.path }, change),
+    message: formatKnowledgeMessage(target, change),
   };
 }
 
@@ -817,6 +735,28 @@ async function assertChangeMissing(targets: ChangeTarget[], changeId: string): P
       { existing },
     );
   }
+}
+
+async function assertGitTargets(targets: ChangeTarget[]): Promise<void> {
+  const nonGit: string[] = [];
+  for (const target of targets) {
+    if (!(await findGitRoot(target.path))) {
+      nonGit.push(target.path);
+    }
+  }
+
+  if (nonGit.length > 0) {
+    throw new ChangeCommandError(
+      "not_git",
+      `Cannot create a change outside a git repository:\n${nonGit.map((item) => `  ${item}`).join("\n")}`,
+      { paths: nonGit },
+    );
+  }
+}
+
+async function branchChangeIdForTarget(root: string): Promise<string | undefined> {
+  const branch = await currentBranch(root);
+  return branch?.startsWith("change/") ? branch.slice("change/".length) : undefined;
 }
 
 async function resolveTarget(cwd: string, sessionPath?: string): Promise<ChangeTarget> {
@@ -1244,57 +1184,37 @@ function resolveChangeReference(changes: ChangeSummary[], value: string): Change
   );
 }
 
-async function currentContextForTarget(
-  session: CurrentSession,
-  target: ChangeTarget,
-  now: Date,
-  options: { saveInferred: boolean },
-): Promise<CurrentChangeTargetResult> {
-  const saved = activeChangeForTarget(session, target);
-  const changes = await readChanges(target.path, saved?.id);
+async function currentContextForTarget(target: ChangeTarget): Promise<CurrentChangeTargetResult> {
   const branch = await currentBranch(target.path);
+  const gitRoot = await findGitRoot(target.path);
+  const activeId = branch?.startsWith("change/") ? branch.slice("change/".length) : undefined;
+  const changes = await readChanges(target.path, activeId);
   const inferred = branch ? inferChangeFromBranch(changes, branch) : undefined;
 
-  if (saved && inferred && saved.id !== inferred.id) {
-    const savedChange = changes.find((change) => change.id === saved.id);
+  if (inferred) {
     return {
       id: target.id,
       name: target.name,
       path: target.path,
-      source: "session",
+      source: "branch",
+      resolution: "branch_active",
       saved: false,
-      current: savedChange ? { ...savedChange, active: true } : undefined,
-      branch,
-      branchMatch: "mismatch",
-      mismatch: { session: saved, branch: inferred },
-    };
-  }
-
-  if (saved) {
-    const current = changes.find((change) => change.id === saved.id);
-    return {
-      id: target.id,
-      name: target.name,
-      path: target.path,
-      source: "session",
-      saved: false,
-      current: current ? { ...current, active: true } : undefined,
-      branch,
-      branchMatch: current ? branchMatch(branch, current.branch, await findGitRoot(target.path)) : "unknown",
-    };
-  }
-
-  if (inferred && options.saveInferred) {
-    setCurrentChangeForPath(session, target.path, { id: inferred.id, path: inferred.path, branch: inferred.branch }, now);
-    return {
-      id: target.id,
-      name: target.name,
-      path: target.path,
-      source: "inferred_saved",
-      saved: true,
       current: { ...inferred, active: true },
       branch,
       branchMatch: "match",
+    };
+  }
+
+  if (!gitRoot) {
+    return {
+      id: target.id,
+      name: target.name,
+      path: target.path,
+      source: "none",
+      resolution: "non_git_no_active_change",
+      saved: false,
+      branch,
+      branchMatch: "not_git",
     };
   }
 
@@ -1303,20 +1223,11 @@ async function currentContextForTarget(
     name: target.name,
     path: target.path,
     source: "none",
+    resolution: activeId ? "invalid_active_branch" : "no_active_change",
     saved: false,
     branch,
-    branchMatch: branch ? "unknown" : (await findGitRoot(target.path)) ? "unknown" : "not_git",
+    branchMatch: "unknown",
   };
-}
-
-function activeChangeForTarget(session: CurrentSession | undefined, target: ChangeTarget): SessionCurrentChange | undefined {
-  const id = target.id ?? (session ? findFolderByPath(session, target.path) : undefined);
-  return id ? session?.folders[id]?.current_change : undefined;
-}
-
-function activeArtifactForTarget(session: CurrentSession | undefined, target: ChangeTarget) {
-  const id = target.id ?? (session ? findFolderByPath(session, target.path) : undefined);
-  return id ? session?.folders[id]?.current_artifact : undefined;
 }
 
 function inferChangeFromBranch(changes: ChangeSummary[], branch: string): ChangeSummary | undefined {
@@ -1326,58 +1237,6 @@ function inferChangeFromBranch(changes: ChangeSummary[], branch: string): Change
 
   const id = branch.slice("change/".length);
   return changes.find((change) => change.id === id);
-}
-
-async function saveCurrentForTargets(
-  sessionPath: string | undefined,
-  updates: Array<{ root: string; changeId: string; changePath: string; branch: string; artifact?: ArtifactName }>,
-  now: Date,
-): Promise<void> {
-  const pathToSession = sessionPath ?? defaultSessionPath();
-  const session = await loadOrCreateSession(pathToSession, now);
-  for (const update of updates) {
-    const changeRelativePath = path.relative(update.root, update.changePath);
-    setCurrentChangeForPath(
-      session,
-      update.root,
-      {
-        id: update.changeId,
-        path: changeRelativePath,
-        branch: update.branch,
-      },
-      now,
-    );
-    // Non-feature changes start at `stage: started` with no scaffolded artifact, so they
-    // begin with no current artifact context; the fitting skill sets it when it creates the
-    // first real artifact.
-    if (update.artifact) {
-      setCurrentArtifactForPath(
-        session,
-        update.root,
-        {
-          artifact: update.artifact,
-          change_id: update.changeId,
-          path: artifactPath(changeRelativePath, update.artifact),
-        },
-        now,
-      );
-    }
-  }
-  await saveCurrentSession(session, pathToSession);
-}
-
-function artifactPath(changePath: string, artifact: ArtifactName): string {
-  return path.join(changePath, artifactFileName(artifact));
-}
-
-async function loadOrCreateSession(sessionPath: string, now: Date): Promise<CurrentSession> {
-  return (
-    (await loadCurrentSession(sessionPath)) ?? {
-      version: 1,
-      updated_at: now.toISOString(),
-      folders: {},
-    }
-  );
 }
 
 function statusTemplate(input: { id: string; slug: string; title: string; type: ChangeType; branch: string; now: Date }): string {
@@ -1659,10 +1518,8 @@ function formatKnowledgeLines(knowledge: KnowledgeMetadata | undefined): string[
 
 function formatCurrentSource(source: CurrentSource | "explicit"): string {
   switch (source) {
-    case "inferred_saved":
-      return "inferred from branch and saved";
-    case "session":
-      return "session";
+    case "branch":
+      return "branch";
     case "explicit":
       return "explicit";
     case "none":

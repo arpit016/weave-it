@@ -1,15 +1,29 @@
+import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import YAML from "yaml";
 import { createProgram } from "../src/cli.js";
 import { createChange } from "../src/lib/changes.js";
 
+const execFileAsync = promisify(execFile);
+
 async function tempDir(): Promise<string> {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-it-cli-skills-"));
   await writeWorkspaceMetadata(cwd);
+  await initGit(cwd);
   return cwd;
+}
+
+async function initGit(cwd: string): Promise<void> {
+  await execFileAsync("git", ["init"], { cwd });
+}
+
+async function commitAll(cwd: string, message: string): Promise<void> {
+  await execFileAsync("git", ["add", "."], { cwd });
+  await execFileAsync("git", ["-c", "user.name=Weave Test", "-c", "user.email=weave@example.com", "commit", "-m", message], { cwd });
 }
 
 async function writeWorkspaceMetadata(cwd: string): Promise<void> {
@@ -47,6 +61,7 @@ describe("skills CLI", () => {
     expect(commandNames).toEqual(
       expect.arrayContaining(["agent", "change", "skills", "skill"]),
     );
+    expect(commandNames).not.toContain("artifact");
   });
 
   it("installs skills through weave agent install", async () => {
@@ -236,7 +251,9 @@ describe("skills CLI", () => {
     process.chdir(cwd);
     process.env.WEAVE_SESSION_PATH = sessionPath;
     await createChange({ cwd, title: "Review import", slug: "review-import", randomId: () => "a111", sessionPath });
+    await commitAll(cwd, "review import");
     await createChange({ cwd, title: "Review export", slug: "review-export", randomId: () => "b222", sessionPath });
+    await commitAll(cwd, "review export");
 
     await createProgram().parseAsync(["change", "switch", "review", "--json"], { from: "user" });
 

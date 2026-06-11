@@ -1,6 +1,6 @@
 ---
 name: weave-next
-description: Answer what to do next for the active Weave change by inspecting artifact state, current artifact context, and resume notes without mutating files.
+description: Answer what to do next for the active Weave change by inspecting artifact state and resume notes without mutating files.
 last_changed_in: 0.1.7
 ---
 
@@ -15,7 +15,7 @@ Use this skill when the user wants to know what command to run next for an activ
 - Do not require Plan Mode.
 - Do not write repo-tracked artifacts.
 - Do not create, revise, capture, approve, or advance artifacts.
-- Do not set or clear artifact context.
+- Do not set, clear, or read artifact context.
 - Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-slices`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.
 - Do not document or rely on formal target arguments such as `weave-next prd` in v1.
 - Use live artifacts as canonical current truth.
@@ -36,14 +36,6 @@ Resolve the active change for the current cwd-dispatched workspace or repo conte
 weave change current --json
 weave change status --json
 ```
-
-Inspect current artifact context when available:
-
-```bash
-weave artifact current --json
-```
-
-If `weave artifact current --json` is unavailable or fails, continue from active change and artifact state. In the output, say that no valid current artifact context was available.
 
 If no active change exists, stop and say:
 
@@ -147,9 +139,9 @@ Type-aware forward recommendation:
 
 Resume recommendation:
 
-- valid current artifact context `exploration` with unresolved resume work -> run `weave-explore`
-- valid current artifact context `prd` with unresolved resume work -> run `weave-prd`
-- valid current artifact context `architecture` with unresolved resume work -> run `weave-architect`
+- latest relevant `sessions/*-exploration.md` with unresolved resume work -> run `weave-explore`
+- latest relevant `sessions/*-prd.md` with unresolved resume work -> run `weave-prd`
+- latest relevant `sessions/*-architecture.md` with unresolved resume work -> run `weave-architect`
 
 When resume and forward recommendations differ, make the resume command primary and show the forward recommendation as `Alternate Pipeline Step`.
 
@@ -177,7 +169,7 @@ In `Artifact State`, summarize `exploration.md`, `prd.md`, `architecture.md`, an
 
 In `Artifact State`, also summarize knowledge status when `status.yml.knowledge` is present.
 
-In `Resume Context`, include current artifact context and the latest relevant `Next Resume Point` when present.
+In `Resume Context`, include the latest relevant `Next Resume Point` when present.
 
 In `Recommended Next Step`, name exactly one primary command or say implementation handoff is ready.
 

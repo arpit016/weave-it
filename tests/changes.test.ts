@@ -5,7 +5,6 @@ import path from "node:path";
 import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
-import { clearCurrentArtifact, currentArtifact, setCurrentArtifact } from "../src/lib/artifact-context.js";
 import { createChange, currentChange, knowledgeChange, listChanges, progressChange, statusChange, switchChange } from "../src/lib/changes.js";
 
 const execFileAsync = promisify(execFile);
@@ -19,6 +18,7 @@ async function rawTempDir(): Promise<string> {
 async function tempDir(): Promise<string> {
   const cwd = await rawTempDir();
   await writeWorkspaceMetadata(cwd, "repo");
+  await initGit(cwd);
   return cwd;
 }
 
@@ -60,7 +60,24 @@ describe("changes", () => {
     await expect(createChange({ cwd, title: "   ", sessionPath: sessionPath(cwd) })).rejects.toThrow("Change title is required");
   });
 
-  it("creates a feature change exploration and skips branch creation outside git", async () => {
+  it("refuses to create changes outside git before writing files", async () => {
+    const cwd = await rawTempDir();
+    await writeWorkspaceMetadata(cwd, "repo");
+
+    await expect(
+      createChange({
+        cwd,
+        title: "Analytics of reviews",
+        type: "feat",
+        now: testNow,
+        randomId: () => "f3q9",
+        sessionPath: sessionPath(cwd),
+      }),
+    ).rejects.toMatchObject({ code: "not_git" });
+    await expect(stat(path.join(cwd, "wiki", "changes", "260522-f3q9-analytics-of-reviews"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("creates a feature change exploration and checks out its branch", async () => {
     const cwd = await tempDir();
 
     const result = await createChange({
@@ -79,7 +96,7 @@ describe("changes", () => {
     expect(result.id).toBe("260522-f3q9-analytics-of-reviews");
     expect(result.type).toBe("feat");
     expect(result.branch).toBe("change/260522-f3q9-analytics-of-reviews");
-    expect(result.targets).toContainEqual(expect.objectContaining({ branchStatus: "skipped_not_git" }));
+    expect(result.targets).toContainEqual(expect.objectContaining({ branchStatus: "created" }));
     expect(result.targets).toContainEqual(expect.objectContaining({ current: true }));
     expect(status).toMatchObject({
       id: "260522-f3q9-analytics-of-reviews",
@@ -129,12 +146,8 @@ describe("changes", () => {
     await expect(stat(path.join(changePath, "exploration.md"))).rejects.toMatchObject({ code: "ENOENT" });
     await expect(stat(path.join(changePath, "sessions"))).resolves.toMatchObject({});
 
-    // ...and no current artifact context is recorded until the first real artifact exists.
-    const parsed = YAML.parse(await readFile(session, "utf8"));
-    expect(Object.values(parsed.folders)[0]).toMatchObject({
-      current_change: { id: result.id },
-    });
-    expect((Object.values(parsed.folders)[0] as { current_artifact?: unknown }).current_artifact).toBeUndefined();
+    // ...and no local session routing state is recorded.
+    await expect(stat(session)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("reads back the `started` stage instead of coercing it to exploration", async () => {
@@ -201,16 +214,7 @@ describe("changes", () => {
     expect(result.targets).toHaveLength(1);
     await expect(stat(path.join(root, "wiki", "changes", result.id, "exploration.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(app, "wiki"))).rejects.toThrow();
-    const rootPath = await realpath(root);
-    const parsed = YAML.parse(await readFile(sessionPath(root), "utf8"));
-    expect(Object.values(parsed.folders)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          path: rootPath,
-          current_artifact: expect.objectContaining({ artifact: "exploration", change_id: result.id }),
-        }),
-      ]),
-    );
+    expect(result.targets[0].path).toBe(await realpath(root));
   });
 
   it("retries generated ids instead of overwriting an existing change folder", async () => {
@@ -234,6 +238,7 @@ describe("changes", () => {
   it("resolves workspace sub-repo cwd to the workspace change root", async () => {
     const workspace = await rawTempDir();
     await writeWorkspaceMetadata(workspace, "workspace");
+    await initGit(workspace);
     const billing = path.join(workspace, "billing");
     const nested = path.join(billing, "src");
     await mkdir(nested, { recursive: true });
@@ -247,23 +252,12 @@ describe("changes", () => {
       sessionPath: session,
     });
     const current = await currentChange({ cwd: nested, sessionPath: session });
-    const artifact = await currentArtifact({ cwd: nested, sessionPath: session });
-    const parsed = YAML.parse(await readFile(session, "utf8"));
 
     expect(created.targets[0].path).toBe(await realpath(workspace));
     expect(current.targets[0]).toMatchObject({ path: await realpath(workspace), current: expect.objectContaining({ id: created.id }) });
-    expect(artifact.targets[0]).toMatchObject({
-      path: await realpath(workspace),
-      artifact: expect.objectContaining({ change_id: created.id }),
-    });
     await expect(stat(path.join(workspace, "wiki", "changes", created.id, "exploration.md"))).resolves.toMatchObject({});
     await expect(stat(path.join(billing, "wiki"))).rejects.toThrow();
-    expect(Object.values(parsed.folders)).toEqual(
-      expect.arrayContaining([expect.objectContaining({ path: await realpath(workspace) })]),
-    );
-    expect(Object.values(parsed.folders)).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ path: await realpath(billing) })]),
-    );
+    await expect(stat(session)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("fails clearly outside any Weave context", async () => {
@@ -277,7 +271,7 @@ describe("changes", () => {
     });
   });
 
-  it("records created changes as current in the local session", async () => {
+  it("does not record created changes as local session routing state", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);
 
@@ -288,164 +282,8 @@ describe("changes", () => {
       randomId: () => "w3ye",
       sessionPath: session,
     });
-    const parsed = YAML.parse(await readFile(session, "utf8"));
-
-    expect(Object.values(parsed.folders)[0]).toMatchObject({
-      current_change: {
-        id: result.id,
-        path: path.join("wiki", "changes", result.id),
-        branch: result.branch,
-      },
-      current_artifact: {
-        artifact: "exploration",
-        change_id: result.id,
-        path: path.join("wiki", "changes", result.id, "exploration.md"),
-      },
-    });
+    await expect(stat(session)).rejects.toMatchObject({ code: "ENOENT" });
     expect(result.message).toContain("current");
-  });
-
-  it("sets, reads, and clears current artifact context", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    const created = await createChange({
-      cwd,
-      title: "Artifact context commands",
-      now: testNow,
-      randomId: () => "c7tt",
-      sessionPath: session,
-    });
-
-    const set = await setCurrentArtifact({ cwd, artifact: "prd", sessionPath: session, now: testNow });
-    const current = await currentArtifact({ cwd, sessionPath: session, now: testNow });
-    const cleared = await clearCurrentArtifact({ cwd, sessionPath: session, now: testNow });
-
-    expect(set.targets[0]).toMatchObject({
-      source: "session",
-      current: true,
-      artifact: {
-        artifact: "prd",
-        change_id: created.id,
-        path: path.join("wiki", "changes", created.id, "prd.md"),
-      },
-    });
-    expect(current.targets[0]).toMatchObject({
-      source: "session",
-      current: true,
-      artifact: expect.objectContaining({ artifact: "prd" }),
-    });
-    expect(cleared.targets[0]).toMatchObject({
-      source: "none",
-      current: false,
-      current_change: expect.objectContaining({ id: created.id }),
-    });
-  });
-
-  it("sets folder-mode architecture artifact context to architecture/index.md", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    const created = await createChange({
-      cwd,
-      title: "Folder architecture context",
-      now: testNow,
-      randomId: () => "farch",
-      sessionPath: session,
-    });
-    await mkdir(path.join(cwd, "wiki", "changes", created.id, "architecture"));
-    await writeFile(path.join(cwd, "wiki", "changes", created.id, "architecture", "index.md"), "# Architecture\n\nDesign.\n");
-
-    const set = await setCurrentArtifact({ cwd, artifact: "architecture", sessionPath: session, now: testNow });
-
-    expect(set.targets[0]).toMatchObject({
-      artifact: {
-        artifact: "architecture",
-        change_id: created.id,
-        path: path.join("wiki", "changes", created.id, "architecture", "index.md"),
-      },
-    });
-  });
-
-  it("keeps legacy architecture.md artifact context when folder mode is absent", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    const created = await createChange({
-      cwd,
-      title: "Legacy architecture context",
-      now: testNow,
-      randomId: () => "larch",
-      sessionPath: session,
-    });
-    await writeFile(path.join(cwd, "wiki", "changes", created.id, "architecture.md"), "# Architecture\n\nDesign.\n");
-
-    const set = await setCurrentArtifact({ cwd, artifact: "architecture", sessionPath: session, now: testNow });
-
-    expect(set.targets[0]).toMatchObject({
-      artifact: {
-        artifact: "architecture",
-        change_id: created.id,
-        path: path.join("wiki", "changes", created.id, "architecture.md"),
-      },
-    });
-  });
-
-  it("rejects invalid artifact context names", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    await createChange({
-      cwd,
-      title: "Artifact context validation",
-      now: testNow,
-      randomId: () => "v8ld",
-      sessionPath: session,
-    });
-
-    await expect(setCurrentArtifact({ cwd, artifact: "decision-log", sessionPath: session })).rejects.toThrow("Unsupported artifact");
-  });
-
-  it("reports no current artifact for older session files without artifact context", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    const created = await createChange({
-      cwd,
-      title: "Backward compatible session",
-      now: testNow,
-      randomId: () => "d8yy",
-      sessionPath: session,
-    });
-    const existing = YAML.parse(await readFile(session, "utf8"));
-    const [folderId, folder] = Object.entries(existing.folders)[0] as [
-      string,
-      { path: string; name: string; kind: string },
-    ];
-
-    await writeFile(
-      session,
-      YAML.stringify({
-        version: 1,
-        updated_at: testNow.toISOString(),
-        folders: {
-          [folderId]: {
-            path: folder.path,
-            name: folder.name,
-            kind: folder.kind,
-            current_change: {
-              id: created.id,
-              path: path.join("wiki", "changes", created.id),
-              branch: created.branch,
-              updated_at: testNow.toISOString(),
-            },
-          },
-        },
-      }),
-    );
-
-    const result = await currentArtifact({ cwd, sessionPath: session, now: testNow });
-
-    expect(result.targets[0]).toMatchObject({
-      source: "none",
-      current: false,
-      current_change: expect.objectContaining({ id: created.id }),
-    });
   });
 
   it("lists changes with the active marker", async () => {
@@ -465,7 +303,7 @@ describe("changes", () => {
     expect(result.message).toContain(`* ${created.id}`);
   });
 
-  it("shows current changes from session state", async () => {
+  it("shows current changes from branch state", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);
     const created = await createChange({
@@ -479,15 +317,15 @@ describe("changes", () => {
     const result = await currentChange({ cwd, sessionPath: session });
 
     expect(result.targets[0]).toMatchObject({
-      source: "session",
+      source: "branch",
+      resolution: "branch_active",
       current: expect.objectContaining({ id: created.id }),
     });
   });
 
-  it("self-heals current changes from matching branches", async () => {
+  it("reads current changes from matching branches without writing current_change", async () => {
     const cwd = await tempDir();
     const session = sessionPath(cwd);
-    await initGit(cwd);
     const created = await createChange({
       cwd,
       title: "Active change commands",
@@ -501,13 +339,101 @@ describe("changes", () => {
     const parsed = YAML.parse(await readFile(session, "utf8"));
 
     expect(result.targets[0]).toMatchObject({
-      source: "inferred_saved",
-      saved: true,
+      source: "branch",
+      resolution: "branch_active",
+      saved: false,
       current: expect.objectContaining({ id: created.id }),
     });
-    expect(Object.values(parsed.folders)[0]).toMatchObject({
-      current_change: expect.objectContaining({ id: created.id }),
+    expect(Object.values(parsed.folders)).toEqual([]);
+  });
+
+  it("ignores stale current_change when the branch points at another change", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const first = await createChange({ cwd, title: "First change", now: testNow, randomId: () => "a111", sessionPath: session });
+    await commitAll(cwd, "first change");
+    const second = await createChange({ cwd, title: "Second change", now: testNow, randomId: () => "b222", sessionPath: session });
+    await writeFile(
+      session,
+      YAML.stringify({
+        version: 1,
+        updated_at: testNow.toISOString(),
+        folders: {
+          stale: {
+            path: cwd,
+            name: "Stale",
+            kind: "app",
+            current_change: {
+              id: first.id,
+              path: path.join("wiki", "changes", first.id),
+              branch: first.branch,
+              updated_at: testNow.toISOString(),
+            },
+          },
+        },
+      }),
+    );
+
+    const result = await currentChange({ cwd, sessionPath: session, now: testNow });
+
+    expect(result.targets[0]).toMatchObject({
+      source: "branch",
+      resolution: "branch_active",
+      current: expect.objectContaining({ id: second.id }),
+      branchMatch: "match",
     });
+    expect(result.targets[0].mismatch).toBeUndefined();
+  });
+
+  it("ignores stale current_change on non-change branches", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    const created = await createChange({ cwd, title: "Session stale", now: testNow, randomId: () => "s111", sessionPath: session });
+    await commitAll(cwd, "session stale");
+    await git(cwd, ["checkout", "-b", "main"]);
+    await writeFile(
+      session,
+      YAML.stringify({
+        version: 1,
+        updated_at: testNow.toISOString(),
+        folders: {
+          stale: {
+            path: cwd,
+            name: "Stale",
+            kind: "app",
+            current_change: {
+              id: created.id,
+              path: path.join("wiki", "changes", created.id),
+              branch: created.branch,
+              updated_at: testNow.toISOString(),
+            },
+          },
+        },
+      }),
+    );
+
+    const result = await currentChange({ cwd, sessionPath: session, now: testNow });
+
+    expect(result.targets[0]).toMatchObject({
+      source: "none",
+      resolution: "no_active_change",
+    });
+    expect(result.targets[0].current).toBeUndefined();
+  });
+
+  it("reports invalid active branch when the change folder is missing", async () => {
+    const cwd = await tempDir();
+    const session = sessionPath(cwd);
+    await git(cwd, ["checkout", "-b", "change/260522-miss-missing-change"]);
+
+    const result = await currentChange({ cwd, sessionPath: session, now: testNow });
+
+    expect(result.targets[0]).toMatchObject({
+      source: "none",
+      resolution: "invalid_active_branch",
+      branch: "change/260522-miss-missing-change",
+    });
+    expect(result.targets[0].current).toBeUndefined();
   });
 
   it("switches to existing changes by token and blocks dirty worktrees", async () => {
@@ -539,60 +465,6 @@ describe("changes", () => {
     await expect(git(cwd, ["branch", "--show-current"])).resolves.toBe(first.branch);
   });
 
-  it("clears stale artifact context when switching to another change", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    await initGit(cwd);
-    const first = await createChange({
-      cwd,
-      title: "First change",
-      now: testNow,
-      randomId: () => "a111",
-      sessionPath: session,
-    });
-    await commitAll(cwd, "first change");
-    const second = await createChange({
-      cwd,
-      title: "Second change",
-      now: testNow,
-      randomId: () => "b222",
-      sessionPath: session,
-    });
-    await setCurrentArtifact({ cwd, artifact: "architecture", sessionPath: session, now: testNow });
-    await commitAll(cwd, "second change");
-
-    await switchChange({ cwd, change: first.id, sessionPath: session, now: testNow });
-    const parsed = YAML.parse(await readFile(session, "utf8"));
-    const folder = Object.values(parsed.folders)[0] as { current_artifact?: unknown };
-
-    expect(second.id).toBe("260522-b222-second-change");
-    expect(folder.current_artifact).toBeUndefined();
-  });
-
-  it("preserves valid artifact context when switching to the same change", async () => {
-    const cwd = await tempDir();
-    const session = sessionPath(cwd);
-    await initGit(cwd);
-    const created = await createChange({
-      cwd,
-      title: "Preserve artifact context",
-      now: testNow,
-      randomId: () => "p111",
-      sessionPath: session,
-    });
-    await setCurrentArtifact({ cwd, artifact: "prd", sessionPath: session, now: testNow });
-    await commitAll(cwd, "preserve artifact context");
-
-    await switchChange({ cwd, change: created.id, sessionPath: session, now: testNow });
-    const parsed = YAML.parse(await readFile(session, "utf8"));
-    const folder = Object.values(parsed.folders)[0] as { current_artifact?: unknown };
-
-    expect(folder.current_artifact).toMatchObject({
-      artifact: "prd",
-      change_id: created.id,
-      path: path.join("wiki", "changes", created.id, "prd.md"),
-    });
-  });
 
   it("reports status for explicit changes without activating them", async () => {
     const cwd = await tempDir();

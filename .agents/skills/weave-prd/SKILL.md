@@ -62,13 +62,7 @@ If no active or hinted change can be resolved, stop and say:
 No active Weave change found. Run `weave change new` or `weave change switch`, then run `weave-prd` again.
 ```
 
-After resolving the active change, set local artifact context:
-
-```bash
-weave artifact current set prd --json
-```
-
-This writes local Weave session state only. It does not write repo-tracked artifacts.
+After resolving the active change, treat `prd.md` as the explicit target lane. Do not set or read local artifact context.
 
 Identify the change folder under the resolved workspace or repo context:
 
@@ -277,7 +271,7 @@ wiki/changes/<change-id>/prd.md
 Use Markdown.
 
 Do not write any other files.
-Setting local artifact context with `weave artifact current set prd --json` is allowed because it updates local session state, not repo-tracked change artifacts.
+Do not set local artifact context; `prd.md` is the explicit target for this skill.
 
 ---
 

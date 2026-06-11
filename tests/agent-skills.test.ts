@@ -76,12 +76,12 @@ describe("agent skills", () => {
     expect(skill.content).toContain("# Plan Mode Guard");
     expect(skill.content).toContain("This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-explore again.");
     expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
-    expect(skill.content).toContain("In Plan Mode, this skill commits the active artifact lane to local Weave session state");
-    expect(skill.content).toContain("IS allowed in Plan Mode");
+    expect(skill.content).toContain("resolves the active branch-derived change");
+    expect(skill.content).toContain("does not write local artifact lane state");
     expect(skill.content).toContain("Do not write repo-tracked artifacts directly");
     expect(skill.content).not.toContain("# Plan Mode Protocol");
     expect(skill.content).toContain("weave workspace --json");
-    expect(skill.content).toContain("weave artifact current set exploration --json");
+    expect(skill.content).not.toContain("weave artifact current");
     expect(skill.content).toContain("# Workspace Repo Context Protocol");
     expect(skill.content).toContain("Registered entries in `repos[]` are implementation and documentation locations inside that workspace, not separate artifact targets.");
     expect(skill.content).toContain("Lightly inventory all registered repos. Deeply inspect only repos that appear relevant");
@@ -111,7 +111,8 @@ describe("agent skills", () => {
     expect(skill.content).toContain("explicitly marked `PRD Readiness` as `Not ready`");
     expect(skill.content).toContain("Do not write `exploration.md` from this skill.");
     expect(skill.content).toContain("weave change status");
-    expect(skill.content).toContain("weave artifact current set prd --json");
+    expect(skill.content).toContain("Do not set or read local artifact context.");
+    expect(skill.content).not.toContain("weave artifact current");
     expect(skill.content).toContain("weave change progress prd --source exploration --source sessions --json");
     expect(skill.content).toContain("artifact: prd");
     expect(skill.content).toContain("created_at: <YYYY-MM-DDTHH:mm:ss.sssZ>");
@@ -143,15 +144,12 @@ describe("agent skills", () => {
     expect(skill.content).toContain("# Plan Mode Guard");
     expect(skill.content).toContain("This skill must run in Plan Mode. Switch to Plan Mode, then invoke weave-architect again.");
     expect(skill.content).toContain("Static Weave skill content cannot automatically switch collaboration mode");
-    expect(skill.content).toContain("In Plan Mode, this skill commits the active artifact lane to local Weave session state");
-    expect(skill.content).toContain("IS allowed in Plan Mode");
+    expect(skill.content).toContain("resolves the active branch-derived change");
+    expect(skill.content).toContain("does not write local artifact lane state");
     expect(skill.content).toContain("Do not write repo-tracked artifacts directly");
     expect(skill.content).not.toContain("# Plan Mode Protocol");
     expect(skill.content).toContain("This skill is a read-only architecture thinking partner");
-    expect(skill.content).toContain("It never creates, edits, renames, deletes, or progresses repo-tracked artifacts.");
-    expect(skill.content).toContain(
-      "It may update local Weave session state only to record that the active artifact lane is `architecture` via `weave artifact current set architecture --json`; this local lane commit is not a repo-tracked artifact write.",
-    );
+    expect(skill.content).toContain("It never creates, edits, renames, deletes, progresses repo-tracked artifacts, or writes local artifact lane state.");
     expect(skill.content).toContain("It does not read architecture template resources");
     expect(skill.content).toContain("Treat `prd.md` as the preferred product contract when it exists and is useful");
     expect(skill.content).toContain("do not require it before architecture thinking");
@@ -162,25 +160,17 @@ describe("agent skills", () => {
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture.md");
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture/index.md");
     expect(skill.content).toContain("wiki/changes/<change-id>/architecture/*.md");
-    expect(skill.content).toContain("weave artifact current set architecture --json");
+    expect(skill.content).not.toContain("weave artifact current");
     expect(skill.content).toContain(
       [
         "```bash",
         "weave workspace --json",
         "weave change current --json",
         "weave change status --json",
-        "weave artifact current set architecture --json",
-        "weave artifact current --json",
         "```",
       ].join("\n"),
     );
-    expect(skill.content).toContain(
-      "Setting local artifact context with `weave artifact current set architecture --json` is allowed in Plan Mode because it writes local session state, not repo-tracked change artifacts. Run it as part of this initial discovery sequence, not as a conditional follow-up. Then verify the stored lane with `weave artifact current --json`.",
-    );
-    expect(skill.content).toContain("If the lane verification succeeds, keep successful lane entry silent.");
-    expect(skill.content).toContain(
-      "I could not update the stored artifact lane to `architecture`, so `weave-capture` may ask you to confirm the capture target later.",
-    );
+    expect(skill.content).toContain("recommend `weave-capture architecture` explicitly");
     expect(skill.content).toContain("Apply the Silent Weave Command Output policy to the commands above.");
     expect(skill.content).not.toContain("Surface any Tier 1 notices from the commands above.");
     expect(skill.content).not.toContain("After the active change is resolved, run:");
@@ -219,14 +209,14 @@ describe("agent skills", () => {
       "Before writing any session note or artifact, defensively verify that the resolved lane matches the substance of the conversation being captured.",
     );
     expect(skill.content).toContain(
-      "Stored artifact context is <lane>, but the conversation reads as <observed-lane>.",
+      "Selected lane is <lane>, but the conversation reads as <observed-lane>.",
     );
-    expect(skill.content).toContain("Capture this into: <lane> (keep stored context), <observed-lane> (switch), or another lane?");
-    expect(skill.content).toContain("Wait for the user's choice. Use the user's reply as the resolved lane for the rest of this invocation. Do not silently override the stored context.");
+    expect(skill.content).toContain("Capture this into: <lane>, <observed-lane>, or another lane?");
+    expect(skill.content).toContain("Wait for the user's choice. Use the user's reply as the resolved lane for the rest of this invocation. Do not silently override the explicit selection.");
 
     expect(skill.name).toBe("weave-capture");
     expect(skill.description).toContain("structured session note");
-    expect(skill.content).toContain("weave artifact current --json");
+    expect(skill.content).not.toContain("weave artifact current");
     expect(skill.content).toContain("weave-capture session");
     expect(skill.content).toContain("weave-capture session exploration");
     expect(skill.content).toContain("weave-capture session prd");
@@ -275,10 +265,10 @@ describe("agent skills", () => {
     expect(skill.content).not.toContain("# Plan Mode Guard");
     expect(skill.content).toContain("Do not require Plan Mode.");
     expect(skill.content).toContain("Do not write repo-tracked artifacts.");
-    expect(skill.content).toContain("Do not set or clear artifact context.");
+    expect(skill.content).toContain("Do not set, clear, or read artifact context.");
     expect(skill.content).toContain("Do not invoke or delegate to `weave-explore`, `weave-prd`, `weave-architect`, `weave-slices`, `weave-knowledge`, `weave-capture`, or `weave-clarify`.");
     expect(skill.content).toContain("weave change current --json");
-    expect(skill.content).toContain("weave artifact current --json");
+    expect(skill.content).not.toContain("weave artifact current");
     expect(skill.content).toContain("Inspect only the resolved workspace or repo context whose current change matches the active change.");
     expect(skill.content).toContain("read live artifacts first");
     expect(skill.content).toContain("wiki/changes/<change-id>/status.yml");

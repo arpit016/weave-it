@@ -23,16 +23,16 @@ source: architecture
 
 | ID | Status | Execution | Repos | Owner | Title | Blocked by |
 | --- | --- | --- | --- | --- | --- | --- |
-| T1 | todo | hitl | weave-it | | Add branch-only active change resolver | None |
-| T2 | todo | hitl | weave-it | | Wire active-change consumers and non-git creation refusal | T1 |
-| T3 | todo | hitl | weave-it | | Regression: session pointers no longer select active changes | T2 |
-| T4 | todo | hitl | weave-it | | Verify branch-derived lifecycle commands | T3 |
+| T1 | done | hitl | weave-it | | Add branch-only active change resolver | None |
+| T2 | done | hitl | weave-it | | Wire active-change consumers and non-git creation refusal | T1 |
+| T3 | done | hitl | weave-it | | Regression: session pointers no longer select active changes | T2 |
+| T4 | done | hitl | weave-it | | Verify branch-derived lifecycle commands | T3 |
 
 ## weave-it
 
 ### T1: Add branch-only active change resolver
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -47,10 +47,10 @@ Replace `currentContextForTarget(session, target, now, { saveInferred })` with a
 
 ### Acceptance Criteria
 
-- [ ] `currentChange` returns `source: "branch"` or equivalent for valid `change/<id>` branches.
-- [ ] Current/status target results expose `branch_active`, `no_active_change`, `invalid_active_branch`, or `non_git_no_active_change`.
-- [ ] Branch inference no longer writes `current_change` to the local session file.
-- [ ] Saved `current_change` mismatch handling is removed because session is no longer authoritative.
+- [x] `currentChange` returns `source: "branch"` or equivalent for valid `change/<id>` branches.
+- [x] Current/status target results expose `branch_active`, `no_active_change`, `invalid_active_branch`, or `non_git_no_active_change`.
+- [x] Branch inference no longer writes `current_change` to the local session file.
+- [x] Saved `current_change` mismatch handling is removed because session is no longer authoritative.
 
 ### Verification
 
@@ -58,9 +58,14 @@ Replace `currentContextForTarget(session, target, now, { saveInferred })` with a
 - Automated tests: `npm run test -- tests/changes.test.ts`
 - Manual/smoke check: run `weave change current --json` on the active change branch and confirm the result identifies the branch-derived change.
 
+Evidence:
+- `npm run typecheck` passed.
+- `npm run test -- tests/changes.test.ts tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts` passed.
+- `npm run dev -- change current --json` returned `source: "branch"` and `resolution: "branch_active"`.
+
 ### T2: Wire active-change consumers and non-git creation refusal
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -77,10 +82,10 @@ Update `listChanges`, `statusChange`, `activeChangeContext`, `progressChange`, `
 
 ### Acceptance Criteria
 
-- [ ] `weave change new` refuses non-git roots before creating `wiki/changes/<id>`.
-- [ ] `weave change switch <change>` no longer writes `current_change`; it activates by branch checkout/create.
-- [ ] `weave change progress`, `weave change knowledge`, `weave task prepare`, and `weave slice rollup` refuse to run when no branch-derived active change exists.
-- [ ] `weave doctor` does not report stale session pointers as active change.
+- [x] `weave change new` refuses non-git roots before creating `wiki/changes/<id>`.
+- [x] `weave change switch <change>` no longer writes `current_change`; it activates by branch checkout/create.
+- [x] `weave change progress`, `weave change knowledge`, `weave task prepare`, and `weave slice rollup` refuse to run when no branch-derived active change exists.
+- [x] `weave doctor` does not report stale session pointers as active change.
 
 ### Verification
 
@@ -88,9 +93,14 @@ Update `listChanges`, `statusChange`, `activeChangeContext`, `progressChange`, `
 - Automated tests: `npm run typecheck`
 - Manual/smoke check: create a temp non-git Weave repo fixture and confirm `weave change new` fails without creating a change folder.
 
+Evidence:
+- `npm run typecheck` passed.
+- `npm run test -- tests/changes.test.ts tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts` passed, including non-git refusal and branch-derived consumer regressions.
+- `npm run dev -- change status --json` returned `source: "branch"` and `resolution: "branch_active"`.
+
 ### T3: Regression: session pointers no longer select active changes
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -106,20 +116,23 @@ Replace tests that assert session-backed current state with branch-derived cover
 
 ### Acceptance Criteria
 
-- [ ] Tests no longer expect `source: "session"` or `source: "inferred_saved"` as active routing success.
-- [ ] Tests prove stale `current_change` is ignored on non-change branches.
-- [ ] Tests prove branch-derived change wins when local session points elsewhere.
-- [ ] Tests prove `change/<missing-id>` returns invalid active branch state.
-- [ ] Progress and staleness fixtures initialize git before creating changes.
+- [x] Tests no longer expect `source: "session"` or `source: "inferred_saved"` as active routing success.
+- [x] Tests prove stale `current_change` is ignored on non-change branches.
+- [x] Tests prove branch-derived change wins when local session points elsewhere.
+- [x] Tests prove `change/<missing-id>` returns invalid active branch state.
+- [x] Progress and staleness fixtures initialize git before creating changes.
 
 ### Verification
 
 - Automated tests: `npm run test -- tests/changes.test.ts`
 - Automated tests: `npm run test -- tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts`
 
+Evidence:
+- `npm run test -- tests/changes.test.ts tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts` passed.
+
 ### T4: Verify branch-derived lifecycle commands
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -134,15 +147,20 @@ Run the slice-level verification and fix any regressions in branch-derived curre
 
 ### Acceptance Criteria
 
-- [ ] TypeScript passes.
-- [ ] Targeted change/progress/staleness tests pass.
-- [ ] No tests require active change recovery from local session state.
-- [ ] Staleness metadata remains written only through `status.yml` lifecycle commands.
+- [x] TypeScript passes.
+- [x] Targeted change/progress/staleness tests pass.
+- [x] No tests require active change recovery from local session state.
+- [x] Staleness metadata remains written only through `status.yml` lifecycle commands.
 
 ### Verification
 
 - Automated tests: `npm run typecheck`
 - Automated tests: `npm run test -- tests/changes.test.ts tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts`
+
+Evidence:
+- `npm run typecheck` passed.
+- `npm run test -- tests/changes.test.ts tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts` passed.
+- `npm run dev -- change current --json` and `npm run dev -- change status --json` both reported branch-derived active state.
 
 ## QA Findings
 
@@ -160,4 +178,8 @@ None.
 
 ## Verification
 
-Not run yet.
+Passed:
+- `npm run typecheck`
+- `npm run test -- tests/changes.test.ts tests/cli-change-progress.test.ts tests/cli-change-staleness.test.ts`
+- `npm run dev -- change current --json`
+- `npm run dev -- change status --json`

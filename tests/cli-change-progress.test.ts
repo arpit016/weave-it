@@ -1,6 +1,8 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import YAML from "yaml";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { changeCommand } from "../src/commands/change.js";
@@ -10,6 +12,7 @@ const testNow = new Date(2026, 4, 22, 10, 0, 0);
 
 const originalCwd = process.cwd();
 const originalSessionEnv = process.env.WEAVE_SESSION_PATH;
+const execFileAsync = promisify(execFile);
 
 afterEach(() => {
   process.chdir(originalCwd);
@@ -24,6 +27,7 @@ afterEach(() => {
 async function setup(): Promise<{ cwd: string; session: string; changePath: string }> {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-cli-progress-"));
   await writeWorkspaceMetadata(cwd);
+  await initGit(cwd);
   const session = path.join(cwd, ".session.yml");
   const created = await createChange({
     cwd,
@@ -38,6 +42,10 @@ async function setup(): Promise<{ cwd: string; session: string; changePath: stri
   process.env.WEAVE_SESSION_PATH = session;
   process.chdir(cwd);
   return { cwd, session, changePath };
+}
+
+async function initGit(cwd: string): Promise<void> {
+  await execFileAsync("git", ["init"], { cwd });
 }
 
 async function writeWorkspaceMetadata(cwd: string): Promise<void> {

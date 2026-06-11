@@ -124,55 +124,6 @@ export function ensureFolderInSession(session: CurrentSession, folderPath: strin
   return id;
 }
 
-export function setCurrentChangeForPath(
-  session: CurrentSession,
-  folderPath: string,
-  change: Omit<SessionCurrentChange, "updated_at">,
-  now: Date,
-): string {
-  const id = ensureFolderInSession(session, folderPath, now);
-  session.folders[id].current_change = {
-    ...change,
-    updated_at: now.toISOString(),
-  };
-  session.updated_at = now.toISOString();
-  return id;
-}
-
-export function setCurrentArtifactForPath(
-  session: CurrentSession,
-  folderPath: string,
-  artifact: Omit<SessionCurrentArtifact, "updated_at">,
-  now: Date,
-): string {
-  const id = ensureFolderInSession(session, folderPath, now);
-  session.folders[id].current_artifact = {
-    ...artifact,
-    updated_at: now.toISOString(),
-  };
-  session.updated_at = now.toISOString();
-  return id;
-}
-
-export function clearCurrentArtifactForPath(
-  session: CurrentSession,
-  folderPath: string,
-  now: Date,
-): string {
-  const id = ensureFolderInSession(session, folderPath, now);
-  delete session.folders[id].current_artifact;
-  session.updated_at = now.toISOString();
-  return id;
-}
-
-export function currentArtifactForPath(
-  session: CurrentSession | undefined,
-  folderPath: string,
-): SessionCurrentArtifact | undefined {
-  const id = session ? findFolderByPath(session, folderPath) : undefined;
-  return id ? session?.folders[id]?.current_artifact : undefined;
-}
-
 function uniqueFolderId(session: CurrentSession, id: string): string {
   if (!session.folders[id]) {
     return id;

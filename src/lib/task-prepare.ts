@@ -131,7 +131,7 @@ async function preflightTargets(targets: RepoTarget[], branch: string, blockers:
   const plans: RepoPlan[] = [];
   for (const target of targets) {
     const gitRoot = await findGitRoot(target.absolutePath);
-    if (!gitRoot) {
+    if (!gitRoot || (target.mode === "workspace" && path.resolve(gitRoot) !== path.resolve(target.absolutePath))) {
       plans.push({ ...target, state: "skipped", branchStatus: "skipped_not_git" });
       continue;
     }

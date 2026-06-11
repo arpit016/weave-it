@@ -2,7 +2,6 @@ import path from "node:path";
 import { currentBranch } from "./git.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
 import { pathExists } from "./files.js";
-import { defaultSessionPath, findFolderByPath, loadCurrentSession } from "./session-state.js";
 import { collectSkillRows, type StatusSkillRow } from "./status.js";
 import { findWorkspaceMode, type FindWorkspaceModeResult } from "./workspace-mode.js";
 
@@ -159,7 +158,7 @@ export async function buildDoctor(options: BuildDoctorOptions): Promise<DoctorRe
     });
   }
 
-  activeChange = await readActiveChange(workspace.workspacePath, options.sessionPath ?? defaultSessionPath());
+  activeChange = await readActiveChange(workspace.workspacePath);
   if (activeChange) {
     checks.push({
       id: "active_change",
@@ -202,18 +201,17 @@ async function missingSafeDirs(root: string): Promise<string[]> {
   return missing;
 }
 
-async function readActiveChange(root: string, sessionPath: string): Promise<DoctorResult["activeChange"]> {
+async function readActiveChange(root: string): Promise<DoctorResult["activeChange"]> {
   try {
-    const session = await loadCurrentSession(sessionPath);
-    if (!session) return null;
-    const folderId = findFolderByPath(session, root);
-    const current = folderId ? session.folders[folderId]?.current_change : undefined;
-    if (!current) return null;
     const branch = (await currentBranch(root)) ?? null;
+    if (!branch?.startsWith("change/")) return null;
+    const id = branch.slice("change/".length);
+    const changePath = path.join(root, "wiki", "changes", id, "status.yml");
+    if (!(await pathExists(changePath))) return null;
     return {
-      id: current.id,
-      branch: current.branch,
-      branchMatch: branch ? branch === current.branch : null,
+      id,
+      branch,
+      branchMatch: true,
       currentBranch: branch,
     };
   } catch {

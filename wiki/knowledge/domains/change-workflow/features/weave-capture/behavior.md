@@ -29,16 +29,16 @@ Before any write (session note or live artifact), `weave-capture` compares the r
 - `prd`: user-facing requirements, acceptance criteria, scope, open questions.
 - `architecture`: engineering design, module boundaries, tradeoffs, technical risks.
 
-When the resolved lane (from explicit user input, `weave artifact current --json`, or `weave-capture session <lane>`) and the dominant subject clearly disagree, capture stops and asks the user:
+When the resolved lane (from explicit user input or `weave-capture session <lane>`) and the dominant subject clearly disagree, capture stops and asks the user:
 
 ```text
-Stored artifact context is <lane>, but the conversation reads as <observed-lane>.
-Capture this into: <lane> (keep stored context), <observed-lane> (switch), or another lane?
+Selected lane is <lane>, but the conversation reads as <observed-lane>.
+Capture this into: <lane>, <observed-lane>, or another lane?
 ```
 
-The user's reply becomes the resolved lane for the rest of the invocation. The skill never silently overrides the stored context. When the lane and the conversation are aligned, or when the conversation is too short or mixed to judge, the skill proceeds with the resolved lane without asking.
+The user's reply becomes the resolved lane for the rest of the invocation. The skill never silently overrides the explicit selection. When the lane and the conversation are aligned, or when the conversation is too short or mixed to judge, the skill proceeds with the resolved lane without asking.
 
-This step is a defensive recovery for a missed lane-commit upstream: if a plan-mode-required skill (`weave-explore`, `weave-architect` — see [Plan Mode Guard](../../domain-wide/plan-mode-guard.md)) was invoked outside Plan Mode and skipped its `weave artifact current set <lane>` call, or if any other design-discussion skill failed to commit the lane, the stored context drifts. The next `weave-capture` catches the drift here.
+Bare `weave-capture` asks for an explicit target when none is provided. Session-only capture without an explicit lane asks for the session lane before writing.
 
 ## Behavioral Rules
 

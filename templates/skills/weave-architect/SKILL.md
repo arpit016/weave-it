@@ -6,9 +6,9 @@ last_changed_in: 0.1.7
 
 # Weave Architect
 
-This skill is a read-only architecture thinking partner. It gathers context, interviews the user, stress-tests tradeoffs, and produces a clear technical dissection that `weave-capture` can persist later.
+This skill is a read-only architecture thinking partner. It gathers context, interviews the user, stress-tests tradeoffs, and produces a clear technical dissection that `weave-capture architecture` can persist later.
 
-It never creates, edits, renames, deletes, or progresses repo-tracked artifacts. It may update local Weave session state only to record that the active artifact lane is `architecture` via `weave artifact current set architecture --json`; this local lane commit is not a repo-tracked artifact write.
+It never creates, edits, renames, deletes, progresses repo-tracked artifacts, or writes local artifact lane state.
 
 It does not read architecture template resources; templates are writer inputs for `weave-capture` and restructuring inputs for `weave-clarify`.
 
@@ -24,13 +24,7 @@ Do not inspect deeply, ask discovery questions, update artifacts, or continue wo
 
 Static Weave skill content cannot automatically switch collaboration mode. The host, user, or developer layer must switch modes before this skill continues.
 
-In Plan Mode, this skill commits the active artifact lane to local Weave session state via:
-
-```bash
-weave artifact current set architecture --json
-```
-
-This writes local Weave session state only. It does not write repo-tracked artifacts and IS allowed in Plan Mode. Call it after resolving the active Weave change and before any other discovery work.
+In Plan Mode, this skill resolves the active branch-derived change and treats `architecture` as the explicit target lane. It does not write local artifact lane state.
 
 Do not write repo-tracked artifacts directly. Produce the plan, decisions, questions, or proposed artifact changes needed for the user to approve. Actual artifact writes happen only after the user exits Plan Mode and asks to implement the plan.
 
@@ -49,23 +43,15 @@ Do not write repo-tracked artifacts directly. Produce the plan, decisions, quest
 
 # Resolve Context
 
-Start by discovering the current Weave session and committing the architecture lane to local Weave session state:
+Start by discovering the current Weave session and branch-derived active change:
 
 ```bash
 weave workspace --json
 weave change current --json
 weave change status --json
-weave artifact current set architecture --json
-weave artifact current --json
 ```
 
-Setting local artifact context with `weave artifact current set architecture --json` is allowed in Plan Mode because it writes local session state, not repo-tracked change artifacts. Run it as part of this initial discovery sequence, not as a conditional follow-up. Then verify the stored lane with `weave artifact current --json`.
-
-If the lane verification succeeds, keep successful lane entry silent. If the lane verification fails or the stored lane is still not `architecture`, continue the architecture discussion and show only this warning:
-
-```text
-I could not update the stored artifact lane to `architecture`, so `weave-capture` may ask you to confirm the capture target later.
-```
+Do not run artifact-context commands. When the discussion should be persisted, recommend `weave-capture architecture` explicitly.
 
 If `weave change current --json` reports no active change, stop and say:
 

@@ -22,13 +22,7 @@ Do not inspect deeply, ask discovery questions, update artifacts, or continue wo
 
 Static Weave skill content cannot automatically switch collaboration mode. The host, user, or developer layer must switch modes before this skill continues.
 
-In Plan Mode, this skill commits the active artifact lane to local Weave session state via:
-
-```bash
-weave artifact current set exploration --json
-```
-
-This writes local Weave session state only. It does not write repo-tracked artifacts and IS allowed in Plan Mode. Call it after resolving the active Weave change and before any other discovery work.
+In Plan Mode, this skill resolves the active branch-derived change and treats `exploration` as the explicit target lane. It does not write local artifact lane state.
 
 Do not write repo-tracked artifacts directly. Produce the plan, decisions, questions, or proposed artifact changes needed for the user to approve. Actual artifact writes happen only after the user exits Plan Mode and asks to implement the plan.
 
@@ -39,7 +33,6 @@ Start by discovering the current Weave session:
 ```bash
 weave workspace --json
 weave change current --json
-weave artifact current set exploration --json
 ```
 
 Use the cwd-dispatched workspace or repo context returned by `weave workspace --json` as the exploration boundary. In workspace mode, the workspace root owns the change store and registered sub-repos in `repos[]` are implementation locations inside that single context. In repo mode, the active session's folders are the boundary. If there is no active Weave change, stop and ask the user to run `weave change new` or `weave change switch` before continuing.

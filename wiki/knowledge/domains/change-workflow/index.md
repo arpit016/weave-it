@@ -16,14 +16,14 @@ Sliced changes store work under `task-slices/<NN>-<slug>/`; legacy flat changes 
 - [weave-issues](features/weave-issues/behavior.md): **superseded** by `weave-slices` for flat `tasks.md` generation; retained for legacy flat-mode reference only.
 - [weave-prepare](features/weave-prepare/behavior.md): **deprecated**; branch prep absorbed into `weave-execute`. `weave task prepare` CLI remains.
 - [weave-execute](features/weave-execute/behavior.md): agent-first local execution in slice mode or flat legacy mode, including branch prep, dependency handling, rollup episode boundaries, and task evidence updates.
-- [weave-capture](features/weave-capture/behavior.md): two-mode capture (artifact vs session-only) of the current discussion, including the Defensive Lane Verification step that catches stored artifact context drift.
+- [weave-capture](features/weave-capture/behavior.md): two-mode capture (artifact vs session-only) of the current discussion, including the Defensive Lane Verification step for explicit target/substance mismatches.
 
 ## Domain-Wide Behavior
 
 - [change-creation-and-stages](domain-wide/change-creation-and-stages.md): `weave change new` scaffolding (feature vs non-feature), the `stage` vocabulary, and the non-lane `started` stage used by non-feature changes.
 - [architecture-artifacts](domain-wide/architecture-artifacts.md): legacy `architecture.md` and folder-mode `architecture/index.md` plus facet files, including shape resolution, conflict handling, and lane-atomic lifecycle behavior.
 - [lifecycle-progress-and-staleness](domain-wide/lifecycle-progress-and-staleness.md): `weave change progress` semantics, the default pessimistic stale propagation, CLI levers (`--no-invalidate`, `--invalidate`), explicit `weave change clear-stale`, the `stale_history` audit trail, and the agent-side verification protocol embedded in four progress-calling skills.
-- [plan-mode-guard](domain-wide/plan-mode-guard.md): the byte-identical Plan Mode Guard embedded in the two plan-mode-required design-discussion skills (`weave-explore`, `weave-architect`). Refuses non-Plan-Mode entry and explicitly authorizes `weave artifact current set <lane>` as a Plan-Mode-safe lane-commit (it writes local session state only). Other design-discussion skills (`weave-prd`, `weave-clarify`) run in Agent Mode and do not carry the guard.
+- [plan-mode-guard](domain-wide/plan-mode-guard.md): the byte-identical Plan Mode Guard embedded in the two plan-mode-required design-discussion skills (`weave-explore`, `weave-architect`). Refuses non-Plan-Mode entry and uses explicit lane targets without local artifact lane state. Other design-discussion skills (`weave-prd`, `weave-clarify`) run in Agent Mode and do not carry the guard.
 - [workspace-aware-skill-context](domain-wide/workspace-aware-skill-context.md): agent skills resolve one cwd-dispatched workspace or repo context; workspace mode uses the workspace root as the single change store and treats registered sub-repos as implementation locations, not separate artifact targets.
 
 ## Glossary Cross-References

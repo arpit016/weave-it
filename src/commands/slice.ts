@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { ChangeCommandError, currentChange } from "../lib/changes.js";
+import { activeChangeContext, ChangeCommandError } from "../lib/changes.js";
 import { rollupChange } from "../lib/sliceRollup.js";
 
 interface SliceRollupOptions {
@@ -21,14 +21,8 @@ export function sliceCommand(): Command {
     .option("--json", "print machine-readable JSON")
     .action(async (options: SliceRollupOptions) => {
       await runAction(options.json ?? false, async () => {
-        const current = await currentChange({ cwd: process.cwd() });
-        const changePath = current.targets[0]?.current?.changePath;
-        if (!changePath) {
-          throw new ChangeCommandError(
-            "no_current_change",
-            "No active Weave change found. Run `weave change new` or `weave change switch` first.",
-          );
-        }
+        const current = await activeChangeContext({ cwd: process.cwd() });
+        const changePath = current.change.changePath;
 
         const result = await rollupChange({
           changePath,

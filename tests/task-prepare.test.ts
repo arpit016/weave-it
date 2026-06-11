@@ -47,6 +47,7 @@ async function initGit(cwd: string): Promise<void> {
 
 async function createRepoModeChange(cwd: string): Promise<{ id: string; branch: string; changePath: string; sessionPath: string }> {
   await writeWorkspaceMetadata(cwd, "repo");
+  await initGit(cwd);
   const sessionPath = path.join(cwd, ".session.yml");
   const created = await createChange({ cwd, title: "Task prepare", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "prep", sessionPath });
   const changePath = path.join(cwd, "wiki", "changes", created.id);
@@ -62,6 +63,7 @@ async function createWorkspaceChange(workspace: string): Promise<{ id: string; b
   await mkdir(path.join(workspace, "api"), { recursive: true });
   await mkdir(path.join(workspace, "web"), { recursive: true });
   await mkdir(path.join(workspace, "docs"), { recursive: true });
+  await initGit(workspace);
   const sessionPath = path.join(workspace, ".session.yml");
   const created = await createChange({ cwd: workspace, title: "Workspace prepare", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "work", sessionPath });
   const changePath = path.join(workspace, "wiki", "changes", created.id);
@@ -82,7 +84,7 @@ describe("task prepare", () => {
     const status = await readStatus(change.changePath);
 
     expect(first.status).toBe("ok");
-    expect(second.repos[0]).toMatchObject({ id: "root", branch_status: "skipped_not_git", state: "skipped" });
+    expect(second.repos[0]).toMatchObject({ id: "root", branch_status: "already_active", state: "prepared" });
     expect(status.execution).toMatchObject({
       version: 1,
       branch: change.branch,
@@ -90,7 +92,7 @@ describe("task prepare", () => {
         root: {
           path: ".",
           mode: "repo",
-          branch_status: "skipped_not_git",
+          branch_status: "already_active",
           prepared_at: "2026-06-07T10:01:00.000Z",
           verified_at: "2026-06-07T10:02:00.000Z",
         },
@@ -100,17 +102,12 @@ describe("task prepare", () => {
 
   it("blocks repo-mode prepare when the artifact root branch differs", async () => {
     const cwd = await rawTempDir();
-    await writeWorkspaceMetadata(cwd, "repo");
-    await initGit(cwd);
     const change = await createRepoModeChange(cwd);
     await git(cwd, ["add", "."]);
     await git(cwd, ["commit", "-m", "change"]);
     await git(cwd, ["checkout", "-b", "other"]);
 
-    const result = await prepareTasks({ cwd, sessionPath: change.sessionPath });
-
-    expect(result.status).toBe("blocked");
-    expect(result.blockers[0].reason).toContain(`expected ${change.branch}`);
+    await expect(prepareTasks({ cwd, sessionPath: change.sessionPath })).rejects.toMatchObject({ code: "no_current_change" });
   });
 
   it("prepares all registered workspace repos and skips non-git folders without tasks.md", async () => {
@@ -169,6 +166,7 @@ describe("task prepare", () => {
     await writeWorkspaceMetadata(workspace, "workspace", {
       missing: { path: "missing" },
     });
+    await initGit(workspace);
     const sessionPath = path.join(workspace, ".session.yml");
     const created = await createChange({ cwd: workspace, title: "Bad repo metadata", now: new Date("2026-06-07T10:00:00.000Z"), randomId: () => "badm", sessionPath });
 
@@ -193,10 +191,7 @@ describe("task prepare", () => {
     await initGit(api);
     const apiBaseBranch = await git(api, ["branch", "--show-current"]);
 
-    const result = await prepareTasks({ cwd: workspace, sessionPath });
-
-    expect(result.status).toBe("blocked");
-    expect(result.blockers[0].reason).toContain(`expected ${created.branch}`);
+    await expect(prepareTasks({ cwd: workspace, sessionPath })).rejects.toMatchObject({ code: "no_current_change" });
     await expect(git(api, ["branch", "--show-current"])).resolves.toBe(apiBaseBranch);
   });
 
@@ -221,21 +216,27 @@ describe("task prepare", () => {
     await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:06:00.000Z"), sessionPath: change.sessionPath });
     const statusPath = path.join(change.changePath, "status.yml");
     const status = YAML.parse(await readFile(statusPath, "utf8"));
-    status.branch = "change/new-readiness-branch";
+    status.execution = {
+      version: 1,
+      branch: "change/stale-readiness-branch",
+      repos: {
+        api: { path: "api", mode: "workspace", branch: "change/stale-readiness-branch", prepared_at: "2026-06-07T10:05:00.000Z" },
+      },
+    };
     await writeFile(statusPath, YAML.stringify(status));
 
     await prepareTasks({ cwd: workspace, now: new Date("2026-06-07T10:07:00.000Z"), sessionPath: change.sessionPath });
     const nextStatus = await readStatus(change.changePath);
 
     expect(nextStatus.execution).toMatchObject({
-      branch: "change/new-readiness-branch",
+      branch: change.branch,
       repos: {
-        api: { branch: "change/new-readiness-branch", prepared_at: "2026-06-07T10:07:00.000Z" },
-        web: { branch: "change/new-readiness-branch", prepared_at: "2026-06-07T10:07:00.000Z" },
-        docs: { branch: "change/new-readiness-branch", prepared_at: "2026-06-07T10:07:00.000Z" },
+        api: { branch: change.branch, prepared_at: "2026-06-07T10:07:00.000Z" },
+        web: { branch: change.branch, prepared_at: "2026-06-07T10:07:00.000Z" },
+        docs: { branch: change.branch, prepared_at: "2026-06-07T10:07:00.000Z" },
       },
     });
-    await expect(git(api, ["branch", "--show-current"])).resolves.toBe("change/new-readiness-branch");
+    await expect(git(api, ["branch", "--show-current"])).resolves.toBe(change.branch);
   });
 
   it("blocks all workspace branch movement when one selected repo is dirty on another branch", async () => {

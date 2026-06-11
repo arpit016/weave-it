@@ -1,16 +1,24 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
 import { clearChangeStaleness, createChange, progressChange } from "../src/lib/changes.js";
 
 const testNow = new Date(2026, 4, 22, 10, 0, 0);
+const execFileAsync = promisify(execFile);
 
 async function tempDir(): Promise<string> {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "weave-stale-"));
   await writeWorkspaceMetadata(cwd);
+  await initGit(cwd);
   return cwd;
+}
+
+async function initGit(cwd: string): Promise<void> {
+  await execFileAsync("git", ["init"], { cwd });
 }
 
 async function writeWorkspaceMetadata(cwd: string): Promise<void> {

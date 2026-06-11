@@ -1,10 +1,10 @@
 ---
 artifact: tasks
 slice: 03-update-skill-and-knowledge-contracts
-status: draft
+status: done
 owner: engineering
 created_at: 2026-06-10T19:18:40.000Z
-updated_at: 2026-06-10T19:18:40.000Z
+updated_at: 2026-06-11T16:52:00.000Z
 source: architecture
 ---
 
@@ -23,15 +23,15 @@ source: architecture
 
 | ID | Status | Execution | Repos | Owner | Title | Blocked by |
 | --- | --- | --- | --- | --- | --- | --- |
-| T1 | todo | hitl | weave-it | | Update bundled skill templates for explicit capture targets | None |
-| T2 | todo | hitl | weave-it | | Update knowledge docs for branch-derived routing | T1 |
-| T3 | todo | hitl | weave-it | | Verify skill and knowledge contract consistency | T2 |
+| T1 | done | hitl | weave-it | | Update bundled skill templates for explicit capture targets | None |
+| T2 | done | hitl | weave-it | | Update knowledge docs for branch-derived routing | T1 |
+| T3 | done | hitl | weave-it | | Verify skill and knowledge contract consistency | T2 |
 
 ## weave-it
 
 ### T1: Update bundled skill templates for explicit capture targets
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -51,11 +51,11 @@ Remove all bundled skill instructions that call or read `weave artifact current`
 
 ### Acceptance Criteria
 
-- [ ] No bundled skill template contains `weave artifact current set`.
-- [ ] No bundled skill template uses `weave artifact current --json` for lane routing.
-- [ ] `weave-capture` explicitly asks for a target when none is provided.
-- [ ] `weave-architect` remains read-only and recommends `weave-capture architecture` for persistence.
-- [ ] `tests/agent-skills.test.ts` asserts the new template contract.
+- [x] No bundled skill template contains `weave artifact current set`.
+- [x] No bundled skill template uses `weave artifact current --json` for lane routing.
+- [x] `weave-capture` explicitly asks for a target when none is provided.
+- [x] `weave-architect` remains read-only and recommends `weave-capture architecture` for persistence.
+- [x] `tests/agent-skills.test.ts` asserts the new template contract.
 
 ### Verification
 
@@ -65,7 +65,7 @@ Remove all bundled skill instructions that call or read `weave artifact current`
 
 ### T2: Update knowledge docs for branch-derived routing
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -83,11 +83,11 @@ Update current-state docs so they describe git-required change creation, workspa
 
 ### Acceptance Criteria
 
-- [ ] Change creation docs say `weave change new` requires git and no longer records local active change or artifact lane state.
-- [ ] Capture docs remove stored artifact-context lookup as a routing step.
-- [ ] Architect docs remove lane-commit commands.
-- [ ] Workspace-aware docs state workspace root branch is active-change authority in workspace mode.
-- [ ] CLI command reference no longer documents `weave artifact current` as supported behavior.
+- [x] Change creation docs say `weave change new` requires git and no longer records local active change or artifact lane state.
+- [x] Capture docs remove stored artifact-context lookup as a routing step.
+- [x] Architect docs remove lane-commit commands.
+- [x] Workspace-aware docs state workspace root branch is active-change authority in workspace mode.
+- [x] CLI command reference no longer documents `weave artifact current` as supported behavior.
 
 ### Verification
 
@@ -96,7 +96,7 @@ Update current-state docs so they describe git-required change creation, workspa
 
 ### T3: Verify skill and knowledge contract consistency
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -111,9 +111,9 @@ Run template and documentation checks after skill and knowledge updates. Fix any
 
 ### Acceptance Criteria
 
-- [ ] Skill tests pass.
-- [ ] Full typecheck passes after template-check updates.
-- [ ] No current-state knowledge doc presents stored local routing state as authoritative.
+- [x] Skill tests pass.
+- [x] Full typecheck passes after template-check updates.
+- [x] No current-state knowledge doc presents stored local routing state as authoritative.
 
 ### Verification
 
@@ -137,4 +137,9 @@ None.
 
 ## Verification
 
-Not run yet.
+- `npm run typecheck` passed.
+- `npm run test -- tests/agent-skills.test.ts` passed.
+- `npm run test -- tests/changes.test.ts tests/cli-skills.test.ts tests/agent-skills.test.ts` passed.
+- `npm run test` passed: 18 files, 200 tests.
+- `npm run dev -- agent update all --json` synced installed skill copies.
+- Template search confirmed no `weave artifact current` references remain under `templates/skills`.

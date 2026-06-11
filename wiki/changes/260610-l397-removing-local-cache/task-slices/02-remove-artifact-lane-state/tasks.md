@@ -1,10 +1,10 @@
 ---
 artifact: tasks
 slice: 02-remove-artifact-lane-state
-status: draft
+status: done
 owner: engineering
 created_at: 2026-06-10T19:18:40.000Z
-updated_at: 2026-06-10T19:18:40.000Z
+updated_at: 2026-06-11T16:52:00.000Z
 source: architecture
 ---
 
@@ -23,15 +23,15 @@ source: architecture
 
 | ID | Status | Execution | Repos | Owner | Title | Blocked by |
 | --- | --- | --- | --- | --- | --- | --- |
-| T1 | todo | hitl | weave-it | | Remove artifact command registration and implementation | None |
-| T2 | todo | hitl | weave-it | | Remove artifact session writes from change flows | T1 |
-| T3 | todo | hitl | weave-it | | Regression: artifact current command is gone | T2 |
+| T1 | done | hitl | weave-it | | Remove artifact command registration and implementation | None |
+| T2 | done | hitl | weave-it | | Remove artifact session writes from change flows | T1 |
+| T3 | done | hitl | weave-it | | Regression: artifact current command is gone | T2 |
 
 ## weave-it
 
 ### T1: Remove artifact command registration and implementation
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -47,10 +47,10 @@ Remove the `artifactCommand` import and registration from the CLI, then delete t
 
 ### Acceptance Criteria
 
-- [ ] `createProgram()` no longer registers an `artifact` command.
-- [ ] `src/commands/artifact.ts` is removed.
-- [ ] `src/lib/artifact-context.ts` is removed or has no remaining reachable command surface before final deletion.
-- [ ] TypeScript has no unresolved artifact-context imports.
+- [x] `createProgram()` no longer registers an `artifact` command.
+- [x] `src/commands/artifact.ts` is removed.
+- [x] `src/lib/artifact-context.ts` is removed or has no remaining reachable command surface before final deletion.
+- [x] TypeScript has no unresolved artifact-context imports.
 
 ### Verification
 
@@ -60,7 +60,7 @@ Remove the `artifactCommand` import and registration from the CLI, then delete t
 
 ### T2: Remove artifact session writes from change flows
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -76,10 +76,10 @@ Stop `createChange` from setting `current_artifact`, stop `switchChange` from cl
 
 ### Acceptance Criteria
 
-- [ ] Feature `createChange` no longer writes `current_artifact`.
-- [ ] `switchChange` no longer reads, clears, or preserves `current_artifact`.
-- [ ] No active routing code reads `currentArtifactForPath`.
-- [ ] Tests no longer assert artifact context persistence.
+- [x] Feature `createChange` no longer writes `current_artifact`.
+- [x] `switchChange` no longer reads, clears, or preserves `current_artifact`.
+- [x] No active routing code reads `currentArtifactForPath`.
+- [x] Tests no longer assert artifact context persistence.
 
 ### Verification
 
@@ -88,7 +88,7 @@ Stop `createChange` from setting `current_artifact`, stop `switchChange` from cl
 
 ### T3: Regression: artifact current command is gone
 
-Status: todo
+Status: done
 Owner:
 Repos: weave-it
 Execution: hitl
@@ -103,9 +103,9 @@ Replace old artifact current tests with tests that prove the command is not regi
 
 ### Acceptance Criteria
 
-- [ ] Tests do not import `currentArtifact`, `setCurrentArtifact`, or `clearCurrentArtifact`.
-- [ ] Tests verify `weave artifact` is absent from `createProgram()` or CLI help.
-- [ ] Tests preserve parse tolerance for old session files where useful, without treating `current_artifact` as current state.
+- [x] Tests do not import `currentArtifact`, `setCurrentArtifact`, or `clearCurrentArtifact`.
+- [x] Tests verify `weave artifact` is absent from `createProgram()` or CLI help.
+- [x] Tests preserve parse tolerance for old session files where useful, without treating `current_artifact` as current state.
 
 ### Verification
 
@@ -128,4 +128,8 @@ None.
 
 ## Verification
 
-Not run yet.
+- `npm run typecheck` passed.
+- `npm run test -- tests/changes.test.ts tests/cli-skills.test.ts tests/agent-skills.test.ts` passed.
+- `npm run test` passed: 18 files, 200 tests.
+- `npm run dev -- --help` confirmed no `artifact` command in top-level help.
+- Source search confirmed no `artifactCommand`, `currentArtifact`, `setCurrentArtifact`, or `clearCurrentArtifact` references in `src`.

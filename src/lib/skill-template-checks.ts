@@ -42,13 +42,7 @@ Do not inspect deeply, ask discovery questions, update artifacts, or continue wo
 
 Static Weave skill content cannot automatically switch collaboration mode. The host, user, or developer layer must switch modes before this skill continues.
 
-In Plan Mode, this skill commits the active artifact lane to local Weave session state via:
-
-\`\`\`bash
-weave artifact current set <lane> --json
-\`\`\`
-
-This writes local Weave session state only. It does not write repo-tracked artifacts and IS allowed in Plan Mode. Call it after resolving the active Weave change and before any other discovery work.
+In Plan Mode, this skill resolves the active branch-derived change and treats \`<lane>\` as the explicit target lane. It does not write local artifact lane state.
 
 Do not write repo-tracked artifacts directly. Produce the plan, decisions, questions, or proposed artifact changes needed for the user to approve. Actual artifact writes happen only after the user exits Plan Mode and asks to implement the plan.
 ` as const;

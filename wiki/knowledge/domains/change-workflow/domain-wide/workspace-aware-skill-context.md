@@ -16,7 +16,7 @@ weave change status --json
 
 The result is interpreted as a cwd-dispatched context:
 
-- In workspace mode, `workspace` is present, `repos[]` lists registered implementation locations, each repo includes local `availability`, and `folders[]` is empty. The workspace root is the single change context; agents read and write `wiki/changes/<change-id>/` under that root.
+- In workspace mode, `workspace` is present, `repos[]` lists registered implementation locations, each repo includes local `availability`, and `folders[]` is empty. The workspace root branch is the active-change authority and the workspace root is the single change context; agents read and write `wiki/changes/<change-id>/` under that root.
 - In repo mode, `workspace` is `null` and `folders[]` contains session folders. Skills may use the active session folders as the context boundary.
 
 Registered workspace sub-repos are not separate artifact targets by default. A skill may inspect or edit code in present repos when relevant, but PRD, architecture, exploration, clarification, task, capture, and knowledge artifacts belong to the workspace root change context.
@@ -59,3 +59,4 @@ Missing repos are unavailable local context, not an automatic hydration trigger.
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-explore` and `weave-architect` gained an explicit workspace repo context protocol: registered `repos[]` are lightly inventoried as docs/code evidence sources, relevant repos are inspected deeply, docs/wiki/specs are preferred before code, and findings report inspected/skipped repos.
 - 2026-06-06 (change `260606-k0l6-architecture-folder`): `weave-clarify` gained narrower sub-repo awareness for targeted verification during artifact clarification, without broad repo discovery by default.
 - 2026-06-07 (change `260607-1mo4-fixes-around-existing-commands`): `weave workspace` repo rows gained runtime `availability`, and skills should treat missing registered repos as unavailable context that is surfaced only when relevant.
+- 2026-06-11 (change `260610-l397-removing-local-cache`): active change routing became branch-derived; workspace mode uses the workspace root branch as authority and ignores legacy local session routing fields.
