@@ -1,7 +1,7 @@
 ---
 name: weave-prd
 description: Generate or revise prd.md for an active Weave change. Use when the user wants to convert exploration, discussion, sessions, or product interview context into a product requirements document.
-last_changed_in: 0.1.0
+last_changed_in: 0.1.9
 ---
 
 # Weave PRD
