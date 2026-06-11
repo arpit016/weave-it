@@ -1,0 +1,14 @@
+version: 1
+id: 03-change-new-dirty-worktree-guard
+title: Guard weave change new against a dirty worktree
+status: pending
+owner: ""
+repos:
+  - weave-it
+depends_on: []
+task_summary:
+  total: 0
+  done: 0
+  blocked: 0
+created_at: 2026-06-11T18:42:00+05:30
+updated_at: 2026-06-11T17:58:13.932Z

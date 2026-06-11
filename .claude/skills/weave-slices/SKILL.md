@@ -63,7 +63,7 @@ wiki/changes/<change-id>/task-slices/
 - Allocate all slice IDs atomically in one pass (`01`, `02`, …). Never renumber slices with `in_progress` or `done` tasks.
 - Every task has explicit `Repos:` (csv). No path-to-repo derivation.
 - `Owner:` left blank in `tasks.md` and `status.yml`.
-- `Execution:` defaults to `hitl`. Promote to `afk` only when fully spec'd in `contracts.md` and mechanical.
+- `Execution:` defaults to `afk` for all generated tasks. Use `hitl` only when the user explicitly asks to mark a particular architecture area, slice, or task as human-in-the-loop.
 - `Blocked by:` is within-slice only. Cross-slice ordering uses `status.yml.depends_on`.
 - Populate `depends_on` from architecture cues; surface ambiguities in the completion response.
 - `contracts.md` uses slice-level technical contracts (Interfaces, Data, State, Validation; adaptive sections — not FE/BE-only).
@@ -77,7 +77,9 @@ Every slice must include explicit verification tasks. Do not leave verification 
 - Name the behavior, boundary, or regression being verified. Good titles: `Verify approver picker rejects empty selection`, `Regression: list endpoint returns 404 for unknown workflow`.
 - Bad titles: `Write tests`, `Add test coverage`, `Test the feature`.
 - Put automated verification in each task's `### Verification` section with concrete commands (for example `npm test -- ApproverPicker`, `npm test -- listApprovers`).
-- When automated tests are not practical for a slice, add a dedicated manual verification task with numbered steps and an expected result. Mark it `Execution: hitl` unless the steps are fully mechanical.
+- When automated tests are not practical for a slice, add a dedicated manual verification task with numbered steps and an expected result.
+  - Manual verification tasks are `afk` only when the steps are fully mechanical and can be performed by the agent in the available environment.
+  - Mark manual verification as `hitl` when it requires a browser-only check, product judgment, visual approval, credentials, customer data, production access, or human acceptance.
 - Verification tasks may be the final task in a slice (`Blocked by:` the implementation tasks they cover) or embedded in the same tracer-bullet task when the slice is small — but the verification expectation must be explicit either way.
 
 ## Idempotent Re-Run

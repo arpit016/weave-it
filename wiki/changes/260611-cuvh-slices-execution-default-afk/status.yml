@@ -1,0 +1,44 @@
+version: 1
+id: 260611-cuvh-slices-execution-default-afk
+slug: slices-execution-default-afk
+title: Default generated tasks to afk in weave-slices
+type: fix
+stage: slices
+branch: change/260611-cuvh-slices-execution-default-afk
+created_at: 2026-06-11T12:55:26.305Z
+updated_at: 2026-06-11T18:05:40.938Z
+artifacts:
+  findings:
+    sources:
+      - discussion
+    updated_at: 2026-06-11T13:11:00.533Z
+  slices:
+    sources:
+      - discussion
+    updated_at: 2026-06-11T13:15:03.615Z
+execution:
+  version: 1
+  branch: change/260611-cuvh-slices-execution-default-afk
+  repos:
+    root:
+      path: .
+      mode: repo
+      branch: change/260611-cuvh-slices-execution-default-afk
+      state: prepared
+      branch_status: already_active
+      prepared_head: a44e4af0dd1c61e9ff6a843f2442939daf9c75d0
+      prepared_at: 2026-06-11T14:27:25.790Z
+      verified_at: 2026-06-11T14:27:25.790Z
+knowledge:
+  status: updated
+  updated_at: 2026-06-11T18:05:40.938Z
+  domains:
+    - change-workflow
+  shared: []
+  files:
+    - wiki/knowledge/domains/change-workflow/features/weave-slices/behavior.md
+    - wiki/knowledge/domains/change-workflow/features/weave-fix/behavior.md
+  delta: wiki/changes/260611-cuvh-slices-execution-default-afk/knowledge-delta.md
+  reason: Documented afk-default execution + manual-verification policy in
+    weave-slices and the corrected weave-fix step 2 command plus change-branch
+    check.

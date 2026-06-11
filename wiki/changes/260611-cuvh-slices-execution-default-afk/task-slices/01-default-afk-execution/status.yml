@@ -1,0 +1,14 @@
+version: 1
+id: 01-default-afk-execution
+title: Default generated tasks to afk in weave-slices
+status: done
+owner: ""
+repos:
+  - weave-it
+depends_on: []
+task_summary:
+  total: 1
+  done: 1
+  blocked: 0
+created_at: 2026-06-11T18:24:00+05:30
+updated_at: 2026-06-11T17:58:13.932Z

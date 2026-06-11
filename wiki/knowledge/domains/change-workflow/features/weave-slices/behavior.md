@@ -18,6 +18,8 @@ Per-slice artifacts: `slice.md`, `contracts.md`, `tasks.md`, `status.yml`. Chang
 
 Per-slice `tasks.md` uses `Execution: afk | hitl` (not legacy `Type: HITL | AFK`). Tasks group under `## <repo-id>` headings; `Repos:` is source of truth.
 
+`Execution:` defaults to `afk` for all generated tasks. `hitl` is used only when the user explicitly asks to mark a particular architecture area, slice, or task as human-in-the-loop. Manual verification tasks are `afk` only when the steps are fully mechanical and can be performed by the agent in the available environment; they are marked `hitl` when verification requires a browser-only check, product judgment, visual approval, credentials, customer data, production access, or human acceptance.
+
 ## Behavioral Rules
 
 - feat requires `prd.md` + `architecture/`; fix requires `findings.md`; chore/refactor requires `exploration.md`.
@@ -41,6 +43,7 @@ Per-slice `tasks.md` uses `Execution: afk | hitl` (not legacy `Type: HITL | AFK`
 ## Change History
 
 - 2026-06-09 (change `260609-rrsq-weave-slice`): introduced as replacement for `weave-issues`; `last_changed_in: 0.1.6`.
+- 2026-06-11 (change `260611-cuvh-slices-execution-default-afk`): `Execution:` default flipped from `hitl` to `afk` for all generated tasks; `hitl` now reserved for explicit user request. Manual-verification guidance changed to an explicit `afk`-when-mechanical vs `hitl`-when-human-judgment-needed policy.
 
 ## Open Questions
 

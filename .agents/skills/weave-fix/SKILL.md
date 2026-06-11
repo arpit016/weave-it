@@ -42,7 +42,7 @@ Use this skill when the user describes a bug to fix. It creates a `--type fix` c
 ## Single-Turn Flow
 
 1. Derive slug from the bug description; confirm with the user if ambiguous.
-2. Run `weave new --type fix <slug>`.
+2. Check the current branch before creating a change: run `weave change current --json` (the active change is derived from a `change/<change-id>` branch). If the current branch already follows the `change/<change-id>` structure (an existing change), do not create a new change — continue on that change and write/update `findings.md` (re-invocation; see "Re-Invocation" below). Otherwise create the change with `weave change new "<title>" --type fix [--slug <slug>]`. In workspace mode the change is created at and owned by the workspace root even when this is invoked from a registered sub-repo.
 3. Write `findings.md` from `templates/skills/weave-fix/findings-template.md` (Summary required; Repro, Scope, Root cause when inferrable).
 4. Scaffold `task-slices/01-<slug>/` with `tasks.md` and `status.yml` from slice templates. Skip `slice.md` and `contracts.md` for trivial single-slice fixes.
 5. Run `weave slice rollup --all --json` (or call the rollup library equivalent).
