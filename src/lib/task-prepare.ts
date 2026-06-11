@@ -21,6 +21,7 @@ export type PrepareRepoState = "prepared" | "skipped";
 export type PrepareOptions = {
   cwd: string;
   now?: Date;
+  repos?: string[];
   sessionPath?: string;
 };
 
@@ -73,7 +74,7 @@ export async function prepareTasks(options: PrepareOptions): Promise<PrepareResu
 
   const targets = context.mode === "repo"
     ? repoModeTargets(context.target.path)
-    : await workspaceModeTargets(context.target.path, blockers);
+    : await workspaceModeTargets(context.target.path, blockers, options.repos);
 
   const plans = blockers.length === 0 ? await preflightTargets(targets, branch, blockers) : [];
   if (blockers.length > 0) {
@@ -92,15 +93,27 @@ function repoModeTargets(rootPath: string): RepoTarget[] {
   return [{ id: "root", absolutePath: rootPath, relativePath: ".", mode: "repo" }];
 }
 
-async function workspaceModeTargets(rootPath: string, blockers: PrepareBlocker[]): Promise<RepoTarget[]> {
+async function workspaceModeTargets(rootPath: string, blockers: PrepareBlocker[], requestedRepos?: string[]): Promise<RepoTarget[]> {
   const metadata = await readWorkspaceMetadata(rootPath);
   if (!metadata) {
     blockers.push({ target: rootPath, reason: "Workspace metadata is missing or invalid." });
     return [];
   }
 
+  const requested = normalizeRequestedRepos(requestedRepos);
+  if (requested) {
+    for (const repoId of requested) {
+      if (!metadata.repos[repoId]) {
+        blockers.push({ target: repoId, reason: `Requested repo is not registered in the workspace: ${repoId}` });
+      }
+    }
+  }
+
   const targets: RepoTarget[] = [];
   for (const [repoId, entry] of Object.entries(metadata.repos)) {
+    if (requested && !requested.has(repoId)) {
+      continue;
+    }
     const absolutePath = path.join(rootPath, entry.path);
     if (!(await pathExists(absolutePath))) {
       blockers.push({ target: repoId, reason: `Registered repo path does not exist: ${entry.path}` });
@@ -110,6 +123,11 @@ async function workspaceModeTargets(rootPath: string, blockers: PrepareBlocker[]
   }
 
   return targets;
+}
+
+function normalizeRequestedRepos(repos: string[] | undefined): Set<string> | undefined {
+  const normalized = [...new Set((repos ?? []).map((repo) => repo.trim()).filter((repo) => repo.length > 0))];
+  return normalized.length > 0 ? new Set(normalized) : undefined;
 }
 
 async function artifactRootBranchBlocker(rootPath: string, branch: string): Promise<PrepareBlocker | undefined> {

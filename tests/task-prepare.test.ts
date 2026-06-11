@@ -144,6 +144,36 @@ describe("task prepare", () => {
     });
   });
 
+  it("prepares only requested workspace repos", async () => {
+    const workspace = await rawTempDir();
+    const change = await createWorkspaceChange(workspace);
+    const api = path.join(workspace, "api");
+    const web = path.join(workspace, "web");
+    await initGit(api);
+    await initGit(web);
+    const webBaseBranch = await git(web, ["branch", "--show-current"]);
+
+    const result = await prepareTasks({
+      cwd: workspace,
+      repos: ["api"],
+      now: new Date("2026-06-07T10:03:30.000Z"),
+      sessionPath: change.sessionPath,
+    });
+    const status = await readStatus(change.changePath);
+
+    expect(result.status).toBe("ok");
+    expect(result.repos).toEqual([expect.objectContaining({ id: "api", branch_status: "created", state: "prepared" })]);
+    await expect(git(api, ["branch", "--show-current"])).resolves.toBe(change.branch);
+    await expect(git(web, ["branch", "--show-current"])).resolves.toBe(webBaseBranch);
+    expect(status.execution).toMatchObject({
+      branch: change.branch,
+      repos: {
+        api: { path: "api", mode: "workspace", branch_status: "created" },
+      },
+    });
+    expect(Object.keys((status.execution as { repos: Record<string, unknown> }).repos)).toEqual(["api"]);
+  });
+
   it("preserves execution repo prepared_at across repeated workspace readiness checks", async () => {
     const workspace = await rawTempDir();
     const change = await createWorkspaceChange(workspace);
@@ -175,6 +205,17 @@ describe("task prepare", () => {
     expect(result.status).toBe("blocked");
     expect(result.blockers).toContainEqual({ target: "missing", reason: "Registered repo path does not exist: missing" });
     expect(created.id).toBeDefined();
+  });
+
+  it("blocks workspace prepare for requested repos that are not registered", async () => {
+    const workspace = await rawTempDir();
+    const change = await createWorkspaceChange(workspace);
+
+    const result = await prepareTasks({ cwd: workspace, repos: ["missing"], sessionPath: change.sessionPath });
+
+    expect(result.status).toBe("blocked");
+    expect(result.blockers).toContainEqual({ target: "missing", reason: "Requested repo is not registered in the workspace: missing" });
+    expect(result.repos).toEqual([]);
   });
 
   it("blocks workspace implementation repo actions when the artifact root branch differs", async () => {
@@ -256,6 +297,24 @@ describe("task prepare", () => {
     await expect(git(api, ["branch", "--show-current"])).resolves.toBe(apiBaseBranch);
   });
 
+  it("ignores dirty workspace repos outside the requested repo scope", async () => {
+    const workspace = await rawTempDir();
+    const change = await createWorkspaceChange(workspace);
+    const api = path.join(workspace, "api");
+    const web = path.join(workspace, "web");
+    await initGit(api);
+    await initGit(web);
+    const webBaseBranch = await git(web, ["branch", "--show-current"]);
+    await writeFile(path.join(web, "dirty.txt"), "dirty\n");
+
+    const result = await prepareTasks({ cwd: workspace, repos: ["api"], sessionPath: change.sessionPath });
+
+    expect(result.status).toBe("ok");
+    expect(result.repos).toEqual([expect.objectContaining({ id: "api", branch_status: "created", state: "prepared" })]);
+    await expect(git(api, ["branch", "--show-current"])).resolves.toBe(change.branch);
+    await expect(git(web, ["branch", "--show-current"])).resolves.toBe(webBaseBranch);
+  });
+
   it("allows dirty workspace repos already on the expected branch", async () => {
     const workspace = await rawTempDir();
     const change = await createWorkspaceChange(workspace);
@@ -276,6 +335,7 @@ describe("task prepare", () => {
 
     expect(help.status).toBe(0);
     expect(help.stdout).toContain("--json");
+    expect(help.stdout).toContain("--repo <id>");
     expect(help.stdout).not.toContain("--scope <scope>");
     expect(help.stdout).not.toContain("--all");
   });

@@ -11,7 +11,7 @@
 The deterministic CLI surface is:
 
 ```bash
-weave task prepare [--json]
+weave task prepare [--repo <id> ...] [--json]
 ```
 
 The opencode slash wrapper `/weave-prepare` loads the `weave-prepare` skill. The skill resolves the active Weave context, runs one bare prepare command, and summarizes prepared, skipped, or blocked repos. Task, scope, and slice selection belong to `weave-execute`.
@@ -20,16 +20,16 @@ Prepare is branch-readiness-only. It does not implement tasks, run verification,
 
 ## Domain Model
 
-Prepare has no task selector. In repo mode, it targets the artifact root repo as synthetic repo id `root` at path `.`. In workspace mode, it targets every registered repo in `.weave/workspace.yml`.
+Prepare has no task selector. In repo mode, it targets the artifact root repo as synthetic repo id `root` at path `.`. In workspace mode, it targets every registered repo in `.weave/workspace.yml` unless one or more `--repo <id>` filters are provided.
 
 ## Behavioral Rules
 
-- The CLI accepts no task ids, scope, slice, or `--all` selector.
+- The CLI accepts no task ids, scope, slice, or `--all` selector. It accepts repeatable `--repo <id>` filters for callers that have already resolved task or slice scope.
 - Prepare does not read root `tasks.md`, `task-slices/`, task metadata, or task dependencies.
 - In repo mode, prepare targets synthetic repo id `root` at path `.`.
-- In workspace mode, prepare targets every registered workspace repo. Missing registered paths block prepare.
+- In workspace mode without `--repo`, prepare targets every registered workspace repo. With `--repo`, prepare targets only the requested registered repos. Unknown requested repo ids block prepare.
 - `status.yml.branch` is the canonical desired branch. `status.yml.execution.branch` is a readiness snapshot and is stale if it differs from top-level `branch`.
-- Prepare uses a two-phase preflight/apply flow. If any targeted repo has a blocker, no targeted repo branch is moved.
+- Prepare uses a two-phase preflight/apply flow. If any targeted repo has a blocker, no targeted repo branch is moved. Untargeted workspace repos are not inspected, switched, or blocked.
 - A git repo already on the expected branch succeeds even when dirty because no branch movement is needed.
 - A dirty git repo on another branch blocks. Prepare never stashes, commits, discards, or force-checkouts dirty work.
 - Clean git repos checkout the expected branch if it exists locally, or create it from the current branch if it is missing.
@@ -80,6 +80,7 @@ Re-running prepare for a repo on the same branch preserves `prepared_at`, refres
 - 2026-06-07 (change `260607-eac5-task-prepare-workflow`): introduced `weave task prepare` and `/weave-prepare`, task selector parsing, repo/workspace branch safety, two-phase preflight/apply, non-git skipped records, durable `status.yml.execution.repos` readiness storage, and packaging tests.
 - 2026-06-09 (change `260609-rrsq-weave-slice`): `/weave-prepare` skill deprecated; `weave-execute` calls `weave task prepare` directly. CLI unchanged.
 - 2026-06-11 (change `260611-c8up-fix-task-prepare`): simplified `weave task prepare` to branch readiness for the active repo or all registered workspace repos; task and slice selection moved fully to `weave-execute`.
+- 2026-06-12 (change `260611-cuvh-slices-execution-default-afk`): added repeatable `--repo <id>` filters so workspace callers can prepare only the repos selected by an upstream slice/task resolver; untargeted repos are left untouched.
 
 ## Open Questions
 

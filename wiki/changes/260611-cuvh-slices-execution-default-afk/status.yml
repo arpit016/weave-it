@@ -6,7 +6,7 @@ type: fix
 stage: slices
 branch: change/260611-cuvh-slices-execution-default-afk
 created_at: 2026-06-11T12:55:26.305Z
-updated_at: 2026-06-11T18:05:40.938Z
+updated_at: 2026-06-11T18:49:47.186Z
 artifacts:
   findings:
     sources:
@@ -31,14 +31,15 @@ execution:
       verified_at: 2026-06-11T14:27:25.790Z
 knowledge:
   status: updated
-  updated_at: 2026-06-11T18:05:40.938Z
+  updated_at: 2026-06-11T18:49:47.186Z
   domains:
     - change-workflow
   shared: []
   files:
     - wiki/knowledge/domains/change-workflow/features/weave-slices/behavior.md
     - wiki/knowledge/domains/change-workflow/features/weave-fix/behavior.md
+    - wiki/knowledge/domains/change-workflow/features/weave-execute/behavior.md
+    - wiki/knowledge/domains/change-workflow/features/weave-prepare/behavior.md
   delta: wiki/changes/260611-cuvh-slices-execution-default-afk/knowledge-delta.md
-  reason: Documented afk-default execution + manual-verification policy in
-    weave-slices and the corrected weave-fix step 2 command plus change-branch
-    check.
+  reason: Documented afk-default skills plus scoped workspace prepare for selected
+    slice repos.

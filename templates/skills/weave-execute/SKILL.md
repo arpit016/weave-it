@@ -141,7 +141,15 @@ Run exactly one prepare command before implementing anything.
 
 Use the deterministic prepare CLI. The CLI owns branch readiness and `status.yml.execution` writes for the active repo or workspace. Do not hand-edit `status.yml` and do not run git checkout commands yourself for this workflow.
 
-Task and slice selection stays inside `/weave-execute`; prepare is only a branch-readiness preflight. Always call:
+Task and slice selection stays inside `/weave-execute`; prepare is only a branch-readiness preflight.
+
+In slice mode, read the selected slice's `task-slices/<slice-id>/status.yml` `repos:` value and pass each repo id to prepare:
+
+```bash
+weave task prepare --repo <repo-id> --repo <repo-id> --json
+```
+
+If the selected slice has no repos, or when running in repo mode / flat mode, call:
 
 ```bash
 weave task prepare --json
@@ -150,8 +158,10 @@ weave task prepare --json
 If the global `weave` command is unavailable in this repo, use the local development form:
 
 ```bash
-npm run dev -- task prepare --json
+npm run dev -- task prepare --repo <repo-id> --repo <repo-id> --json
 ```
+
+Use the same repo flags with the local development form. Omit them when using the bare prepare form.
 
 If prepare reports blockers, stop before implementation. State that no selected implementation repo branches were moved when the prepare result is blocked.
 

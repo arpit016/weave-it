@@ -15,7 +15,7 @@ The opencode slash wrapper `/weave-execute` loads the `weave-execute` skill. The
 - Reads tasks from the selected slice's `tasks.md` (or walks slices for `all`).
 - Selector: `<slice-id> <task-id>` (e.g. `01 T1`) or `all`.
 - Runs `weave slice rollup` at episode boundaries (start and end of execution) for the affected slice(s).
-- Branch prep uses repos named on tasks in the selected slice.
+- Branch prep uses the selected slice's `status.yml.repos` and passes those repo ids to `weave task prepare --repo <id>`. Registered workspace repos outside the selected slice are not switched or blocked.
 
 **Flat legacy mode** (when only change-root `tasks.md` exists):
 
@@ -71,6 +71,7 @@ Only `T#` tasks execute directly. `QF#` findings and `R#` refactor records are s
 - Missing dependency ids, unclear dependency values, and dependency cycles stop execution before prepare or implementation.
 - Prepare always runs before implementation (absorbed from deprecated `weave-prepare`).
 - Prepare uses `weave task prepare ... --json`, with `npm run dev -- task prepare ... --json` as the local development fallback when the global `weave` command is unavailable.
+- In slice mode, prepare is scoped to the selected slice's `status.yml.repos` using repeatable `--repo <id>` flags. In repo mode and flat mode, prepare runs without repo filters.
 - In slice mode, rollup runs before and after the execution episode for affected slices.
 - Prepare blockers stop execution before implementation.
 - Each task moves to `in_progress` when task work begins.
@@ -120,6 +121,7 @@ It does not rewrite unrelated task wording, unrelated sections, `QF#` entries, `
 
 - 2026-06-07 (change `260607-bbam-task-execution-workflow`): introduced `/weave-execute` as a bundled agent skill and opencode wrapper for local task execution, prepare delegation, dependency handling, HITL pauses, verification, and narrow `tasks.md` evidence updates.
 - 2026-06-09 (change `260609-rrsq-weave-slice`): dual-mode slice vs flat legacy execution; built-in branch prep; rollup episode boundaries; slice selector `/<slice-id> <task-id>`.
+- 2026-06-12 (change `260611-cuvh-slices-execution-default-afk`): slice-mode prepare now passes the selected slice's `status.yml.repos` to `weave task prepare --repo <id>`, so workspace repos outside the selected slice are not switched or blocked.
 
 ## Open Questions
 

@@ -345,8 +345,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("What should I execute: all tasks, a scope like backend, or specific task ids like T1 T3?");
     expect(skill.content).toContain("Use `Blocked by:` as the source of dependency truth.");
     expect(skill.content).toContain("weave task prepare --json");
+    expect(skill.content).toContain("weave task prepare --repo <repo-id> --repo <repo-id> --json");
     expect(skill.content).toContain("Task and slice selection stays inside `/weave-execute`");
-    expect(skill.content).toContain("npm run dev -- task prepare --json");
+    expect(skill.content).toContain("npm run dev -- task prepare --repo <repo-id> --repo <repo-id> --json");
     expect(skill.content).toContain("set `in_progress` when work begins for a task");
     expect(skill.content).toContain("set `done` only when implementation is complete and verification passes");
     expect(skill.content).toContain("set `not_tested` when implementation appears complete but verification could not run");

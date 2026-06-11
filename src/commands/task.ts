@@ -4,6 +4,7 @@ import { prepareTasks, type PrepareResult } from "../lib/task-prepare.js";
 
 interface TaskPrepareOptions {
   json?: boolean;
+  repo?: string[];
 }
 
 export function taskCommand(): Command {
@@ -12,10 +13,11 @@ export function taskCommand(): Command {
   command
     .command("prepare")
     .description("Prepare local branches for the active change.")
+    .option("--repo <id>", "limit prepare to a registered repo (repeatable)", collectRepo, [])
     .option("--json", "print machine-readable JSON")
     .action(async (options: TaskPrepareOptions) => {
       await runAction(options.json ?? false, async () => {
-        const result = await prepareTasks({ cwd: process.cwd() });
+        const result = await prepareTasks({ cwd: process.cwd(), repos: options.repo });
         writeResult(result, options.json ?? false);
         if (result.status === "blocked") {
           process.exitCode = 1;
@@ -24,6 +26,10 @@ export function taskCommand(): Command {
     });
 
   return command;
+}
+
+function collectRepo(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function writeResult(result: PrepareResult, json: boolean): void {
