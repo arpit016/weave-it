@@ -12,7 +12,6 @@ import {
   findGitRoot,
   isWorktreeDirty,
 } from "./git.js";
-import { loadTasksForChange, deriveTaskRepoIds, selectTasks, type ParsedTask, type TaskSelector } from "./tasks.js";
 import { readWorkspaceMetadata } from "./workspace-repos.js";
 
 export type PrepareStatus = "ok" | "blocked";
@@ -21,7 +20,6 @@ export type PrepareRepoState = "prepared" | "skipped";
 
 export type PrepareOptions = {
   cwd: string;
-  selector: TaskSelector;
   now?: Date;
   sessionPath?: string;
 };
@@ -44,9 +42,7 @@ export type PrepareBlocker = {
 export type PrepareResult = {
   status: PrepareStatus;
   change: { id: string; branch: string; path: string };
-  selector: { type: "tasks" | "scope" | "all"; values?: string[]; value?: string };
   mode: "repo" | "workspace";
-  tasks: Array<{ id: string; title: string; scope?: string }>;
   repos: PrepareRepoResult[];
   blockers: PrepareBlocker[];
   message: string;
@@ -68,29 +64,20 @@ export async function prepareTasks(options: PrepareOptions): Promise<PrepareResu
   const now = options.now ?? new Date();
   const context = await activeChangeContext({ cwd: options.cwd, now, sessionPath: options.sessionPath });
   const branch = context.change.branch;
-  const tasks = await loadTasksForChange(context.change.changePath);
-  const selection = selectTasks(tasks, options.selector);
-  const selector = formatSelector(options.selector);
-  const selectedTasks = selection.tasks.map((task) => ({ id: task.id, title: task.title, scope: task.scope }));
 
   const blockers: PrepareBlocker[] = [];
-  const emptySelectionBlocker = selectionBlocker(selection.tasks.length, options.selector);
-  if (emptySelectionBlocker) {
-    blockers.push(emptySelectionBlocker);
-  }
-
   const artifactRootBlocker = await artifactRootBranchBlocker(context.target.path, branch);
   if (artifactRootBlocker) {
     blockers.push(artifactRootBlocker);
   }
 
   const targets = context.mode === "repo"
-    ? repoModeTargets(context.target.path, selection.tasks)
-    : await workspaceModeTargets(context.target.path, selection.tasks, blockers);
+    ? repoModeTargets(context.target.path)
+    : await workspaceModeTargets(context.target.path, blockers);
 
   const plans = blockers.length === 0 ? await preflightTargets(targets, branch, blockers) : [];
   if (blockers.length > 0) {
-    return result({ status: "blocked", context, selector, tasks: selectedTasks, repos: [], blockers });
+    return result({ status: "blocked", context, repos: [], blockers });
   }
 
   const repos = await applyPlans(plans, branch);
@@ -98,44 +85,22 @@ export async function prepareTasks(options: PrepareOptions): Promise<PrepareResu
     await writeExecutionState(context.change.changePath, branch, repos, now);
   }
 
-  return result({ status: "ok", context, selector, tasks: selectedTasks, repos, blockers: [] });
+  return result({ status: "ok", context, repos, blockers: [] });
 }
 
-function repoModeTargets(rootPath: string, tasks: ParsedTask[]): RepoTarget[] {
-  if (tasks.length === 0) {
-    return [];
-  }
+function repoModeTargets(rootPath: string): RepoTarget[] {
   return [{ id: "root", absolutePath: rootPath, relativePath: ".", mode: "repo" }];
 }
 
-async function workspaceModeTargets(rootPath: string, tasks: ParsedTask[], blockers: PrepareBlocker[]): Promise<RepoTarget[]> {
+async function workspaceModeTargets(rootPath: string, blockers: PrepareBlocker[]): Promise<RepoTarget[]> {
   const metadata = await readWorkspaceMetadata(rootPath);
   if (!metadata) {
     blockers.push({ target: rootPath, reason: "Workspace metadata is missing or invalid." });
     return [];
   }
 
-  const repoIds: string[] = [];
-  for (const task of tasks) {
-    const taskRepoIds = deriveTaskRepoIds(task).filter((repoId) => repoId.toLowerCase() !== "workspace");
-    if (taskRepoIds.length === 0) {
-      blockers.push({ target: task.id, reason: "Task has no concrete repo metadata for workspace prepare." });
-      continue;
-    }
-    for (const repoId of taskRepoIds) {
-      if (!repoIds.includes(repoId)) {
-        repoIds.push(repoId);
-      }
-    }
-  }
-
   const targets: RepoTarget[] = [];
-  for (const repoId of repoIds) {
-    const entry = metadata.repos[repoId];
-    if (!entry) {
-      blockers.push({ target: repoId, reason: "Task references a repo id that is not registered in workspace metadata." });
-      continue;
-    }
+  for (const [repoId, entry] of Object.entries(metadata.repos)) {
     const absolutePath = path.join(rootPath, entry.path);
     if (!(await pathExists(absolutePath))) {
       blockers.push({ target: repoId, reason: `Registered repo path does not exist: ${entry.path}` });
@@ -145,22 +110,6 @@ async function workspaceModeTargets(rootPath: string, tasks: ParsedTask[], block
   }
 
   return targets;
-}
-
-function selectionBlocker(taskCount: number, selector: TaskSelector): PrepareBlocker | undefined {
-  if (taskCount > 0) {
-    return undefined;
-  }
-
-  if (selector.type === "scope") {
-    return { target: selector.scope, reason: "No tasks matched the requested scope." };
-  }
-
-  if (selector.type === "all") {
-    return { target: "all", reason: "No T# tasks were found in tasks.md." };
-  }
-
-  return undefined;
 }
 
 async function artifactRootBranchBlocker(rootPath: string, branch: string): Promise<PrepareBlocker | undefined> {
@@ -272,33 +221,19 @@ async function writeExecutionState(changePath: string, branch: string, repos: Pr
 function result(input: {
   status: PrepareStatus;
   context: Awaited<ReturnType<typeof activeChangeContext>>;
-  selector: PrepareResult["selector"];
-  tasks: PrepareResult["tasks"];
   repos: PrepareRepoResult[];
   blockers: PrepareBlocker[];
 }): PrepareResult {
   const value: PrepareResult = {
     status: input.status,
     change: { id: input.context.change.id, branch: input.context.change.branch, path: input.context.change.path },
-    selector: input.selector,
     mode: input.context.mode,
-    tasks: input.tasks,
     repos: input.repos,
     blockers: input.blockers,
     message: "",
   };
   value.message = formatPrepareMessage(value);
   return value;
-}
-
-function formatSelector(selector: TaskSelector): PrepareResult["selector"] {
-  if (selector.type === "all") {
-    return { type: "all" };
-  }
-  if (selector.type === "scope") {
-    return { type: "scope", value: selector.scope };
-  }
-  return { type: "tasks", values: selector.ids };
 }
 
 function formatPrepareMessage(result: PrepareResult): string {
@@ -308,9 +243,6 @@ function formatPrepareMessage(result: PrepareResult): string {
     `Mode: ${result.mode}`,
     `Status: ${result.status}`,
   ];
-  if (result.tasks.length > 0) {
-    lines.push(`Tasks: ${result.tasks.map((task) => task.id).join(", ")}`);
-  }
   if (result.repos.length > 0) {
     lines.push("", "Repos:", ...result.repos.map((repo) => `  ${repo.id}  ${repo.branch_status}  ${repo.path}`));
   }

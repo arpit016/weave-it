@@ -420,12 +420,10 @@ weave artifact current clear [--json]
 `weave task` manages task-oriented local workflow commands for the active change:
 
 ```bash
-weave task prepare T1 T3 [--json]
-weave task prepare --scope <scope> [--json]
-weave task prepare --all [--json]
+weave task prepare [--json]
 ```
 
-`weave task prepare` is branch-readiness-only. It selects `T#` tasks from `tasks.md`, derives relevant repos from `Primary repo` and `Repos`, prepares local branches for `status.yml.branch`, and records readiness in `status.yml.execution.repos`. It does not implement, verify, mark tasks done, commit, push, open PRs, stash, discard changes, or create remote branches.
+`weave task prepare` is branch-readiness-only. In repo mode, it prepares the active repo root for `status.yml.branch`. In workspace mode, it prepares every registered workspace repo for `status.yml.branch`. It records readiness in `status.yml.execution.repos`. It does not inspect task artifacts, implement, verify, mark tasks done, commit, push, open PRs, stash, discard changes, or create remote branches.
 
 ### Examples
 

@@ -330,10 +330,9 @@ describe("agent skills", () => {
     expect(skill.name).toBe("weave-prepare");
     expect(skill.description).toContain("Prepare task execution branches");
     expect(skill.content).toContain("Prepare means branch readiness only");
-    expect(skill.content).toContain("weave task prepare --all --json");
-    expect(skill.content).toContain("weave task prepare T1 T3 --json");
-    expect(skill.content).toContain("weave task prepare --scope backend --json");
-    expect(skill.content).toContain("Do not default to `all`");
+    expect(skill.content).toContain("weave task prepare --json");
+    expect(skill.content).toContain("slice/task selection belongs to `/weave-execute`");
+    expect(skill.content).toContain("npm run dev -- task prepare --json");
     expect(skill.content).toContain("did not implement, verify, commit, push, open a PR, stash, discard changes, or update task statuses");
     expect(skill.sourcePath).toContain(path.join("templates", "skills", "weave-prepare", "SKILL.md"));
     expect(skill.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
@@ -348,10 +347,9 @@ describe("agent skills", () => {
     expect(skill.content).toContain("/weave-execute T1 T3 T7");
     expect(skill.content).toContain("What should I execute: all tasks, a scope like backend, or specific task ids like T1 T3?");
     expect(skill.content).toContain("Use `Blocked by:` as the source of dependency truth.");
-    expect(skill.content).toContain("weave task prepare --all --json");
-    expect(skill.content).toContain("weave task prepare T1 T3 --json");
-    expect(skill.content).toContain("weave task prepare --scope backend --json");
-    expect(skill.content).toContain("npm run dev -- task prepare <selector> --json");
+    expect(skill.content).toContain("weave task prepare --json");
+    expect(skill.content).toContain("Task and slice selection stays inside `/weave-execute`");
+    expect(skill.content).toContain("npm run dev -- task prepare --json");
     expect(skill.content).toContain("set `in_progress` when work begins for a task");
     expect(skill.content).toContain("set `done` only when implementation is complete and verification passes");
     expect(skill.content).toContain("set `not_tested` when implementation appears complete but verification could not run");
@@ -1117,7 +1115,7 @@ describe("agent skills", () => {
     expect(slicesSkill).toContain("weave change progress slices");
     expect(nextSkill).toContain("name: weave-next");
     expect(prepareSkill).toContain("name: weave-prepare");
-    expect(prepareSkill).toContain("weave task prepare --all --json");
+    expect(prepareSkill).toContain("weave task prepare --json");
     expect(executeSkill).toContain("name: weave-execute");
     expect(executeSkill).toContain("What should I execute: all tasks, a scope like backend, or specific task ids like T1 T3?");
     expect(knowledgeSkill).toContain("name: weave-knowledge");

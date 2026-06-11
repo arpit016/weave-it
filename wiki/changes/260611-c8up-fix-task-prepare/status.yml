@@ -1,0 +1,14 @@
+version: 1
+id: 260611-c8up-fix-task-prepare
+slug: fix-task-prepare
+title: fix task prepare
+type: fix
+stage: findings
+branch: change/260611-c8up-fix-task-prepare
+created_at: 2026-06-11T02:57:20.743Z
+updated_at: 2026-06-11T03:13:00.300Z
+artifacts:
+  findings:
+    sources:
+      - discussion
+    updated_at: 2026-06-11T03:13:00.300Z
