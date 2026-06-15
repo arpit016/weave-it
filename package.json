@@ -1,6 +1,6 @@
 {
   "name": "@weave-tools/weave-it",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "SDLC package for AI-assisted software teams working across monorepos and multi-repo workspaces.",
   "type": "module",
   "license": "MIT",
