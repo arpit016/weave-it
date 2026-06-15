@@ -14,7 +14,70 @@ The goal is to give AI tools durable project context across the full software li
 - QA notes, validation, and handoff
 - Long-lived product and technical knowledge
 
-Each repo can contain a committed `wiki/` folder that acts like an LLM-friendly wiki for that repo. Weave also maintains committed metadata in `.weave/` and a temporary local session so agents can understand which folders/repos should be considered together for the current task.
+Each repo or workspace can contain a committed `wiki/` folder that acts like an LLM-friendly wiki for that context. Weave also maintains committed metadata in `.weave/` and a local session so agents can understand which folders/repos should be considered together for the current task.
+
+## How Weave Works: The Change Lifecycle
+
+Weave organizes work into **changes**: durable folders under `wiki/changes/<change-id>/` on a matching git branch `change/<change-id>`. Each change moves through artifact **lanes** tracked in `status.yml`. Agent **skills** own each lane and write the durable artifacts agents and humans read next.
+
+The active change is **branch-derived**: checking out `change/<change-id>` is how Weave knows which change you are working on. Run `weave change current` to inspect it.
+
+### Stages and owning skills
+
+Lanes can be skipped when a change does not need them. Cross-cutting helpers (`weave-new`, `weave-next`, `weave-capture`, `weave-clarify`) support the flow at any point.
+
+- **exploration** — stress-test product intent, workflows, and edge cases before requirements harden.
+  - Skill: `weave-explore` (Plan Mode; read-only interview, no artifact writes)
+- **prd** — write or revise user-facing requirements in `prd.md`.
+  - Skill: `weave-prd`
+- **findings** — capture bug repro, scope, and root-cause notes for fix-type changes in `findings.md`.
+  - Skill: `weave-fix` (chat-driven fix entry; also scaffolds an initial slice)
+- **architecture** — gather engineering context, tradeoffs, and technical risks; persist design through capture or clarify.
+  - Skill: `weave-architect` (Plan Mode; read-only thinking partner, no artifact writes)
+- **slices** — scaffold `task-slices/<NN>-<slug>/` folders with slice narrative, contracts, and per-slice `tasks.md`.
+  - Skill: `weave-slices`
+- **execution** — implement and verify selected tasks locally; update task evidence in `tasks.md`.
+  - Skill: `weave-execute` (includes branch prep via `weave task prepare`)
+- **knowledge** (cross-cutting) — update current-state specs under `wiki/knowledge/**` and record change-local provenance in `knowledge-delta.md`.
+  - Skill: `weave-knowledge`
+
+Helper skills:
+
+- `weave-new` — create a change from a title or topic and recommend the first lane skill.
+- `weave-next` — read-only advisory: what skill to run next for the active change.
+- `weave-capture` — persist discussion into session notes and/or live artifacts (see [Skills In Depth](#skills-in-depth)).
+- `weave-clarify` — focused amendment of one existing artifact when scope or decisions change midstream (see [Skills In Depth](#skills-in-depth)).
+
+### Typical flows
+
+Feature change (`--type feat`, the default):
+
+```mermaid
+flowchart LR
+  new["weave-new"] --> explore["exploration\nweave-explore"]
+  explore --> prd["prd\nweave-prd"]
+  prd --> arch["architecture\nweave-architect"]
+  arch --> capture["weave-capture"]
+  capture --> slices["slices\nweave-slices"]
+  slices --> exec["execution\nweave-execute"]
+  exec --> knowledge["knowledge\nweave-knowledge"]
+```
+
+Fix change (`--type fix`):
+
+```mermaid
+flowchart LR
+  fix["weave-fix"] --> findings["findings"]
+  findings --> archOpt["architecture?\nweave-architect"]
+  archOpt --> capture["weave-capture"]
+  findings --> slicesOpt["slices\nweave-slices"]
+  capture --> slicesOpt
+  slicesOpt --> exec["execution\nweave-execute"]
+```
+
+Non-feature changes (`refactor`, `docs`, `test`, `ci`, `chore`) start at `stage: started` with no scaffolded artifact. The fitting skill creates the first durable artifact when work is clear enough.
+
+Legacy flat changes with a single change-root `tasks.md` still execute through `weave-execute` in flat mode. New changes should use `weave-slices`. `weave-issues` is superseded by `weave-slices`; `weave-prepare` is deprecated (branch prep is built into `weave-execute`).
 
 ## Installation
 
@@ -137,14 +200,26 @@ npm unlink -g @weave-tools/weave-it
 
 ## `weave init`
 
-Initializes Weave in repo mode or workspace mode and starts a new temporary session.
+Initializes Weave in **repo mode** or **workspace mode** and starts a local session.
 
-- Repo mode is the default. Use it when you want Weave to code/reference only the current repo or folder.
-- Workspace mode is for multi-repo or multi-folder work. It creates a workspace with the shared `wiki/` and `.weave/` metadata.
-- When workspace mode runs inside an existing git repo, Weave creates the workspace beside that repo, moves the repo into the workspace, adds the repo directory to the workspace `.gitignore`, and registers it in `.weave/workspace.yml`.
-- After workspace-mode init, open the created workspace path in your editor.
+### Repo mode vs workspace mode
 
-V1 workspace mode only creates the workspace and adopts the current repo when detected. Arbitrary attach, clone, migration, skill rewrites, and workspace-aware change commands are deferred.
+| Mode | Use when | Where artifacts live | Sub-repos |
+| --- | --- | --- | --- |
+| **repo** | Single repo or folder | `wiki/` and `.weave/` inside that repo | Other folders join the ephemeral session via `weave add` |
+| **workspace** | Multi-repo product or platform boundary | One shared `wiki/` and `.weave/` at the workspace root | Registered in `.weave/workspace.yml`; implementation happens inside sub-repos |
+
+**Repo mode** is the default. Weave scaffolds `wiki/knowledge/`, `wiki/changes/`, and `.weave/` in the current folder. Each repo keeps its own git history.
+
+**Workspace mode** creates (or adopts into) a workspace whose git repo tracks only the workspace metadata and wiki — not the code inside sub-repos. When you register a sub-repo, Weave appends `/<repo-path>/` to the workspace `.gitignore` so each sub-repo keeps its **independent `.git/` history** and is not nested-committed into the workspace repo. Sub-repo registration and remotes live in `.weave/workspace.yml`.
+
+Common workspace setup paths:
+
+- **From an existing app repo**: Weave creates the workspace beside the repo, moves the repo (including `.git/`) into the workspace, git-ignores it, and registers it in `workspace.yml`.
+- **From an empty folder**: the current directory becomes the workspace root; add repos afterward with `weave add`.
+- **From outside a git repo**: pass `--workspace-path` to create the workspace at a chosen location.
+
+After workspace-mode init, open the workspace path in your editor. Use `weave add` to register, move, or clone additional repos into the workspace.
 
 ```bash
 weave init [options]
@@ -189,12 +264,25 @@ Adds a folder to the current Weave context. Behavior depends on whether the acti
 **Workspace mode** (`mode: workspace` in `.weave/workspace.yml`):
 
 - Accepts a filesystem **path** or a **git URL**.
-- URL: runs `git clone` into the workspace root (directory name from the URL basename).
-- Path inside the workspace: registers in place.
-- Path outside the workspace: moves the folder into the workspace root, then registers.
-- Updates `.weave/workspace.yml` `repos` and appends the folder to the workspace `.gitignore`.
+- **Local path outside the workspace**: moves the folder into the workspace root (including its existing `.git/`) so you **preserve git history**, then registers it in `workspace.yml` and appends it to the workspace `.gitignore`.
+- **Local path inside the workspace**: registers in place and gitignores the path.
+- **Git URL**: runs `git clone` into the workspace root (directory name from the URL basename), registers the repo, and gitignores the path.
 - Records `remote.origin.url` when the folder has a `.git/`.
 - Does not add sub-repos to `session.folders`.
+
+### Materializing missing repos
+
+A teammate who clones the workspace sees registered repos in `weave workspace`, including `availability: missing` for gitignored paths not present locally. They can materialize a missing registered repo without rewriting `workspace.yml` or `.gitignore`:
+
+```bash
+# Clone by recorded remote
+weave add git@github.com:org/billing.git
+
+# Or adopt an existing local checkout (preserves its .git/)
+weave add ../billing
+```
+
+Both forms recognize when the repo id is already registered but missing locally and place the checkout at the registered path.
 
 ```bash
 weave add [options] <path-or-url>
@@ -321,17 +409,21 @@ weave change status [change] [options]
 weave change progress <lane> [options]
 weave change clear-stale <lane> [options]
 weave change switch <change> [options]
+weave change knowledge <status> [options]
 ```
 
-`weave change new` creates a change id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml` and `exploration.md`, creates or checks out the matching git branch, and records the new change as current in the local Weave session:
+`weave change new` creates a change id in the form `{YYMMDD}-{XXXX}-{slug}`, writes `status.yml`, creates or checks out the matching git branch, and scaffolds the first artifact when applicable:
 
 ```text
 change/{change-id}
 ```
 
-Change and artifact commands are cwd-dispatched. Weave walks up from the current directory to `.weave/workspace.yml`; in workspace mode the workspace root owns `wiki/changes/`, and in repo mode the repo root owns `wiki/changes/`. Running from a nested workspace repo or repo subdirectory operates on that containing Weave root.
+- `--type feat` (default): scaffolds `exploration.md` and starts at `stage: exploration`.
+- Non-feature types (`fix`, `refactor`, `docs`, `test`, `ci`, `chore`): start at `stage: started` with no scaffolded artifact.
 
-Active change state is local workspace/session state. It is stored outside the repo so it does not appear in commits or pull requests.
+The active change is **branch-derived**: checking out `change/<change-id>` is authoritative. Weave does not write active-change routing into committed files.
+
+Change commands are **cwd-dispatched**. Weave walks up from the current directory to `.weave/workspace.yml`; in workspace mode the workspace root owns `wiki/changes/`, and in repo mode the repo root owns `wiki/changes/`. Running from a nested workspace repo or repo subdirectory operates on that containing Weave root.
 
 Options for `new`:
 
@@ -350,17 +442,17 @@ Options for `list`, `current`, `status`, and `switch`:
 Options for `progress`:
 
 ```text
-lane                  exploration, prd, architecture, or issues
---source <source>     repeatable source dependency: exploration, prd, architecture, discussion, sessions, or codebase
+lane                  exploration, prd, findings, architecture, or slices (issues accepted as alias for slices)
+--source <source>     repeatable source dependency: exploration, prd, findings, architecture, discussion, sessions, or codebase
 --no-invalidate       suppress all downstream stale propagation for this call
---invalidate <list>   mark only this comma-separated subset of dependent lanes stale (e.g. issues,architecture)
+--invalidate <list>   mark only this comma-separated subset of dependent lanes stale (e.g. slices,architecture)
 --json                print machine-readable JSON
 ```
 
 Options for `clear-stale`:
 
 ```text
-lane                  exploration, prd, architecture, or issues
+lane                  exploration, prd, findings, architecture, or slices
 --reason <reason>     one-sentence verification rationale recorded in stale_history
 --json                print machine-readable JSON
 ```
@@ -384,7 +476,7 @@ From source:
 npm run dev -- change new "Analytics of reviews"
 ```
 
-`weave change list` is a clean index and marks the active change with `*`. `weave change current` shows the active change and can recover missing session state from a matching `change/{id}` branch. `weave change status` reports metadata and branch alignment. `weave change switch` is the explicit way to move to another existing change.
+`weave change list` is a clean index and marks the active change with `*`. `weave change current` shows the active change from the checked-out branch. `weave change status` reports metadata and branch alignment. `weave change switch` is the explicit way to move to another existing change.
 
 `weave change progress <lane>` records lifecycle progress for the active change. `stage` is orientation for the furthest progressed lane; it does not prove skipped upstream artifacts were created. `artifacts` records the source graph used for stale invalidation:
 
@@ -408,7 +500,7 @@ Pass each source with repeatable `--source` flags. Source lists are replaced on 
 `stale` records source-aware dependents that should be refreshed after a source lane changes:
 
 ```yaml
-stage: issues
+stage: slices
 stale:
   architecture:
     invalidated_by: prd
@@ -417,7 +509,7 @@ stale:
 
 Weave-managed artifact-writing skills call `progress` after successful live artifact writes. Existing changes without `artifacts` or `stale` continue to work and are treated as having no recorded dependencies or stale lanes.
 
-Default propagation marks every transitive downstream lane stale. Skills following the **Lifecycle Staleness Verification Protocol** (embedded in `weave-prd`, `weave-architect`, `weave-clarify`, `weave-issues`, and `weave-capture`) first read the dependent artifacts and decide per-lane whether the upstream change actually invalidates them:
+Default propagation marks every transitive downstream lane stale. Skills following the **Lifecycle Staleness Verification Protocol** (embedded in `weave-prd`, `weave-clarify`, `weave-slices`, and `weave-capture`) first read the dependent artifacts and decide per-lane whether the upstream change actually invalidates them:
 
 ```bash
 # default: every downstream lane goes stale
@@ -426,8 +518,8 @@ weave change progress prd --source exploration --json
 # narrow clarification, no dependent invalidated
 weave change progress prd --source exploration --no-invalidate --json
 
-# only `issues` is invalidated, not `architecture`
-weave change progress prd --source exploration --invalidate=issues --json
+# only `slices` is invalidated, not `architecture`
+weave change progress prd --source exploration --invalidate=slices --json
 ```
 
 If a previously-stale lane is now in content sync (verified by reading both artifacts), clear the flag with an audit-trail entry:
@@ -438,7 +530,7 @@ weave change clear-stale architecture --reason "Wording typo in prd; architectur
 
 Each clear appends a record to `status.yml.stale_history` with `lane`, `invalidated_by`, `invalidated_at`, `cleared_at`, and `reason`. Never hand-edit `status.yml` to change stale state; use the CLI.
 
-If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` and `propagate` block when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
+If a target is not a git repo, Weave still writes the change artifacts and reports branch creation as skipped. `switch` blocks when affected git repos have uncommitted changes; `new` does not block so already-started local work can be captured as a new change.
 
 ## `weave status`
 
@@ -554,14 +646,17 @@ npm run release:bump-skills
 
 The script reads `package.json`'s `version`, diffs each `templates/skills/<name>/SKILL.md` against the most recent reachable git tag, and only updates skills with real changes. It never commits or tags on its own.
 
-## Plan Mode Protocol (design-discussion skills)
+## Plan Mode Guard (design-discussion skills)
 
-`weave-explore`, `weave-prd`, `weave-architect`, and `weave-clarify` ship with an embedded **Plan Mode Protocol** because every supported agent harness (Claude, Cursor, Codex, opencode) blocks filesystem writes in plan mode / ask mode. The protocol defers `weave artifact current set <lane>` until the user accepts the plan and the harness allows mutations:
+`weave-explore` and `weave-architect` ship with an embedded **Plan Mode Guard** because supported agent harnesses block filesystem writes in plan mode / ask mode:
 
-- In plan/ask mode the skill declares `Lane: <lane>` at the top of the plan output and ends with `On plan acceptance, the first action will be: weave artifact current set <lane> --json`.
-- The first agent-mode action after acceptance runs the deferred `weave artifact current set <lane> --json` call before continuing the skill's discovery and work.
+- The skill refuses entry when the harness is not in Plan Mode: `This skill must run in Plan Mode. Switch to Plan Mode, then invoke <skill-name> again.`
+- In Plan Mode the skill resolves the branch-derived active change and treats its lane (`exploration` or `architecture`) as the target without writing repo-tracked artifacts.
+- Durable artifact writes happen later through `weave-capture` (after design discussion) or structural changes through `weave-clarify`.
 
-The protocol text is enforced byte-identically across all four skills by a test against the canonical constant in `src/lib/skill-template-checks.ts`.
+`weave-prd` and `weave-clarify` run in Agent Mode and write artifacts directly. They do not carry the guard.
+
+The guard text is enforced byte-identically across the two skills by a test against the canonical constant in `src/lib/skill-template-checks.ts`.
 
 ## `weave agent`
 
@@ -592,40 +687,78 @@ weave agent reset opencode weave-explore
 
 `install` and `update` protect user edits. They update files only when the current file still matches the last Weave-installed hash in `.weave/agents.yml`. If a user edits an installed skill or command wrapper, Weave skips it. `reset` is the explicit overwrite path.
 
-## Using Weave Skills
+## Skills In Depth
 
-Weave ships Agent Skills for change discovery, requirements, implementation planning, and change workflow scaffolding. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/changes/**` as durable context.
+Weave ships Agent Skills for the full change lifecycle. Each skill starts by running `weave workspace --json` and uses `wiki/knowledge/**` plus `wiki/changes/**` as durable context.
 
-Skills:
+### Skill reference
 
 ```text
-weave-new        start a new change exploration from a title or topic
-weave-capture    capture the current discussion into an artifact or session-only note
-weave-explore    stress-test product requirements and PRD readiness
-weave-prd        generate or revise a PRD from the active exploration
-weave-architect  generate or revise engineering architecture from the active PRD
-weave-next       answer what to do next for the active change
-weave-clarify    clarify an existing exploration, PRD, or architecture artifact
-weave-issues     create or reconcile local tasks.md implementation tasks (T#), QA findings (QF#), and refactors (R#)
+weave-new        start a new change from a title or topic
+weave-capture    capture discussion into session notes and/or live artifacts
+weave-explore    stress-test product requirements (Plan Mode; read-only)
+weave-prd        generate or revise prd.md
+weave-architect  engineering thinking partner (Plan Mode; read-only)
+weave-clarify    amend one existing artifact when scope or decisions change
+weave-fix        chat-driven fix entry; writes findings.md + initial slice
+weave-slices     scaffold task-slices/ from upstream artifacts
+weave-execute    implement and verify selected tasks locally
+weave-next       read-only: recommend the next skill for the active change
 weave-knowledge  update current-state knowledge specs for an active change
+
+Legacy / deprecated:
+weave-issues     superseded by weave-slices (flat tasks.md only)
+weave-prepare    deprecated; branch prep is built into weave-execute
 ```
 
-Every bundled skill carries a `# Surface Weave Notices` section telling the agent to forward any non-empty `notices` array from Tier 1 commands to the user verbatim, near the top of its response. The notice-surfacing block is byte-identical across all skills.
+### `weave-capture`
 
-Install them for one agent:
+`weave-capture` is the primary way to persist design discussion without storing a raw transcript. It runs in two modes:
+
+- **Artifact capture** (bare `weave-capture`): writes a structured session note under `wiki/changes/<id>/sessions/`, promotes pending session-only context for the selected lane, and merges durable content into the live artifact (`exploration.md`, `prd.md`, legacy `architecture.md`, or folder-mode `architecture/index.md` plus facets). Calls `weave change progress <lane>` after a successful write.
+- **Session-only capture** (`weave-capture session [exploration|prd|architecture]`): writes a lane-aware session note only; never updates live artifacts or calls lifecycle progress.
+
+Before any write, **Defensive Lane Verification** compares the resolved lane against the dominant subject of the conversation. When they clearly disagree, capture stops and asks you to confirm the lane. The skill never silently overrides an explicit selection.
+
+`weave-capture` is the only v1 flow that promotes pending session-only context into live artifacts. Downstream skills treat live artifacts as canonical; they do not scan pending session notes before running.
+
+### `weave-clarify`
+
+`weave-clarify` refines **one existing artifact** when scope, requirements, assumptions, or decisions change midstream. It is not a generation skill: it does not create a new change, write a PRD from scratch, or generate architecture from scratch.
+
+- Targets: `exploration`, `prd`, or `architecture` (legacy file mode or folder-mode facets).
+- Updates only the selected lane and reports follow-up lanes that need separate clarification.
+- For architecture, supports structural operations: create/split/merge/rename/delete facets and migrate legacy `architecture.md` to folder mode when explicitly requested.
+- In workspace mode, may inspect registered sub-repos only when the selected clarification depends on repo-local truth.
+- Applies the Lifecycle Staleness Verification Protocol before calling `weave change progress <target>`.
+
+Use `weave-explore` / `weave-architect` for initial design thinking, `weave-capture` to persist architecture discussions, and `weave-clarify` for focused amendments.
+
+### Other skills (concise)
+
+- **`weave-new`**: creates a change via `weave change new` and recommends the first lane skill (`weave-explore` for features; `weave-fix` / `weave-architect` / `weave-slices` / `weave-prd` for non-feature types).
+- **`weave-explore`**: Plan Mode product discovery; interviews and stress-tests requirements without writing artifacts.
+- **`weave-prd`**: writes or revises `prd.md` from exploration and session context.
+- **`weave-architect`**: Plan Mode read-only engineering partner; gathers context and returns architecture dissection in chat. Durable architecture writes happen through `weave-capture` or `weave-clarify`.
+- **`weave-fix`**: chat-driven `--type fix` entry; writes `findings.md`, scaffolds `task-slices/01-<slug>/`, progresses the `findings` lane.
+- **`weave-slices`**: scaffolds `task-slices/<NN>-<slug>/` from upstream artifacts; owns the `slices` lane; requires explicit verification tasks per slice.
+- **`weave-execute`**: agent-first local task execution in slice mode (`/weave-execute 01 T1`) or flat legacy mode (`/weave-execute T3`); includes branch prep, dependency expansion, verification, and narrow `tasks.md` evidence updates. Does not commit, push, or open PRs.
+- **`weave-next`**: read-only advisory summary of artifact state and recommended next skill.
+- **`weave-knowledge`**: updates `wiki/knowledge/**` and writes `knowledge-delta.md` for the active change.
+
+Every bundled skill follows the shared `# Silent Weave Command Output` contract: discovery command output is internal by default; only blockers, failures, relevant notices, or user-required actions are summarized.
+
+Install skills for one agent:
 
 ```bash
 weave agent install claude
 weave agent install cursor
 weave agent install codex
 weave agent install opencode
-```
-
-Or install every supported integration:
-
-```bash
 weave agent install all
 ```
+
+New skills such as `weave-slices`, `weave-fix`, and `weave-execute` require `weave agent install`; `weave agent update` refreshes existing manifest entries only.
 
 Install targets:
 
@@ -637,132 +770,43 @@ opencode   .agents/skills/<skill>/SKILL.md
 opencode   .opencode/commands/<skill>.md
 ```
 
-### Claude Code
+### Invoking skills by agent
 
-Install:
-
-```bash
-weave agent install claude
-```
-
-Then start Claude Code in the repo and ask:
+Claude Code, Cursor, and opencode use slash commands; Codex uses `$`-prefixed skill names.
 
 ```text
 /weave-new "Analytics of reviews"
+/weave-fix "Review import fails on large CSV"
 /weave-capture
-/weave-capture session
 /weave-capture session prd
 /weave-explore "Analytics of reviews"
 /weave-prd
 /weave-architect
-/weave-next
 /weave-clarify prd
-/weave-issues "Create local tasks.md from the active PRD"
+/weave-slices
+/weave-execute 01 T1
+/weave-next
 /weave-knowledge
 ```
 
-### Cursor
-
-Install:
-
-```bash
-weave agent install cursor
-```
-
-Then ask Cursor Agent from the repo:
-
-```text
-/weave-new "Analytics of reviews"
-/weave-capture
-/weave-capture session
-/weave-capture session prd
-/weave-explore "Analytics of reviews"
-/weave-prd
-/weave-architect
-/weave-next
-/weave-clarify prd
-/weave-issues "Create local tasks.md from the active PRD"
-/weave-knowledge
-```
-
-### Codex
-
-Install:
-
-```bash
-weave agent install codex
-```
-
-Then ask Codex from the repo:
-
-```text
-$weave-new "Analytics of reviews"
-$weave-capture
-$weave-capture session
-$weave-capture session prd
-$weave-explore "Analytics of reviews"
-$weave-prd
-$weave-architect
-$weave-next
-$weave-clarify prd
-$weave-issues "Create local tasks.md from the active PRD"
-$weave-knowledge
-```
-
-### opencode
-
-Install:
-
-```bash
-weave agent install opencode
-```
-
-Then invoke the slash command in opencode:
-
-```text
-/weave-new "Analytics of reviews"
-/weave-capture
-/weave-capture session
-/weave-capture session prd
-/weave-explore "Analytics of reviews"
-/weave-prd
-/weave-architect
-/weave-next
-/weave-clarify prd
-/weave-issues "Create local tasks.md from the active PRD"
-/weave-knowledge
-```
-
-Or invoke the skill naturally:
+Or invoke naturally:
 
 ```text
 Use the weave-explore skill for Analytics of reviews.
 Use the weave-capture skill to capture this session without updating artifacts.
-Use the weave-prd skill to generate the PRD.
-Use the weave-architect skill to generate the engineering design.
-Use the weave-next skill to decide what to run next.
+Use the weave-slices skill to scaffold task slices from the active PRD.
+Use the weave-execute skill to implement slice 01 task T1.
 Use the weave-clarify skill to revise the active PRD after scope changes.
-Use the weave-knowledge skill to update current-state knowledge after the change.
 ```
 
-Bare `weave-capture` writes a structured session note, promotes pending lane session context, and merges durable content into the current live artifact. If the live artifact is missing, bare capture considers all matching lane session notes; if the artifact exists, it considers matching session notes newer than the artifact `updated_at` timestamp. `weave-capture session` writes only a lane-aware session note using the current artifact context, and `weave-capture session prd` or another explicit lane stores the note under that lane without updating live artifacts. Downstream skills keep using live artifacts as canonical context in v1; they do not scan pending session notes before running.
-
-`weave-next` is read-only and advisory. It summarizes the active change, artifact state, current artifact context, and recent resume notes, then recommends the next Weave skill without writing artifacts or invoking the recommendation automatically.
-
-`weave-clarify` is for refining an existing change artifact when scope, requirements, assumptions, or decisions change midstream. It updates one selected artifact at a time, such as `exploration.md`, `prd.md`, legacy `architecture.md`, or folder-mode `architecture/index.md` plus architecture facets, and reports follow-up artifacts that should be clarified separately. Use `weave-prd` and `weave-architect` for initial design work; use `weave-capture` to persist architecture discussions and `weave-clarify` when an existing artifact needs a focused amendment or architecture facet restructure.
-
-`weave-knowledge` updates current-state behavioral specs under `wiki/knowledge/**` and writes change-local provenance to `wiki/changes/<change-id>/knowledge-delta.md`. It creates missing standard knowledge files when needed, but does not silently reorganize user-authored knowledge.
-
-Knowledge freshness is tracked through the CLI-owned lifecycle command:
+Knowledge freshness is tracked through the CLI:
 
 ```bash
 weave change knowledge pending --reason "Knowledge impact not resolved yet"
-weave change knowledge updated --domain performance-reviews --shared approvals --file wiki/knowledge/domains/performance-reviews/domain-wide/approvals.md --delta wiki/changes/<change-id>/knowledge-delta.md --reason "Updated current approval behavior"
+weave change knowledge updated --domain performance-reviews --file wiki/knowledge/domains/performance-reviews/domain-wide/approvals.md --delta wiki/changes/<change-id>/knowledge-delta.md --reason "Updated current approval behavior"
 weave change knowledge none --delta wiki/changes/<change-id>/knowledge-delta.md --reason "No durable behavior impact"
 weave change knowledge stale --invalidated-by prd --reason "PRD changed after knowledge was updated"
 ```
-
-`weave change knowledge <status>` supports `pending`, `stale`, `updated`, and `none`, plus repeatable `--domain`, `--shared`, and `--file` flags and optional `--delta`, `--reason`, `--invalidated-by`, and `--json`.
 
 The standard knowledge structure is scaffolded progressively:
 
@@ -776,7 +820,6 @@ wiki/knowledge/
       index.md
       features/<feature>/behavior.md
       domain-wide/
-      source-map.md
   shared/
     README.md
     <shared-behavior>/behavior.md
@@ -786,8 +829,6 @@ wiki/knowledge/
 
 V1 provides scaffold/docs guidance and skill contract tests for this structure. It does not add a CLI validation command for knowledge folders.
 
-Claude Code, Cursor, and opencode use slash commands such as `/weave-explore`, `/weave-prd`, `/weave-architect`, `/weave-next`, `/weave-clarify`, and `/weave-knowledge`. Codex uses `$weave-explore`, `$weave-prd`, `$weave-architect`, `$weave-next`, `$weave-clarify`, and `$weave-knowledge` to explicitly invoke installed skills. opencode gets small slash-command wrappers that delegate to the portable skills in `.agents/skills`; Weave does not install `.opencode/skills` by default.
-
 ## `weave skills` and `weave skill`
 
 Lists and prints bundled Weave skills.
@@ -795,12 +836,15 @@ Lists and prints bundled Weave skills.
 ```bash
 weave skills list
 weave skill show weave-new
+weave skill show weave-capture
 weave skill show weave-explore
 weave skill show weave-prd
 weave skill show weave-architect
-weave skill show weave-next
 weave skill show weave-clarify
-weave skill show weave-issues
+weave skill show weave-fix
+weave skill show weave-slices
+weave skill show weave-execute
+weave skill show weave-next
 weave skill show weave-knowledge
 ```
 
@@ -816,10 +860,14 @@ src/
     doctor.ts
     init.ts
     skills.ts
+    slice.ts
+    status.ts
+    task.ts
     workspace.ts
   lib/
     add-folder.ts
     agent-skills.ts
+    architecture-artifact.ts
     changes.ts
     doctor.ts
     files.ts
@@ -827,10 +875,17 @@ src/
     git.ts
     ids.ts
     init-workspace.ts
+    notices.ts
     session-state.ts
     show-workspace.ts
+    skill-template-checks.ts
+    sliceRollup.ts
     sync.ts
+    task-prepare.ts
+    tasks.ts
     weave-scaffold.ts
+    workspace-mode.ts
+    workspace-repos.ts
 templates/
   opencode/
     commands/
@@ -841,18 +896,16 @@ tests/
   cli-skills.test.ts
   changes.test.ts
   init.test.ts
+  slice-rollup.test.ts
+  task-prepare.test.ts
 .weave/
   agents.yml
   architecture-considerations.md
   sync.yml
+  workspace.yml
 wiki/
   knowledge/
   changes/
-weave-it/
-  implementation-plan.md
-  opencode-skills-implementation-plan.md
-  skills-implementation-plan.md
-  weave-init-v1.md
 ```
 
 ## Contribution Notes
