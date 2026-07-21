@@ -102,6 +102,24 @@ export function addFolderToSession(session: CurrentSession, folder: ResolvedFold
   return { added: true, id, session };
 }
 
+export async function loadOrCreateSession(
+  now: Date,
+  sessionPath = defaultSessionPath(),
+): Promise<CurrentSession> {
+  const existing = await loadCurrentSession(sessionPath);
+  if (existing) {
+    return existing;
+  }
+
+  const session: CurrentSession = {
+    version: 1,
+    updated_at: now.toISOString(),
+    folders: {},
+  };
+  await saveCurrentSession(session, sessionPath);
+  return session;
+}
+
 export function findFolderByPath(session: CurrentSession, folderPath: string): string | undefined {
   return Object.entries(session.folders).find(([, folder]) => folder.path === folderPath)?.[0];
 }

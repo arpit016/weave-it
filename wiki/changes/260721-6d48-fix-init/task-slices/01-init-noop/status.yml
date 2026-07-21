@@ -1,0 +1,14 @@
+version: 1
+id: 01-init-noop
+title: weave init is a safe no-op when already initialized
+status: done
+owner: ""
+repos:
+  - weave-it
+depends_on: []
+task_summary:
+  total: 3
+  done: 3
+  blocked: 0
+created_at: 2026-07-21T17:14:00.000Z
+updated_at: 2026-07-21T11:55:01.581Z

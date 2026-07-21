@@ -29,6 +29,8 @@ When no mode is passed in an interactive terminal, Weave asks the user to choose
 
 When `--yes` is passed and no mode is provided, Weave defaults to repo mode.
 
+If a valid `.weave/workspace.yml` already exists anywhere up the tree from `cwd`, `weave init` is a safe no-op: it reports `Weave is already initialized (mode: <repo|workspace>). Start a new change with \`weave change new "<title>"\`.` and exits successfully without re-scaffolding, overwriting files, running `git init`, moving the repo, or writing/replacing the local session. This makes re-running `weave init` on a cloned workspace safe and idempotent.
+
 ## Command: `weave init`
 
 Synopsis:
@@ -175,8 +177,10 @@ What happens:
 
 - Weave resolves the target path.
 - Weave scaffolds `wiki/`, `.weave/sync.yml`, and `.weave/architecture-considerations.md` in the target if missing.
-- Weave adds the folder to `~/.cache/weave/current-session.yml` under `session.folders`.
+- Weave adds the folder to `~/.cache/weave/current-session.yml` under `session.folders`. If no session file exists (for example on a fresh clone of a repo-mode workspace), Weave lazily creates one containing only the target folder and proceeds; the workspace-root repo is not auto-added.
 - Weave does not update `.weave/workspace.yml` or `.gitignore` in a parent workspace.
+
+If no `.weave/workspace.yml` exists anywhere up the tree, `weave add` returns `status: not_initialized` (exit 1) with the message `No Weave context found. Run \`weave init\` first.`
 
 ### Workspace mode
 
@@ -277,10 +281,11 @@ weave workspace [options]
 | `findWorkspaceMode(cwd)` result | Session present | Exit | Output |
 | --- | --- | --- | --- |
 | `mode: workspace` | yes or no | 0 | Workspace view: `workspace`, `repos`, `folders: []`. |
-| `mode: repo`, missing, or malformed | yes | 0 | Repo-mode view: `session.folders` in `folders`. |
-| `mode: repo`, missing, or malformed | no | 1 | `status: no_session` with today's message. |
+| `mode: repo` | yes | 0 | Repo-mode view: `session.folders` in `folders`. |
+| `mode: repo` | no | 0 | Derived repo-root view: a single folder derived from the workspace root (no session write). |
+| missing or malformed | no | 1 | `status: not_initialized` with `No Weave context found. Run \`weave init\` first.` |
 
-A teammate cloning a workspace fresh can run `weave workspace` immediately, before ever running `weave init`. The workspace view is fed entirely by the committed `workspace.yml`; no session is required.
+A teammate cloning a workspace fresh can run `weave workspace` immediately, before ever running `weave init`. In workspace mode the view is fed entirely by the committed `workspace.yml`; no session is required. In repo mode with no session, the workspace root (the directory holding `.weave/workspace.yml`) is shown as a single derived folder, and no session file is written. `weave workspace` remains read-only in all paths.
 
 ### Workspace mode output
 
@@ -352,7 +357,7 @@ Folders:
 
 Next:
   weave add <path>
-  weave init
+  weave change new "<title>"
 ```
 
 JSON (`--json`):
@@ -634,3 +639,4 @@ Expected outcome: Weave recognizes that `billing` is registered but missing loca
 - 2026-06-04: Added a Command Surface overview and per-command Options tables, dispatch decision table for `weave workspace`, sample text and JSON outputs for both modes, and an explicit `file://` URL scheme entry in `weave add`. Documented `git clone -- <url> <dest>` separator as an intentional injection guard.
 - 2026-06-07 (change `260607-vuwa-architecture-skill-update`): `ensureWeaveScaffold` now creates `.weave/architecture-considerations.md` as user-owned architecture guidance during init and scaffold repair paths.
 - 2026-06-08 (change `260608-78sp-fix-weave-add`): Workspace `weave add` now treats registered-but-missing repo paths as local materialization targets for both git URLs and local paths instead of duplicate adds.
+- 2026-07-21 (change `260721-6d48-fix-init`): Cloned Weave workspaces now work without `weave init`. `weave init` is a safe no-op when `.weave/workspace.yml` already exists up the tree (no re-scaffold, no repo move, no session write). `weave add` in repo mode lazily creates a session containing only the target folder when no session exists. Repo-mode `weave workspace` with no session derives the workspace-root folder without writing. The `no_session` JSON status is renamed to `not_initialized` and is emitted only in the genuine uninitialized case.

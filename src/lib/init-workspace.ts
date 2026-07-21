@@ -8,9 +8,10 @@ import { findGitRoot, getGitRemote, runGitRequired } from "./git.js";
 import { slugify, titleFromSlug } from "./ids.js";
 import { loadCurrentSession, saveCurrentSession, createCurrentSession, defaultSessionPath } from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
+import { findWorkspaceMode } from "./workspace-mode.js";
 import { registerRepoIntoWorkspace, workspaceGitignoreBaseTemplate } from "./workspace-repos.js";
 
-export type InitStatus = "initialized" | "cancelled";
+export type InitStatus = "initialized" | "cancelled" | "already_initialized";
 export type InitMode = "repo" | "workspace";
 
 export type InitWorkspaceOptions = {
@@ -42,6 +43,20 @@ export async function initWorkspace(options: InitWorkspaceOptions = {}): Promise
   const cwd = options.cwd ?? process.cwd();
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
+
+  const existingWorkspace = await findWorkspaceMode(cwd);
+  if (existingWorkspace) {
+    return {
+      status: "already_initialized",
+      message: alreadyInitializedMessage(existingWorkspace.mode),
+      folderPath: existingWorkspace.workspacePath,
+      wikiDir: "",
+      metadataDir: "",
+      sessionPath,
+      mode: existingWorkspace.mode,
+    };
+  }
+
   const existingSession = await loadCurrentSession(sessionPath);
 
   if (existingSession && !(await shouldReplaceSession(options))) {
@@ -470,6 +485,10 @@ function cancelledWorkspace(folderPath: string, sessionPath: string): InitWorksp
     metadataDir: "",
     sessionPath,
   };
+}
+
+function alreadyInitializedMessage(mode: "workspace" | "repo"): string {
+  return `Weave is already initialized (mode: ${mode}). Start a new change with \`weave change new "<title>"\`.`;
 }
 
 function initializedMessage(input: {

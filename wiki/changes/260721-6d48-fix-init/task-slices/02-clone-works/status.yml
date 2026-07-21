@@ -1,0 +1,15 @@
+version: 1
+id: 02-clone-works
+title: Everyday commands work on a fresh clone
+status: done
+owner: ""
+repos:
+  - weave-it
+depends_on:
+  - 01-init-noop
+task_summary:
+  total: 7
+  done: 7
+  blocked: 0
+created_at: 2026-07-21T17:14:00.000Z
+updated_at: 2026-07-21T11:55:01.581Z

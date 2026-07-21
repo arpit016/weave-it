@@ -1,0 +1,37 @@
+version: 1
+id: 260721-6d48-fix-init
+slug: fix-init
+title: fix init
+type: feat
+stage: slices
+branch: change/260721-6d48-fix-init
+created_at: 2026-07-21T09:35:12.845Z
+updated_at: 2026-07-21T11:48:02.779Z
+artifacts:
+  prd:
+    sources:
+      - discussion
+      - exploration
+    updated_at: 2026-07-21T11:27:56.605Z
+  architecture:
+    sources:
+      - prd
+      - codebase
+    updated_at: 2026-07-21T11:43:42.129Z
+  slices:
+    sources:
+      - architecture
+    updated_at: 2026-07-21T11:45:48.312Z
+execution:
+  version: 1
+  branch: change/260721-6d48-fix-init
+  repos:
+    root:
+      path: .
+      mode: repo
+      branch: change/260721-6d48-fix-init
+      state: prepared
+      branch_status: already_active
+      prepared_head: 52d0ccd4ad49e2ce39d3b043bdbc99e0c9c08661
+      prepared_at: 2026-07-21T11:48:02.779Z
+      verified_at: 2026-07-21T11:48:02.779Z

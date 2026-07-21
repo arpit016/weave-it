@@ -3,7 +3,13 @@ import { realpath, stat } from "node:fs/promises";
 import { resolveFolder } from "./folders.js";
 import { cloneRepo, getGitRemote } from "./git.js";
 import { movePath, pathExists } from "./files.js";
-import { addFolderToSession, defaultSessionPath, loadCurrentSession, saveCurrentSession } from "./session-state.js";
+import {
+  addFolderToSession,
+  defaultSessionPath,
+  loadCurrentSession,
+  loadOrCreateSession,
+  saveCurrentSession,
+} from "./session-state.js";
 import { ensureWeaveScaffold } from "./weave-scaffold.js";
 import { findWorkspaceMode, isWorkspaceMode } from "./workspace-mode.js";
 import {
@@ -26,7 +32,7 @@ export type AddFolderOptions = {
   sessionPath?: string;
 };
 
-export type AddFolderStatus = "added" | "already_exists" | "no_session";
+export type AddFolderStatus = "added" | "already_exists" | "not_initialized";
 
 export type AddFolderCommandResult = {
   status: AddFolderStatus;
@@ -37,16 +43,15 @@ export async function addFolder(options: AddFolderOptions): Promise<AddFolderCom
   const cwd = options.cwd ?? process.cwd();
   const now = options.now ?? new Date();
   const sessionPath = options.sessionPath ?? defaultSessionPath();
-  const session = await loadCurrentSession(sessionPath);
 
-  if (!session) {
+  const modeResult = await findWorkspaceMode(cwd);
+  if (!modeResult) {
     return {
-      status: "no_session",
-      message: "No current Weave session found. Run `weave init` first.",
+      status: "not_initialized",
+      message: "No Weave context found. Run `weave init` first.",
     };
   }
 
-  const modeResult = await findWorkspaceMode(cwd);
   if (isWorkspaceMode(modeResult)) {
     return addFolderToWorkspace({
       cwd,
@@ -56,6 +61,8 @@ export async function addFolder(options: AddFolderOptions): Promise<AddFolderCom
       folderKind: options.folderKind ?? "app",
     });
   }
+
+  const session = await loadOrCreateSession(now, sessionPath);
 
   return addFolderToRepoSession({
     cwd,

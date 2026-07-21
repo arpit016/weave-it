@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import YAML from "yaml";
 import { describe, expect, it } from "vitest";
 import { addFolder } from "../src/lib/add-folder.js";
+import { currentChange } from "../src/lib/changes.js";
 import { initWorkspace } from "../src/lib/init-workspace.js";
 import { loadCurrentSession } from "../src/lib/session-state.js";
 import { showWorkspace } from "../src/lib/show-workspace.js";
@@ -121,7 +122,7 @@ describe("current session workflow", () => {
 
     const result = await initWorkspace({ cwd, interactive: false, yes: true, sessionPath });
 
-    expect(result.status).toBe("initialized");
+    expect(result.status).toBe("already_initialized");
     await expect(readFile(knowledgeFile, "utf8")).resolves.toBe("existing wiki\n");
     await expect(readFile(knowledgeReadme, "utf8")).resolves.toBe("existing knowledge readme\n");
     await expect(readFile(domainsReadme, "utf8")).resolves.toBe("existing domains readme\n");
@@ -257,7 +258,7 @@ describe("current session workflow", () => {
     await expect(stat(repo)).resolves.toMatchObject({});
   });
 
-  it("requires init before adding folders", async () => {
+  it("requires init before adding folders when no workspace.yml exists", async () => {
     const cwd = await tempDir();
     const backend = path.join(cwd, "backend");
     const sessionPath = path.join(cwd, ".cache", "current-session.yml");
@@ -265,7 +266,8 @@ describe("current session workflow", () => {
 
     const result = await addFolder({ cwd, targetPath: "backend", sessionPath });
 
-    expect(result.status).toBe("no_session");
+    expect(result.status).toBe("not_initialized");
+    expect(result.message).toContain("No Weave context found");
   });
 
   it("adds another folder to the current session and avoids duplicates", async () => {
@@ -422,17 +424,46 @@ describe("current session workflow", () => {
     expect(output.repos).toEqual([]);
   });
 
-  it("returns no_session in repo mode when no session exists", async () => {
+  it("returns not_initialized when no workspace.yml and no session exist", async () => {
     const outsidePath = await tempDir();
     const isolatedSessionPath = path.join(outsidePath, ".cache", "no-session.yml");
 
     const result = await showWorkspace({ cwd: outsidePath, json: true, sessionPath: isolatedSessionPath });
     const output = JSON.parse(result.message);
 
-    expect(result.status).toBe("no_session");
+    expect(result.status).toBe("not_initialized");
     expect(output.session).toBeNull();
     expect(output.workspace).toBeNull();
     expect(output.folders).toEqual([]);
+  });
+
+  it("derives the repo root in repo mode when workspace.yml exists but no session", async () => {
+    const root = await tempDir();
+    const repoPath = path.join(root, "app-repo");
+    const isolatedSessionPath = path.join(root, ".cache", "no-session.yml");
+    await mkdir(repoPath, { recursive: true });
+    await mkdir(path.join(repoPath, ".weave"), { recursive: true });
+    await writeFile(
+      path.join(repoPath, ".weave", "workspace.yml"),
+      "version: 1\nmode: repo\nname: app-repo\nrepos: {}\n",
+    );
+
+    const result = await showWorkspace({ cwd: repoPath, json: true, sessionPath: isolatedSessionPath });
+    const output = JSON.parse(result.message);
+    const resolvedRepoPath = await realpath(repoPath);
+
+    expect(result.status).toBe("ok");
+    expect(output.session).toBeNull();
+    expect(output.workspace).toBeNull();
+    expect(output.folders).toHaveLength(1);
+    expect(output.folders[0]).toMatchObject({
+      id: "app-repo",
+      path: resolvedRepoPath,
+      kind: "app",
+      wiki: path.join(resolvedRepoPath, "wiki"),
+      metadata: path.join(resolvedRepoPath, ".weave"),
+    });
+    await expect(stat(isolatedSessionPath)).rejects.toThrow();
   });
 
   it("shows adopted repo in weave workspace after init", async () => {
@@ -882,5 +913,228 @@ describe("current session workflow", () => {
     expect(output.workspace).toBeNull();
     expect(output.repos).toEqual([]);
     expect(result.text).toContain("Folders:");
+  });
+
+  it("returns already_initialized in repo mode without re-scaffolding or writing a session", async () => {
+    const root = await tempDir();
+    const repoPath = path.join(root, "app-repo");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+    await mkdir(repoPath, { recursive: true });
+    await mkdir(path.join(repoPath, ".weave"), { recursive: true });
+    await writeFile(
+      path.join(repoPath, ".weave", "workspace.yml"),
+      "version: 1\nmode: repo\nname: app-repo\nrepos: {}\n",
+    );
+
+    const isolatedSessionPath = path.join(root, ".cache", "isolated-session.yml");
+    const result = await initWorkspace({
+      cwd: repoPath,
+      interactive: false,
+      yes: true,
+      sessionPath: isolatedSessionPath,
+    });
+
+    expect(result.status).toBe("already_initialized");
+    expect(result.mode).toBe("repo");
+    expect(result.message).toContain("already initialized");
+    expect(result.message).toContain("weave change new");
+    await expect(stat(isolatedSessionPath)).rejects.toThrow();
+    await expect(stat(path.join(repoPath, "wiki"))).rejects.toThrow();
+    await expect(stat(path.join(repoPath, ".weave", "sync.yml"))).rejects.toThrow();
+  });
+
+  it("returns already_initialized in workspace mode without moving the repo", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const resolvedWorkspacePath = await realpath(workspacePath);
+    const isolatedSessionPath = path.join(root, ".cache", "isolated-session.yml");
+    const before = await readFile(path.join(workspacePath, ".weave", "workspace.yml"), "utf8");
+
+    const result = await initWorkspace({
+      cwd: workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath: isolatedSessionPath,
+    });
+
+    expect(result.status).toBe("already_initialized");
+    expect(result.mode).toBe("workspace");
+    expect(result.folderPath).toBe(resolvedWorkspacePath);
+    await expect(readFile(path.join(workspacePath, ".weave", "workspace.yml"), "utf8")).resolves.toBe(before);
+    await expect(stat(isolatedSessionPath)).rejects.toThrow();
+  });
+
+  it("returns already_initialized from a nested subdirectory of an initialized workspace", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const nested = path.join(workspacePath, "wiki", "changes");
+    await mkdir(nested, { recursive: true });
+    const isolatedSessionPath = path.join(root, ".cache", "isolated-session.yml");
+
+    const result = await initWorkspace({
+      cwd: nested,
+      interactive: false,
+      yes: true,
+      sessionPath: isolatedSessionPath,
+    });
+
+    expect(result.status).toBe("already_initialized");
+    expect(result.mode).toBe("workspace");
+    await expect(stat(isolatedSessionPath)).rejects.toThrow();
+  });
+
+  it("succeeds on a fresh workspace-mode clone without weave init (no session)", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const sessionPath = path.join(root, ".cache", "current-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath,
+    });
+
+    const isolatedSessionPath = path.join(root, ".cache", "clone-session.yml");
+    const resolvedWorkspacePath = await realpath(workspacePath);
+
+    const ws = await showWorkspace({ cwd: workspacePath, json: true, sessionPath: isolatedSessionPath });
+    const wsOutput = JSON.parse(ws.message);
+    expect(ws.status).toBe("ok");
+    expect(wsOutput.workspace).toEqual({
+      name: "platform",
+      path: resolvedWorkspacePath,
+      mode: "workspace",
+    });
+    expect(wsOutput.session).toBeNull();
+    await expect(stat(isolatedSessionPath)).rejects.toThrow();
+  });
+
+  it("lazily creates a target-only session when adding to a repo-mode clone with no session", async () => {
+    const root = await tempDir();
+    const repoPath = path.join(root, "app-repo");
+    const initSessionPath = path.join(root, ".cache", "init-session.yml");
+    await mkdir(repoPath, { recursive: true });
+
+    await initWorkspace({
+      cwd: repoPath,
+      mode: "repo",
+      interactive: false,
+      yes: true,
+      folderId: "app-repo",
+      sessionPath: initSessionPath,
+    });
+
+    const backend = path.join(root, "backend");
+    await mkdir(backend);
+    const cloneSessionPath = path.join(root, ".cache", "clone-session.yml");
+
+    const added = await addFolder({
+      cwd: repoPath,
+      targetPath: "../backend",
+      folderId: "backend",
+      folderKind: "api",
+      sessionPath: cloneSessionPath,
+      now: new Date("2026-07-21T12:00:00.000Z"),
+    });
+
+    expect(added.status).toBe("added");
+    const session = await loadCurrentSession(cloneSessionPath);
+    const resolvedBackend = await realpath(backend);
+    expect(session?.folders.backend).toMatchObject({
+      path: resolvedBackend,
+      name: "Backend",
+      kind: "api",
+    });
+    expect(Object.keys(session?.folders ?? {})).toEqual(["backend"]);
+  });
+
+  it("shows the derived repo root when running weave workspace on a repo-mode clone with no session", async () => {
+    const root = await tempDir();
+    const repoPath = path.join(root, "app-repo");
+    const initSessionPath = path.join(root, ".cache", "init-session.yml");
+    await mkdir(repoPath, { recursive: true });
+
+    await initWorkspace({
+      cwd: repoPath,
+      mode: "repo",
+      interactive: false,
+      yes: true,
+      folderId: "app-repo",
+      sessionPath: initSessionPath,
+    });
+
+    const cloneSessionPath = path.join(root, ".cache", "clone-session.yml");
+    const result = await showWorkspace({ cwd: repoPath, json: true, sessionPath: cloneSessionPath });
+    const output = JSON.parse(result.message);
+    const resolvedRepoPath = await realpath(repoPath);
+
+    expect(result.status).toBe("ok");
+    expect(output.session).toBeNull();
+    expect(output.folders).toHaveLength(1);
+    expect(output.folders[0]).toMatchObject({
+      id: "app-repo",
+      path: resolvedRepoPath,
+      kind: "app",
+    });
+    await expect(stat(cloneSessionPath)).rejects.toThrow();
+  });
+
+  it("end-to-end fresh-clone workflow works without weave init", async () => {
+    const root = await tempDir();
+    const workspacePath = path.join(root, "platform");
+    const initSessionPath = path.join(root, ".cache", "init-session.yml");
+
+    await initWorkspace({
+      cwd: root,
+      mode: "workspace",
+      workspaceName: "platform",
+      workspacePath,
+      interactive: false,
+      yes: true,
+      sessionPath: initSessionPath,
+    });
+
+    const cloneSessionPath = path.join(root, ".cache", "clone-session.yml");
+    const resolvedWorkspacePath = await realpath(workspacePath);
+
+    const ws = await showWorkspace({ cwd: workspacePath, json: true, sessionPath: cloneSessionPath });
+    expect(ws.status).toBe("ok");
+    expect(JSON.parse(ws.message).workspace?.path).toBe(resolvedWorkspacePath);
+    await expect(stat(cloneSessionPath)).rejects.toThrow();
+
+    const change = await currentChange({ cwd: workspacePath, sessionPath: cloneSessionPath });
+    expect(change.status).toBe("ok");
+    expect(change.targets).toHaveLength(1);
+    expect(change.targets[0].path).toBe(resolvedWorkspacePath);
+    expect(change.targets[0].resolution).not.toBe("invalid_active_branch");
+    await expect(stat(cloneSessionPath)).rejects.toThrow();
   });
 });

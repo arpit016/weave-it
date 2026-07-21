@@ -1,5 +1,6 @@
 import path from "node:path";
 import { pathExists } from "./files.js";
+import { slugify } from "./ids.js";
 import { defaultSessionPath, loadCurrentSession, type CurrentSession } from "./session-state.js";
 import { findWorkspaceMode, isWorkspaceMode } from "./workspace-mode.js";
 import { listReposForDisplay, readWorkspaceMetadata, type WorkspaceMetadata } from "./workspace-repos.js";
@@ -45,7 +46,7 @@ export type ShowWorkspaceJson = {
 };
 
 export type ShowWorkspaceResult = {
-  status: "ok" | "no_session";
+  status: "ok" | "not_initialized";
   message: string;
   json: ShowWorkspaceJson;
   text: string;
@@ -65,7 +66,11 @@ export async function showWorkspace(options: ShowWorkspaceOptions = {}): Promise
     });
   }
 
-  return buildRepoModeResult({ session, json: options.json ?? false });
+  return buildRepoModeResult({
+    session,
+    workspacePath: modeResult?.workspacePath,
+    json: options.json ?? false,
+  });
 }
 
 async function buildWorkspaceModeResult(input: {
@@ -95,18 +100,36 @@ async function buildWorkspaceModeResult(input: {
 
 function buildRepoModeResult(input: {
   session: CurrentSession | undefined;
+  workspacePath: string | undefined;
   json: boolean;
 }): ShowWorkspaceResult {
   if (!input.session) {
+    if (input.workspacePath) {
+      const folder = buildDerivedRootFolder(input.workspacePath);
+      const json: ShowWorkspaceJson = {
+        session: null,
+        workspace: null,
+        repos: [],
+        folders: [folder],
+      };
+      const text = repoText([folder]);
+      return {
+        status: "ok",
+        message: input.json ? JSON.stringify(json, null, 2) : text,
+        json,
+        text,
+      };
+    }
+
     const json: ShowWorkspaceJson = {
       session: null,
       workspace: null,
       repos: [],
       folders: [],
     };
-    const text = "No current Weave session found. Run `weave init` first.";
+    const text = "No Weave context found. Run `weave init` first.";
     return {
-      status: "no_session",
+      status: "not_initialized",
       message: input.json ? JSON.stringify(json, null, 2) : text,
       json,
       text,
@@ -140,6 +163,12 @@ function buildFolderOutput(id: string, folderPath: string, kind: string): ShowWo
     wiki: path.join(folderPath, "wiki"),
     metadata: path.join(folderPath, ".weave"),
   };
+}
+
+function buildDerivedRootFolder(workspacePath: string): ShowWorkspaceFolder {
+  const basename = path.basename(workspacePath);
+  const id = slugify(basename, "folder");
+  return buildFolderOutput(id, workspacePath, "app");
 }
 
 function sessionJson(session: CurrentSession | undefined): ShowWorkspaceSession | null {

@@ -17,7 +17,7 @@ export function addCommand(): Command {
 
       process.stdout.write(`${result.message}\n`);
 
-      if (result.status === "no_session") {
+      if (result.status === "not_initialized") {
         process.exitCode = 1;
       }
     });

@@ -14,7 +14,7 @@ export function workspaceCommand(): Command {
           return {
             json: result.json,
             text: result.text,
-            exitCode: result.status === "no_session" ? 1 : 0,
+            exitCode: result.status === "not_initialized" ? 1 : 0,
           };
         },
       );
